@@ -7,35 +7,29 @@
 #include <vector>
 #include "gen_win7shell.h"
 
-using namespace std;
-
 class SettingsManager
 {
 public:
-    SettingsManager(wstring Path) : mPath(Path), currentSection(SECTION_NAME_GENERAL) {};
+	explicit SettingsManager() : currentSection(SECTION_NAME_GENERAL) {};
 
-    bool ReadSettings(sSettings &Destination_struct);
-    bool WriteSettings(const sSettings &Source_struct);
+	void ReadSettings(sSettings &Destination_struct, std::vector<int> &tba);
+	void WriteSettings(const sSettings &Source_struct);
 
-    bool ReadResume(sResumeSettings &resume);
-    bool WriteResume(sResumeSettings &resume);
+	static void WriteSettings_ToForm(HWND hwnd, HWND WinampWnd, const sSettings &Settings);
+	void WriteButtons(std::vector<int> &tba);
 
-    static void WriteSettings_ToForm(HWND hwnd, HWND WinampWnd, const sSettings &Settings);
+	int GetInt(const std::wstring &key, const int default_value) const;
+	bool GetBool(const std::wstring &key, const bool default_value) const;
+	std::wstring GetString(const std::wstring &key, const std::wstring &default_value, const size_t max_size = 1024) const;
 
-    bool WriteButtons(std::vector<int> &tba);
-    bool ReadButtons(std::vector<int> &tba);
+	// all of these compare against the default value to prevent
+	// saving the value to the settings file if there's no need.
+	void WriteInt(const std::wstring &key, const int value, const int default_value) const;
+	void WriteBool(const std::wstring &key, const bool value, const bool default_value) const;
+	void WriteString(const std::wstring &key, const std::wstring &value, const std::wstring &default_value) const;
 
 private:
-    int GetInt(wstring key, int default_value);
-    bool GetBool(wstring key, bool default_value);
-    wstring GetString(wstring key, wstring default_value, size_t max_size = 1024);
-
-    bool WriteInt(wstring key, int value);
-    bool WriteBool(wstring key, bool value);
-    bool WriteString(wstring key, wstring value);
-    void ReadOldSettings(sSettings & Destination_struct);
-    wstring mPath;
-    wstring currentSection;
+	std::wstring currentSection;
 };
 
 #endif // settings_h__

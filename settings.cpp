@@ -1,450 +1,459 @@
-#include <Windows.h>
+#include <windows.h>
 #include <string>
 #include <vector>
 #include <sstream>
 #include <windowsx.h>
-#include <Commctrl.h>
+#include <strsafe.h>
+#include <commctrl.h>
 #include "settings.h"
 #include "gen_win7shell.h"
 #include "api.h"
 #include "resource.h"
+#include <sdk/nu/autowide.h>
+#include <sdk/nu/autochar.h>
+#include <sdk/nu/autocharfn.h>
 
-using namespace std;
-
-int SettingsManager::GetInt(wstring key, int default_value)
+int SettingsManager::GetInt(const std::wstring &key, const int default_value) const
 {
-    return GetPrivateProfileIntW(currentSection.c_str(), key.c_str(), default_value, mPath.c_str());
+	return GetPrivateProfileIntW(currentSection.c_str(), key.c_str(), default_value, SettingsFile.c_str());
 }
 
-bool SettingsManager::GetBool(wstring key, bool default_value)
+bool SettingsManager::GetBool(const std::wstring &key, const bool default_value) const
 {
-    return (bool)GetPrivateProfileIntW(currentSection.c_str(), key.c_str(), default_value, mPath.c_str());
+	return !!GetPrivateProfileIntW(currentSection.c_str(), key.c_str(), default_value, SettingsFile.c_str());
 }
 
-wstring SettingsManager::GetString(wstring key, wstring default_value, size_t max_size)
+std::wstring SettingsManager::GetString(const std::wstring &key, const std::wstring &default_value,
+										const size_t max_size) const
 {
-    wstring buffer;
-    buffer.resize(max_size);
-    GetPrivateProfileStringW(currentSection.c_str(), key.c_str(), default_value.c_str(),
-        &buffer[0], max_size, mPath.c_str());
-    buffer.resize(wcslen(buffer.c_str()));
-    return wstring(buffer);
+	LPWSTR _section = (LPWSTR)currentSection.c_str(),
+		   _key = (LPWSTR)key.c_str(),
+		   _default = (LPWSTR)default_value.c_str(),
+		   _file = (LPWSTR)SettingsFile.c_str();
+
+	std::string buffer;
+	buffer.resize(max_size);
+	const DWORD len = GetPrivateProfileStringA(AutoChar(_section, CP_UTF8), AutoChar(_key, CP_UTF8),
+											   AutoChar(_default, CP_UTF8), &buffer[0],
+											   max_size, AutoCharFn(_file));
+	buffer.resize(len);
+
+	if (!buffer.empty())
+	{
+		const std::wstring read = AutoWide(buffer.c_str(), CP_UTF8);
+		return read;
+	}
+	return L"";
 }
 
-bool SettingsManager::WriteInt(wstring key, int value)
+void SettingsManager::WriteInt(const std::wstring &key, const int value,
+							   const int default_value) const
 {
-    wstringstream s;
-    s << value;
-    return (bool)WritePrivateProfileStringW(currentSection.c_str(), key.c_str(), s.str().c_str(), mPath.c_str());
+	if (value != default_value)
+	{
+		wchar_t str[16] = {0};
+		StringCchPrintf(str, 16, L"%d", value);
+		WritePrivateProfileStringW(currentSection.c_str(), key.c_str(),
+								   str, SettingsFile.c_str());
+	}
+	else
+	{
+		WritePrivateProfileStringW(currentSection.c_str(), key.c_str(),
+								   NULL, SettingsFile.c_str());
+	}
 }
 
-bool SettingsManager::WriteBool(wstring key, bool value)
+void SettingsManager::WriteBool(const std::wstring &key, const bool value,
+								const bool default_value) const
 {
-    wstring s;
-    s = (value ? L"1" : L"0");
-    return (bool)WritePrivateProfileStringW(currentSection.c_str(), key.c_str(), s.c_str(), mPath.c_str());
+	WritePrivateProfileStringW(currentSection.c_str(), key.c_str(), ((value != default_value) ?
+							   (value ? L"1" : L"0") : NULL), SettingsFile.c_str());
 }
 
-bool SettingsManager::WriteString(wstring key, wstring value)
+void SettingsManager::WriteString(const std::wstring &key, const std::wstring &value,
+								  const std::wstring &default_value) const
 {
-    return (bool)WritePrivateProfileStringW(currentSection.c_str(), key.c_str(), value.c_str(), mPath.c_str());
+	LPWSTR _section = (LPWSTR)currentSection.c_str(),
+		   _key = (LPWSTR)key.c_str(),
+		   _file = (LPWSTR)SettingsFile.c_str();
+	if (value != default_value)
+	{
+		LPWSTR _value = (LPWSTR)value.c_str();
+		WritePrivateProfileStringA(AutoChar(_section, CP_UTF8), AutoChar(_key, CP_UTF8),
+								   AutoChar(_value, CP_UTF8), AutoCharFn(_file));
+	}
+	else
+	{
+		WritePrivateProfileStringA(AutoChar(_section, CP_UTF8), AutoChar(_key, CP_UTF8),
+								   NULL, AutoCharFn(_file));
+	}
 }
 
-bool SettingsManager::ReadSettings(sSettings &Destination_struct)
+void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<int> &tba)
 {
-    bool result(true);
-    currentSection = SECTION_NAME_GENERAL;
-    ZeroMemory(&Destination_struct, sizeof(Destination_struct));
+	currentSection = SECTION_NAME_GENERAL;
 
-    // Read all values from .ini file to Destination_struct
-    Destination_struct.Add2RecentDocs = GetBool(L"Add2RecentDocs", true);
-    Destination_struct.Antialias = GetBool(L"AntiAlias", true);
-    Destination_struct.AsIcon = GetBool(L"AsIcon", true);
-    Destination_struct.BGPath = GetString(L"BGPath", L"", MAX_PATH);    
-    Destination_struct.DisableUpdates = GetBool(L"DisableUpdates", false);
-    Destination_struct.ForceVersion = GetBool(L"ForceVersion", false);
-    Destination_struct.JLbms = GetBool(L"JLBookMarks", true);
-    Destination_struct.JLfrequent = GetBool(L"JLFrequent", true);
-    Destination_struct.JLpl = GetBool(L"JLPlayList", true);
-    Destination_struct.JLrecent = GetBool(L"JLRecent", true);
-    Destination_struct.JLtasks = GetBool(L"JLTasks", true);
-    Destination_struct.Overlay = GetBool(L"IconOverlay", true);
-    Destination_struct.Progressbar = GetBool(L"ProgressBar", true);
-    Destination_struct.RemoveTitle = GetBool(L"RemoveTitle", false);
-    Destination_struct.Revertto = GetInt(L"RevertTo", BG_TRANSPARENT);
-    Destination_struct.Shrinkframe = GetBool(L"ShrinkFrame", false);
-    Destination_struct.Stoppedstatus = GetBool(L"StoppedStatusOn", true);
-    Destination_struct.Streamstatus = GetBool(L"StreamStatusOn", true);
-    Destination_struct.Text = GetString(L"Text", 
-        L"%c%%s%%curpl% of %totalpl%. ‡%c%%s%%title%‡%c%%s%%artist%‡‡%c%%s%%curtime%/%totaltime%‡%c%%s%Track #: %track%        Volume: %volume%%");
-    Destination_struct.Thumbnailbackground = GetInt(L"ThumbnailBackGround", BG_ALBUMART);
-    Destination_struct.Thumbnailbuttons = GetBool(L"ThumbnailButtons", true);
-    Destination_struct.Thumbnailenabled = GetBool(L"ThumbnailEnabled", true);
-    Destination_struct.Thumbnailpb = GetBool(L"ThumbnailPB", false);
-    Destination_struct.VolumeControl = GetBool(L"VolumeControl", false);
-    Destination_struct.VuMeter = GetBool(L"VUMeter", false);   
-    Destination_struct.LowFrameRate = GetBool(L"LowFrameRate", false);
-    Destination_struct.LastTab = GetInt(L"LastTab", 0);
-    Destination_struct.LastUpdateCheck = GetInt(L"LastUpdateCheck", 0);
-    Destination_struct.IconSize = GetInt(L"IconSize", 50);
-    Destination_struct.IconPosition = GetInt(L"IconPosition", IP_UPPERLEFT);
-    Destination_struct.disallow_peek = GetBool(L"disallow_peek", true);
-    Destination_struct.BG_Transparency = GetInt(L"BG_Transparency", 0);
-    Destination_struct.LastMessage = GetInt(L"last_message", -1);
-  
-    // Decoding bool[16] Buttons
-    wstring Buttons = GetString(L"Buttons", L"1111100000000000");
-    for (int i = 0; i!= 16; ++i)
-    {
-        Destination_struct.Buttons[i] = (Buttons[i] == '1' ? true : false);
-    }
+	// Read all values from .ini file to Destination_struct
+	Destination_struct.Add2RecentDocs = GetBool(L"Add2RecentDocs", true);
+	Destination_struct.Antialias = GetBool(L"AntiAlias", true);
+	Destination_struct.AsIcon = GetBool(L"AsIcon", true);
+	wcsncpy(Destination_struct.BGPath, GetString(L"BGPath", L"", MAX_PATH).c_str(),
+												  ARRAYSIZE(Destination_struct.BGPath));
+	Destination_struct.JLbms = GetBool(L"JLBookMarks", true);
+	Destination_struct.JLfrequent = GetBool(L"JLFrequent", true);
+	Destination_struct.JLpl = GetBool(L"JLPlayList", true);
+	Destination_struct.JLrecent = GetBool(L"JLRecent", true);
+	Destination_struct.JLtasks = GetBool(L"JLTasks", true);
+	Destination_struct.Overlay = GetBool(L"IconOverlay", true);
+	Destination_struct.Progressbar = GetBool(L"Progress", false);
+	Destination_struct.Revertto = GetInt(L"Revert", BG_TRANSPARENT);
+	Destination_struct.Shrinkframe = GetBool(L"ShrinkFrame", false);
+	Destination_struct.Stoppedstatus = GetBool(L"StoppedStatusOn", true);
+	Destination_struct.Streamstatus = GetBool(L"StreamStatusOn", true);
+	wcsncpy(Destination_struct.Text, GetString(L"Text", L"‡").c_str(),
+											   ARRAYSIZE(Destination_struct.Text));
 
-    if (!GetBool(L"OldSettings", false))
-    {
-        ReadOldSettings(Destination_struct);
-        WriteBool(L"OldSettings", true);
-    }
+	if (!lstrcmp(Destination_struct.Text, L"‡"))
+	{
+		wcsncpy(Destination_struct.Text,
+				L"%c%%s%%curpl% of %totalpl%.\\r%c%%s%%title%"
+				L"\\r%c%%s%%artist%\\r\\r%c%%s%%curtime%/%totaltime%"
+				L"\\r%c%%s%Track #: %track%        Volume: %volume%%",
+				ARRAYSIZE(Destination_struct.Text));
+	}
 
-    // Read font
-    currentSection = SECTION_NAME_FONT;
+	Destination_struct.Thumbnailbackground = GetInt(L"ThumbnailBG", BG_WINAMP);
+	Destination_struct.Thumbnailbuttons = GetBool(L"ThumbnailButtons", true);
+	Destination_struct.Thumbnailpb = GetBool(L"ThumbnailPB", false);
+#ifdef USE_MOUSE
+	Destination_struct.VolumeControl = GetBool(L"VolumeControl", false);
+#endif
+	Destination_struct.VuMeter = GetBool(L"VUMeter", false);   
+	Destination_struct.LowFrameRate = GetBool(L"LowFrameRate", false);
+	Destination_struct.LastTab = GetInt(L"LastTab", 0);
+	Destination_struct.IconSize = GetInt(L"IconSize", 50);
+	Destination_struct.IconPosition = GetInt(L"IconPosition", IP_UPPERLEFT);
+	Destination_struct.BG_Transparency = GetInt(L"BG_Transparency", 80);
 
-    if (!GetPrivateProfileStructW(SECTION_NAME_FONT, L"font", &Destination_struct.font, 
-        sizeof(Destination_struct.font), mPath.c_str()))
-    {
-        LOGFONT ft = {};
-        wcsncpy_s(ft.lfFaceName, L"Segoe UI", 32);
-        ft.lfHeight = -14;
-        ft.lfWeight = FW_NORMAL;
-        Destination_struct.font = ft;
-    }
+	// Decoding bool[16] Buttons
+	const std::wstring Buttons = GetString(L"Buttons", L"1111100000000000");
+	for (int i = 0; i != 16; ++i)
+	{
+		Destination_struct.Buttons[i] = (Buttons[i] == '1' ? true : false);
+	}
 
-    Destination_struct.text_color = GetInt(L"color", RGB(255,255,255));
-    Destination_struct.bgcolor = GetInt(L"bgcolor", RGB(0,0,0));
+	// Read font
+	currentSection = SECTION_NAME_FONT;
 
-    return result;
+	if (!GetPrivateProfileStructW(SECTION_NAME_FONT, L"font", &Destination_struct.font,
+								  sizeof(Destination_struct.font), SettingsFile.c_str()))
+	{
+		wcsncpy_s(Destination_struct.font.lfFaceName, L"Segoe UI",
+				  ARRAYSIZE(Destination_struct.font.lfFaceName));
+		Destination_struct.font.lfHeight = -13;
+		Destination_struct.font.lfWeight = FW_NORMAL;
+	}
+
+	Destination_struct.text_color = GetInt(L"color", RGB(255, 255, 255));
+	Destination_struct.bgcolor = GetInt(L"bgcolor", RGB(0, 0, 0));
+
+	Destination_struct.MFT = GetInt(L"MFT", 200);
+	Destination_struct.MST = GetInt(L"MST", 500);
+	Destination_struct.TFT = GetInt(L"TFT", 33);
+	Destination_struct.TST = GetInt(L"TST", 66);
+
+	// Read buttons
+	std::wstring text;
+	text.resize(100);
+	const DWORD len = GetPrivateProfileString(SECTION_NAME_GENERAL, L"ThumbButtons",
+											  L"1300,1301,1302,1303,1308,1314", &text[0],
+											  99, SettingsFile.c_str());
+	if (len > 0)
+	{
+		text.resize(len);
+	}
+
+	tba.clear();
+	std::wstring::size_type pos = std::wstring::npos;
+	do
+	{
+		pos = text.find_first_of(L',');
+		std::wstringstream buffer;
+		buffer << text.substr(0, pos);
+
+		int code = 0;
+		buffer >> code;
+		if (code < 1300)
+		{
+			text.erase(0, pos + 1);
+			continue;
+		}
+
+		tba.push_back(code);
+		text.erase(0, pos+1);
+	} 
+	while (pos != std::wstring::npos);
+
+	if (tba.empty())
+	{
+		tba.push_back(1300);
+		tba.push_back(1301);
+		tba.push_back(1302);
+		tba.push_back(1303);
+		tba.push_back(1308);
+	}
 }
 
-bool SettingsManager::WriteSettings(const sSettings &Source_struct)
+void SettingsManager::WriteSettings(const sSettings &Source_struct)
 {
-    int result = 1;
-    currentSection = SECTION_NAME_GENERAL;
+	currentSection = SECTION_NAME_GENERAL;
 
-    // Write values form Source_struct to .ini file
-    result = result & (int)WriteBool(L"Add2RecentDocs", Source_struct.Add2RecentDocs);
-    result = result & (int)WriteBool(L"AntiAlias", Source_struct.Antialias);
-    result = result & (int)WriteBool(L"AsIcon", Source_struct.AsIcon);
-    result = result & (int)WriteString(L"BGPath", Source_struct.BGPath);
-    result = result & (int)WriteBool(L"DisableUpdates", Source_struct.DisableUpdates);
-    result = result & (int)WriteBool(L"ForceVersion", Source_struct.ForceVersion);
-    result = result & (int)WriteBool(L"JLBookMarks", Source_struct.JLbms);
-    result = result & (int)WriteBool(L"JLFrequent", Source_struct.JLfrequent);
-    result = result & (int)WriteBool(L"JLPlayList", Source_struct.JLpl);
-    result = result & (int)WriteBool(L"JLRecent", Source_struct.JLrecent);
-    result = result & (int)WriteBool(L"JLTasks", Source_struct.JLtasks);
-    result = result & (int)WriteBool(L"IconOverlay", Source_struct.Overlay);
-    result = result & (int)WriteBool(L"ProgressBar", Source_struct.Progressbar);
-    result = result & (int)WriteBool(L"RemoveTitle", Source_struct.RemoveTitle);
-    result = result & (int)WriteInt(L"RevertTo", Source_struct.Revertto);
-    result = result & (int)WriteBool(L"ShrinkFrame", Source_struct.Shrinkframe);
-    result = result & (int)WriteBool(L"StoppedStatusOn", Source_struct.Stoppedstatus);
-    result = result & (int)WriteBool(L"StreamStatusOn", Source_struct.Streamstatus);
-    result = result & (int)WriteString(L"Text", Source_struct.Text);
-    result = result & (int)WriteInt(L"ThumbnailBackGround", Source_struct.Thumbnailbackground);
-    result = result & (int)WriteBool(L"ThumbnailButtons", Source_struct.Thumbnailbuttons);
-    result = result & (int)WriteBool(L"ThumbnailEnabled", Source_struct.Thumbnailenabled);
-    result = result & (int)WriteBool(L"ThumbnailPB", Source_struct.Thumbnailpb);
-    result = result & (int)WriteBool(L"VolumeControl", Source_struct.VolumeControl);
-    result = result & (int)WriteBool(L"VUMeter", Source_struct.VuMeter);
-    result = result & (int)WriteBool(L"LowFrameRate", Source_struct.LowFrameRate);
-    result = result & (int)WriteInt(L"LastTab", Source_struct.LastTab);
-    result = result & (int)WriteInt(L"LastUpdateCheck", Source_struct.LastUpdateCheck);
-    result = result & (int)WriteInt(L"IconSize", Source_struct.IconSize);
-    result = result & (int)WriteInt(L"IconPosition", Source_struct.IconPosition);
-    result = result & (int)WriteBool(L"disallow_peek", Source_struct.disallow_peek);
-    result = result & (int)WriteInt(L"BG_Transparency", Source_struct.BG_Transparency);
-    result = result & (int)WriteInt(L"last_message", Source_struct.LastMessage);
+	// Write values form Source_struct to .ini file
+	WriteBool(L"Add2RecentDocs", Source_struct.Add2RecentDocs, true);
+	WriteBool(L"AntiAlias", Source_struct.Antialias, true);
+	WriteBool(L"AsIcon", Source_struct.AsIcon, true);
+	WriteString(L"BGPath", Source_struct.BGPath, L"");
+	WriteBool(L"JLBookMarks", Source_struct.JLbms, true);
+	WriteBool(L"JLFrequent", Source_struct.JLfrequent, true);
+	WriteBool(L"JLPlayList", Source_struct.JLpl, true);
+	WriteBool(L"JLRecent", Source_struct.JLrecent, true);
+	WriteBool(L"JLTasks", Source_struct.JLtasks, true);
+	WriteBool(L"IconOverlay", Source_struct.Overlay, true);
+	WriteBool(L"Progress", Source_struct.Progressbar, false);
+	WriteInt(L"Revert", Source_struct.Revertto, BG_TRANSPARENT);
+	WriteBool(L"ShrinkFrame", Source_struct.Shrinkframe, false);
+	WriteBool(L"StoppedStatusOn", Source_struct.Stoppedstatus, true);
+	WriteBool(L"StreamStatusOn", Source_struct.Streamstatus, true);
+	WriteString(L"Text", Source_struct.Text, L"%c%%s%%curpl% of %totalpl%."
+				L"\\r%c%%s%%title%\\r%c%%s%%artist%\\r\\r%c%%s"
+				L"%%curtime%/%totaltime%\\r%c%%s%Track #: "
+				L"%track%        Volume: %volume%%");
+	WriteInt(L"ThumbnailBG", Source_struct.Thumbnailbackground, BG_WINAMP);
+	WriteBool(L"ThumbnailButtons", Source_struct.Thumbnailbuttons, true);
+	WriteBool(L"ThumbnailPB", Source_struct.Thumbnailpb, false);
+#ifdef USE_MOUSE
+	WriteBool(L"VolumeControl", Source_struct.VolumeControl, false);
+#endif
+	WriteBool(L"VUMeter", Source_struct.VuMeter, false);
+	WriteBool(L"LowFrameRate", Source_struct.LowFrameRate, false);
+	WriteInt(L"LastTab", Source_struct.LastTab, 0);
+	WriteInt(L"IconSize", Source_struct.IconSize, 50);
+	WriteInt(L"IconPosition", Source_struct.IconPosition, IP_UPPERLEFT);
+	WriteInt(L"BG_Transparency", Source_struct.BG_Transparency, 80);
 
-    // Encoding bool[16] Buttons
-    wstringstream s;
-    for (int i = 0; i != 16; ++i)
-    {
-        s << Source_struct.Buttons[i];
-    }
-    result = result & (int)WriteString(L"Buttons", s.str());
+	// Encoding bool[16] Buttons
+	std::wstringstream s;
+	for (int i = 0; i != 16; ++i)
+	{
+		s << Source_struct.Buttons[i];
+	}
+	WriteString(L"Buttons", s.str(), L"1111100000000000");
 
-    // Font
-    currentSection = SECTION_NAME_FONT;
-    result = result & (int)WritePrivateProfileStructW(SECTION_NAME_FONT, L"font", (LPVOID)(&Source_struct.font), 
-        sizeof(Source_struct.font), mPath.c_str());
-    result = result * (int)WriteInt(L"color", Source_struct.text_color);
-    result = result * (int)WriteInt(L"bgcolor", Source_struct.bgcolor);
-    
-    return (result == 1);
-}
+	// Font
+	currentSection = SECTION_NAME_FONT;
 
-bool SettingsManager::ReadResume(sResumeSettings &resume)
-{
-    ZeroMemory(&resume, sizeof(resume));
-    currentSection = SECTION_NAME_RESUME;
-    resume.ResumePosition = GetInt(L"ResumePosition", 0);
-    resume.ResumeTime = GetInt(L"ResumeTime", 0);
+	const LOGFONT ft = {-13, 0, 0, FW_NORMAL, 0, 0, 0, 0, 0, 0, 0, 0, 0, L"Segoe UI"};
+	if (memcmp(&ft, &Source_struct.font, sizeof(LOGFONT)))
+	{
+		WritePrivateProfileStructW(currentSection.c_str(), L"font", (LPVOID)(&Source_struct.font),
+								   sizeof(Source_struct.font), SettingsFile.c_str());
+	}
+	else
+	{
+		WritePrivateProfileStructW(currentSection.c_str(), L"font",
+								   NULL, 0, SettingsFile.c_str());
+	}
 
-    return true;
-}
+	WriteInt(L"color", Source_struct.text_color, RGB(255, 255, 255));
+	WriteInt(L"bgcolor", Source_struct.bgcolor, RGB(0, 0, 0));
 
-bool SettingsManager::WriteResume(sResumeSettings &resume)
-{
-    int result = 0;
-    currentSection = SECTION_NAME_RESUME;
-    result = result & (int)WriteInt(L"ResumePosition", resume.ResumePosition);
-    result = result & (int)WriteInt(L"ResumeTime", resume.ResumeTime);
-    
-    return (result == 1);
+	// now we see if the file remaining is empty as
+	// there's no point in keeping an empty file...
+	if (PathFileExists(SettingsFile.c_str()))
+	{
+		HANDLE hFile = INVALID_HANDLE_VALUE;
+		DWORD size = INVALID_FILE_SIZE;
+		if ((hFile = CreateFile(SettingsFile.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING,
+								FILE_ATTRIBUTE_NORMAL, NULL)) != INVALID_HANDLE_VALUE)
+		{
+			size = GetFileSize(hFile, NULL);
+			CloseHandle(hFile);
+		}
+
+		if (!size)
+		{
+			DeleteFile(SettingsFile.c_str());
+		}
+	}
 }
 
 void SettingsManager::WriteSettings_ToForm(HWND hwnd, HWND WinampWnd, const sSettings &Settings)
 {
-    //Aero peek settings
-    switch (Settings.Thumbnailbackground)
-    {
-    case BG_TRANSPARENT:
-        SendMessage(GetDlgItem(hwnd, IDC_RADIO1), (UINT) BM_SETCHECK, BST_CHECKED , 0);
-        break;
-    case BG_ALBUMART:
-        SendMessage(GetDlgItem(hwnd, IDC_RADIO2), (UINT) BM_SETCHECK, BST_CHECKED , 0);
-        break;
-    case BG_CUSTOM:
-        SendMessage(GetDlgItem(hwnd, IDC_RADIO3), (UINT) BM_SETCHECK, BST_CHECKED , 0);
-        break;
-    }
+	//Aero peek settings
+	switch (Settings.Thumbnailbackground)
+	{
+		case BG_TRANSPARENT:
+		{
+			SendMessage(GetDlgItem(hwnd, IDC_RADIO1), (UINT)BM_SETCHECK, BST_CHECKED, 0);
+			break;
+		}
+		case BG_ALBUMART:
+		{
+			SendMessage(GetDlgItem(hwnd, IDC_RADIO2), (UINT)BM_SETCHECK, BST_CHECKED, 0);
+			break;
+		}
+		case BG_CUSTOM:
+		{
+			SendMessage(GetDlgItem(hwnd, IDC_RADIO3), (UINT)BM_SETCHECK, BST_CHECKED, 0);
+			break;
+		}
+		case BG_WINAMP:
+		{
+			SendMessage(GetDlgItem(hwnd, IDC_RADIO9), (UINT)BM_SETCHECK, BST_CHECKED, 0);
+			// this is so when the main mode is toggled that the image has something valid
+			SendMessage(GetDlgItem(hwnd, IDC_RADIO2), (UINT)BM_SETCHECK, BST_CHECKED, 0);
+			break;
+		}
+	}
 
-    switch (Settings.IconPosition)
-    {
-    case IP_UPPERLEFT:
-        SendMessage(GetDlgItem(hwnd, IDC_RADIO4), (UINT) BM_SETCHECK, BST_CHECKED , 0);
-        break;
-    case IP_LOWERLEFT:
-        SendMessage(GetDlgItem(hwnd, IDC_RADIO7), (UINT) BM_SETCHECK, BST_CHECKED , 0);
-        break;
-    case IP_UPPERRIGHT:
-        SendMessage(GetDlgItem(hwnd, IDC_RADIO6), (UINT) BM_SETCHECK, BST_CHECKED , 0);
-        break;
-    case IP_LOWERRIGHT:
-        SendMessage(GetDlgItem(hwnd, IDC_RADIO8), (UINT) BM_SETCHECK, BST_CHECKED , 0);
-        break;
-    }
+	if (Settings.Thumbnailbackground != BG_WINAMP)
+	{
+		SendMessage(GetDlgItem(hwnd, IDC_RADIO10), (UINT)BM_SETCHECK, BST_CHECKED, 0);
+	}
 
-    SendMessage(GetDlgItem(hwnd, IDC_COMBO1), CB_ADDSTRING, 0, (LPARAM)WASABI_API_LNGSTRINGW(IDS_TRANSPARENT));
-    SendMessage(GetDlgItem(hwnd, IDC_COMBO1), CB_ADDSTRING, 0, (LPARAM)WASABI_API_LNGSTRINGW(IDS_ALBUM_ART));
-    SendMessage(GetDlgItem(hwnd, IDC_COMBO1), CB_ADDSTRING, 0, (LPARAM)WASABI_API_LNGSTRINGW(IDS_CUSTOM_BACKGROUND));
+	switch (Settings.IconPosition)
+	{
+		case IP_UPPERLEFT:
+		{
+			SendMessage(GetDlgItem(hwnd, IDC_RADIO4), (UINT)BM_SETCHECK, BST_CHECKED, 0);
+			break;
+		}
+		case IP_LOWERLEFT:
+		{
+			SendMessage(GetDlgItem(hwnd, IDC_RADIO7), (UINT)BM_SETCHECK, BST_CHECKED, 0);
+			break;
+		}
+		case IP_UPPERRIGHT:
+		{
+			SendMessage(GetDlgItem(hwnd, IDC_RADIO6), (UINT)BM_SETCHECK, BST_CHECKED, 0);
+			break;
+		}
+		case IP_LOWERRIGHT:
+		{
+			SendMessage(GetDlgItem(hwnd, IDC_RADIO8), (UINT)BM_SETCHECK, BST_CHECKED, 0);
+			break;
+		}
+	}
 
-    SendMessage(GetDlgItem(hwnd, IDC_COMBO1), CB_SETCURSEL, Settings.Revertto, 0);
+	SendMessage(GetDlgItem(hwnd, IDC_COMBO1), CB_ADDSTRING, 0, (LPARAM)WASABI_API_LNGSTRINGW(IDS_TRANSPARENT));
+	SendMessage(GetDlgItem(hwnd, IDC_COMBO1), CB_ADDSTRING, 0, (LPARAM)WASABI_API_LNGSTRINGW(IDS_ALBUM_ART));
+	SendMessage(GetDlgItem(hwnd, IDC_COMBO1), CB_ADDSTRING, 0, (LPARAM)WASABI_API_LNGSTRINGW(IDS_CUSTOM_BACKGROUND));
 
-    //Player control buttons
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK6), (UINT) BM_SETCHECK, Settings.Thumbnailbuttons, 0);
+	SendMessage(GetDlgItem(hwnd, IDC_COMBO1), CB_SETCURSEL, Settings.Revertto, 0);
 
-    //Progressbar
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK2), (UINT) BM_SETCHECK, Settings.Progressbar, 0);
+	//Player control buttons
+	SendMessage(GetDlgItem(hwnd, IDC_CHECK6), (UINT) BM_SETCHECK, Settings.Thumbnailbuttons, 0);
 
-    //Streamstatus
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK4), (UINT) BM_SETCHECK, Settings.Streamstatus, 0);
+	//Progressbar
+	SendMessage(GetDlgItem(hwnd, IDC_CHECK2), (UINT) BM_SETCHECK, Settings.Progressbar, 0);
 
-    //Stoppedstatus
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK5), (UINT) BM_SETCHECK, Settings.Stoppedstatus, 0);
+	//Streamstatus
+	SendMessage(GetDlgItem(hwnd, IDC_CHECK4), (UINT) BM_SETCHECK, Settings.Streamstatus, 0);
 
-    //Overlay
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK3), (UINT) BM_SETCHECK, Settings.Overlay, 0);
+	//Stoppedstatus
+	SendMessage(GetDlgItem(hwnd, IDC_CHECK5), (UINT) BM_SETCHECK, Settings.Stoppedstatus, 0);
 
-    //antialias
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK8), (UINT) BM_SETCHECK, Settings.Antialias, 0);
+	//Overlay
+	SendMessage(GetDlgItem(hwnd, IDC_CHECK3), (UINT) BM_SETCHECK, Settings.Overlay, 0);
 
-    //shrinkframe
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK1), (UINT) BM_SETCHECK, Settings.Shrinkframe, 0);
+	//antialias
+	SendMessage(GetDlgItem(hwnd, IDC_CHECK8), (UINT) BM_SETCHECK, Settings.Antialias, 0);
 
-    //enable thumbnail
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK7), (UINT) BM_SETCHECK, Settings.Thumbnailenabled, 0);
+	//shrinkframe
+	SendMessage(GetDlgItem(hwnd, IDC_CHECK1), (UINT) BM_SETCHECK, Settings.Shrinkframe, 0);
 
-    //disable updated
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK9), (UINT) BM_SETCHECK, Settings.DisableUpdates, 0);
+	//Show image as icon
+	SendMessage(GetDlgItem(hwnd, IDC_CHECK25), (UINT) BM_SETCHECK, Settings.AsIcon, 0);
 
-    //remove winamp title
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK10), (UINT) BM_SETCHECK, Settings.RemoveTitle, 0);
+	//VU Meter
+	SendMessage(GetDlgItem(hwnd, IDC_CHECK26), (UINT) BM_SETCHECK, Settings.VuMeter, 0);
 
-    //Show image as icon
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK25), (UINT) BM_SETCHECK, Settings.AsIcon, 0);
+	//Thumbnail pb
+	SendMessage(GetDlgItem(hwnd, IDC_CHECK29), (UINT) BM_SETCHECK, Settings.Thumbnailpb, 0);
 
-    //VU Meter
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK26), (UINT) BM_SETCHECK, Settings.VuMeter, 0);
+	//Add 2 recent
+	SendMessage(GetDlgItem(hwnd, IDC_CHECK_A2R), (UINT) BM_SETCHECK, !Settings.Add2RecentDocs, 0);
 
-    //Thumbnail pb
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK29), (UINT) BM_SETCHECK, Settings.Thumbnailpb, 0);
+	SendMessage(GetDlgItem(hwnd, IDC_CHECK30), (UINT) BM_SETCHECK, Settings.JLrecent, 0);
+	SendMessage(GetDlgItem(hwnd, IDC_CHECK31), (UINT) BM_SETCHECK, Settings.JLfrequent, 0);
+	SendMessage(GetDlgItem(hwnd, IDC_CHECK32), (UINT) BM_SETCHECK, Settings.JLtasks, 0);
+	SendMessage(GetDlgItem(hwnd, IDC_CHECK33), (UINT) BM_SETCHECK, Settings.JLbms, 0);
+	SendMessage(GetDlgItem(hwnd, IDC_CHECK34), (UINT) BM_SETCHECK, Settings.JLpl, 0);
 
-    //Disallow aero peek
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK_AEROPEEK), (UINT) BM_SETCHECK, Settings.disallow_peek, 0);    
+#ifdef USE_MOUSE
+	SendMessage(GetDlgItem(hwnd, IDC_CHECK35), (UINT) BM_SETCHECK, Settings.VolumeControl, 0);
+#endif
 
-    //Add 2 recent
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK_A2R), (UINT) BM_SETCHECK, !Settings.Add2RecentDocs, 0);    
+	SendMessage(GetDlgItem(hwnd, IDC_CHECK36), (UINT) BM_SETCHECK, static_cast<WPARAM>(Settings.LowFrameRate), 0);
 
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK30), (UINT) BM_SETCHECK, Settings.JLrecent, 0);
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK31), (UINT) BM_SETCHECK, Settings.JLfrequent, 0);
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK32), (UINT) BM_SETCHECK, Settings.JLtasks, 0);
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK33), (UINT) BM_SETCHECK, Settings.JLbms, 0);
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK34), (UINT) BM_SETCHECK, Settings.JLpl, 0);
+	//Trackbar
+	SendMessage(GetDlgItem(hwnd, IDC_SLIDER1), TBM_SETPOS, TRUE, Settings.IconSize);
+	SendMessage(GetDlgItem(hwnd, IDC_SLIDER_TRANSPARENCY), TBM_SETPOS, TRUE, Settings.BG_Transparency);
 
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK35), (UINT) BM_SETCHECK, Settings.VolumeControl, 0);
-    SendMessage(GetDlgItem(hwnd, IDC_CHECK36), (UINT) BM_SETCHECK, static_cast<WPARAM>(Settings.LowFrameRate), 0);
+	std::wstringstream size;
+	size << "Icon size (" << SendMessage(GetDlgItem(hwnd, IDC_SLIDER1), TBM_GETPOS, NULL, NULL) << "%)";
+	SetWindowTextW(GetDlgItem(hwnd, IDC_ICONSIZE), size.str().c_str());
 
-    //Trackbar
-    SendMessage(GetDlgItem(hwnd, IDC_SLIDER1), TBM_SETPOS, TRUE, Settings.IconSize);
-    SendMessage(GetDlgItem(hwnd, IDC_SLIDER_TRANSPARENCY), TBM_SETPOS, TRUE, Settings.BG_Transparency);
-    
-    wstringstream size;
-    size << "Icon size (" << SendMessage(GetDlgItem(hwnd, IDC_SLIDER1), TBM_GETPOS, NULL, NULL) << "%)";
-    SetWindowTextW(GetDlgItem(hwnd, IDC_ICONSIZE), size.str().c_str());
+	size.str(L"");
+	size << SendMessage(GetDlgItem(hwnd, IDC_SLIDER_TRANSPARENCY), TBM_GETPOS, NULL, NULL) << "%";
+	SetWindowTextW(GetDlgItem(hwnd, IDC_TRANSPARENCY_PERCENT), size.str().c_str());
 
-    size.str(L"");
-    size << SendMessage(GetDlgItem(hwnd, IDC_SLIDER_TRANSPARENCY), TBM_GETPOS, NULL, NULL) << "%";
-    SetWindowTextW(GetDlgItem(hwnd, IDC_TRANSPARENCY_PERCENT), size.str().c_str());
+	SetWindowText(GetDlgItem(hwnd, IDC_EDIT2), Settings.BGPath);
 
-    SetWindowText(GetDlgItem(hwnd, IDC_EDIT2), Settings.BGPath.c_str());
+	std::wstring tmpbuf = Settings.Text;
+	std::wstring::size_type pos = std::wstring::npos;
+	do 
+	{
+		pos = tmpbuf.find(L"\\r");
+		if (pos != std::wstring::npos)
+		{
+			tmpbuf.replace(pos, 2, L"\r\n");
+		}
+	}
+	while (pos != std::wstring::npos);
 
-    std::wstring tmpbuf = Settings.Text;
-    std::wstring::size_type pos = std::wstring::npos;
-    do 
-    {
-        pos = tmpbuf.find(__T("‡"));
-        if (pos != std::wstring::npos)
-            tmpbuf.replace(pos, 1, __T("\xD\xA"));
-    }
-    while (pos != std::wstring::npos);
+	SetWindowText(GetDlgItem(hwnd, IDC_EDIT3), tmpbuf.c_str());
 
-    SetWindowText(GetDlgItem(hwnd, IDC_EDIT3), tmpbuf.c_str());
-
-    EnableWindow(GetDlgItem(hwnd, IDC_CHECK4), Settings.Progressbar);
-    EnableWindow(GetDlgItem(hwnd, IDC_CHECK5), Settings.Progressbar);
-    EnableWindow(GetDlgItem(hwnd, IDC_CHECK27), Settings.Thumbnailbuttons);
+	EnableWindow(GetDlgItem(hwnd, IDC_CHECK4), Settings.Progressbar);
+	EnableWindow(GetDlgItem(hwnd, IDC_CHECK5), Settings.Progressbar);
+	EnableWindow(GetDlgItem(hwnd, IDC_CHECK27), Settings.Thumbnailbuttons);
 }
 
-void SettingsManager::ReadOldSettings( sSettings & Destination_struct )
+void SettingsManager::WriteButtons(std::vector<int> &tba)
 {
-    struct sSettings_old 
-    {
-        bool Thumbnailenabled;
-        char Thumbnailbackground;
-        bool Thumbnailbuttons;
-        bool Progressbar;
-        bool Streamstatus;
-        bool Stoppedstatus;
-        bool Overlay;
-        bool Add2RecentDocs;
-        bool Antialias;
-        bool Shrinkframe;
-        bool ForceVersion;
-        bool DisableUpdates;
-        bool RemoveTitle;
-        bool AsIcon;
-        bool VuMeter;
-        bool Buttons[16];
-        bool Thumbnailpb;
-        bool JLrecent;
-        bool JLfrequent;
-        bool JLtasks;
-        bool JLbms;
-        bool JLpl;
-        bool VolumeControl;
-        char Revertto;
-    };
+	if (tba.size() > 7)
+	{
+		tba.resize(7);
+	}
 
-    sSettings_old old_settings = {};
+	std::wstringstream button_TextStream;
 
-    if (!GetPrivateProfileStruct(__T("win7shell"), __T("settings"), &old_settings, sizeof(old_settings), mPath.c_str()))
-    {
-        return;
-    }
-    else
-    {        
-        Destination_struct.Add2RecentDocs = old_settings.Add2RecentDocs;
-        Destination_struct.Antialias = old_settings.Antialias;
-        Destination_struct.AsIcon = old_settings.AsIcon;
-        std::copy(old_settings.Buttons, old_settings.Buttons+16, Destination_struct.Buttons);
-        Destination_struct.DisableUpdates = old_settings.DisableUpdates;
-        Destination_struct.ForceVersion = old_settings.ForceVersion;
-        Destination_struct.JLbms = old_settings.JLbms;
-        Destination_struct.JLfrequent = old_settings.JLfrequent;
-        Destination_struct.JLpl = true;
-        Destination_struct.JLrecent = old_settings.JLrecent;
-        Destination_struct.JLtasks = old_settings.JLtasks;
-        Destination_struct.Overlay = old_settings.Overlay;
-        Destination_struct.Progressbar = old_settings.Progressbar;
-        Destination_struct.RemoveTitle = old_settings.RemoveTitle;
-        Destination_struct.Revertto = old_settings.Revertto;
-        Destination_struct.Shrinkframe = old_settings.Shrinkframe;
-        Destination_struct.Stoppedstatus = old_settings.Stoppedstatus;
-        Destination_struct.Streamstatus = old_settings.Streamstatus;
-        Destination_struct.Thumbnailbackground = old_settings.Thumbnailbackground;
-        Destination_struct.Thumbnailbuttons = old_settings.Thumbnailbuttons;
-        Destination_struct.Thumbnailenabled = old_settings.Thumbnailenabled;
-        Destination_struct.Thumbnailpb = old_settings.Thumbnailpb;
-        Destination_struct.VuMeter = old_settings.VuMeter;
-    }
-}
+	for (size_t i = 0; i != tba.size(); ++i)
+	{
+		button_TextStream << tba[i] << ",";
+	}
 
-bool SettingsManager::WriteButtons(std::vector<int> &tba)
-{
-    if (tba.size() > 7)
-    {
-        tba.resize(7);
-    }
+	std::wstring button_Text = button_TextStream.str();
+	button_Text.erase(button_Text.length() - 1, 1);
 
-    std::wstringstream button_TextStream;
-
-    for (int i = 0; i != tba.size(); ++i)
-    {        
-        button_TextStream << tba[i] << ",";
-    }
-    std::wstring button_Text = button_TextStream.str();
-    button_Text.erase(button_Text.length()-1, 1);
-
-    return WritePrivateProfileString(SECTION_NAME_GENERAL, L"ThumbButtons", button_Text.c_str(), mPath.c_str());
-}
-
-bool SettingsManager::ReadButtons( std::vector<int> &tba )
-{
-    std::wstring text;
-    text.resize(100);
-    if (!GetPrivateProfileString(SECTION_NAME_GENERAL, L"ThumbButtons", L"1300,1301,1302,1303,1308", &text[0], 99, mPath.c_str()))
-    {
-        return false;
-    }
-    text.resize(wcslen(&text[0]));
-
-    tba.clear();
-    std::wstring::size_type pos = std::wstring::npos;
-    do
-    {
-        pos = text.find_first_of(L',');
-        std::wstringstream buffer;
-        buffer << text.substr(0, pos);
-        int code;
-        buffer >> code;
-        if (code < 1300)
-        {
-            text.erase(0, pos+1);
-            continue;
-        }
-        tba.push_back(code);
-        text.erase(0, pos+1);
-    } 
-    while (pos != std::wstring::npos);
-
-    if (tba.size() == 0)
-    {
-        tba.push_back(1300);
-        tba.push_back(1301);
-        tba.push_back(1302);
-        tba.push_back(1303);
-        tba.push_back(1308);
-    }
-
-    return true;
+	if (lstrcmp(button_Text.c_str(), L"1300,1301,1302,1303,1308,1314"))
+	{
+		WritePrivateProfileString(SECTION_NAME_GENERAL, L"ThumbButtons",
+								  button_Text.c_str(), SettingsFile.c_str());
+	}
+	else
+	{
+		WritePrivateProfileStringW(SECTION_NAME_GENERAL, L"ThumbButtons",
+								   NULL, SettingsFile.c_str());
+	}
 }

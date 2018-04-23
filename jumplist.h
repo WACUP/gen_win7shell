@@ -13,36 +13,28 @@
 class JumpList
 {
 public:
-	JumpList(std::wstring AppID);
+	explicit JumpList(std::wstring AppID, const bool delete_now = false);
 	~JumpList();
 
-	HRESULT _CreateShellLink(PCWSTR pszArguments, PCWSTR pszTitle, IShellLink **ppsl, int iconindex, bool WA);
-	bool _IsItemInArray(std::wstring path, IObjectArray *poaRemoved);
-	HRESULT _AddTasksToList();
-	HRESULT _AddCategoryToList();
-	HRESULT _AddCategoryToList2();
-	bool CreateJumpList(std::wstring pluginpath, std::wstring pref, std::wstring fromstart, 
-		std::wstring resume, std::wstring openfile, std::wstring bookmarks, std::wstring pltext, bool recent, 
-		bool frequent, bool tasks, bool addbm, bool playlist, const std::wstring bms);
-	bool DeleteJumpList();
-    bool CleanJumpList();
+	void CreateJumpList(const std::wstring &pluginpath, const std::wstring &pref,
+						const std::wstring &openfile, const std::wstring &bookmarks,
+						const std::wstring &pltext, const bool recent,
+						const bool frequent, const bool tasks, const bool addbm,
+						const bool playlist, const std::wstring &bms);
 
 private:
-    bool CleanJL(IApplicationDocumentLists *padl, APPDOCLISTTYPE type);
+	HRESULT _CreateShellLink(const std::wstring &path, PCWSTR pszArguments,
+							 PCWSTR pszTitle, IShellLink **ppsl,
+							 const int iconindex, const int mode = 0);
+	bool _IsItemInArray(std::wstring path, IObjectArray *poaRemoved);
+	HRESULT _AddTasksToList(const std::wstring &pluginpath, const std::wstring &pref,
+							const std::wstring &openfile);
+	HRESULT _AddCategoryToList(IObjectCollection *poc, const std::wstring &bookmarks);
+	HRESULT _AddCategoryToList2(const std::wstring &pluginpath, const std::wstring &pltext);
+
+	bool CleanJL(const std::wstring AppID, IApplicationDocumentLists *padl, APPDOCLISTTYPE type);
 
 	ICustomDestinationList *pcdl;
-	IObjectCollection *poc;
-	HRESULT m_hr;
-	std::wstring path;
-    std::wstring m_AppID;
-    std::wstring s1;
-    std::wstring s2;
-    std::wstring s3;
-    std::wstring s4;
-    std::wstring s5;
-    std::wstring s6;
-
-    const int max_items_jumplist;
 };
 
 #endif // jumplist_h__

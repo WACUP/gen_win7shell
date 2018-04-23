@@ -1,13 +1,16 @@
 #ifndef NULLSOFT_API_H
 #define NULLSOFT_API_H
 
+#include <sdk/nu/servicebuilder.h>
+
 #include <api/service/api_service.h>
 extern api_service *serviceManager;
 #define WASABI_API_SVC serviceManager
 
 #include <api/service/waServiceFactory.h>
 
-#include "../Agave/AlbumArt/api_albumart.h"
+#include <sdk/Agave/AlbumArt/api_albumart.h>
+extern api_albumart *AGAVE_API_ALBUMART;
 
 #include <api/service/svcs/svc_imgload.h>
 #include <api/service/svcs/svc_imgwrite.h>
@@ -16,10 +19,15 @@ extern api_service *serviceManager;
 extern api_memmgr *memmgrApi;
 #define WASABI_API_MEMMGR memmgrApi
 
-#include "playlist/api_playlists.h"
+#include <playlist/api_playlists.h>
 extern api_playlists *playlistsApi;
 #define AGAVE_API_PLAYLISTS playlistsApi
 
-#include "../Agave/Language/api_language.h"
+#include <Agave/Language/api_language.h>
+
+#include <Agave/ExplorerFindFile/api_explorerfindfile.h>
+
+#include <loader/hook/api_skin.h>
+#define WASABI_API_SKIN skinApi
 
 #endif

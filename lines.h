@@ -9,28 +9,22 @@
 class lines
 {
 public:
+	lines(sSettings &Settings, MetaData &Metadata);
 
-    lines(const sSettings &Settings, MetaData &Metadata, const HWND WinampWnd);
+	std::wstring::size_type GetNumberOfLines() const { return m_texts.size(); }
+	std::wstring GetLineText(int index) const { return m_texts[index]; }
+	linesettings GetLineSettings(int index) const { return m_linesettings[index]; }
 
-    inline std::wstring::size_type GetNumberOfLines() const { return m_texts.size(); }
-    
-    inline std::wstring GetLineText(int index) const { return m_texts[index]; }
-    inline linesettings GetLineSettings(int index) const { return m_linesettings[index]; }
-
-    void Parse();
+	void Parse();
 
 private:
+	void ProcessLine(int index);
+	std::wstring MetaWord(const std::wstring &word, linesettings &current_line_settings);
 
-    void ProcessLine(int index);
-    std::wstring MetaWord(const std::wstring &word);
-
-    std::vector<std::wstring> m_texts;
-    std::vector<linesettings> m_linesettings;
-    MetaData &m_metadata;
-    const sSettings &m_settings;
-    const HWND m_hwnd;    
+	std::vector<std::wstring> m_texts;
+	std::vector<linesettings> m_linesettings;
+	MetaData &m_metadata;
+	sSettings &m_settings;
 };
-
-// Inline
 
 #endif // lines_h__

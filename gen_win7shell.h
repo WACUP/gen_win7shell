@@ -2,32 +2,16 @@
 #ifndef gen_myplugin_h
 //---------------------------------------------------------------------------
 #define gen_myplugin_h
+
 #include <windows.h>
 #include <string>
 #include <vector>
- 
-// plugin name/title
-#define PLUGIN_NAME "Windows 7 Taskbar Integration v1.14 Test Build 2"
 
-#ifdef  _UNICODE
-typedef wchar_t TCHAR;
-#define __T(x) L ## x
-#else
-typedef char TCHAR;
-#define __T(x) x
-#endif
+#include <sdk/winamp/gen.h>
 
-#define NEWLINE __T('‡')
-
-struct sResumeSettings 
+struct sSettings
 {
-    int ResumeTime;
-    int ResumePosition;
-};
-
-struct sSettings 
-{
-    // thumbnail
+	// thumbnail
 	bool Thumbnailenabled;
 	int Thumbnailbackground;
 	bool Thumbnailbuttons;
@@ -35,110 +19,118 @@ struct sSettings
 	bool Streamstatus;
 	bool Stoppedstatus;
 	bool Overlay;
-    int Revertto;
-    std::wstring BGPath;
-    std::wstring Text;
-    bool disallow_peek;
-    
+	int Revertto;
+	wchar_t BGPath[MAX_PATH];
+	wchar_t Text[1024];
+
 	bool Add2RecentDocs;
 	bool Antialias;
 	bool Shrinkframe;
-	bool ForceVersion;
-	bool DisableUpdates;
-	bool RemoveTitle;
 	bool VuMeter;
 	bool Buttons[16];
 	bool Thumbnailpb;
 
-    // icon settings
+	// icon settings
 	bool AsIcon;
-    int IconSize;
-    int IconPosition;
-    int BG_Transparency;
+	int IconSize;
+	int IconPosition;
+	int BG_Transparency;
 
-    // jumplist
+	// jumplist
 	bool JLrecent;
 	bool JLfrequent;
 	bool JLtasks;
 	bool JLbms;
 	bool JLpl;
 
-    // misc
-    bool VolumeControl;
-    bool LowFrameRate;
-    int LastTab;
-    int LastUpdateCheck;
-    int LastMessage;
+	// misc
+#ifdef USE_MOUSE
+	bool VolumeControl;
+#endif
+	bool LowFrameRate;
+	int LastTab;
 
-    // playback info
-    int play_current;
-    int play_total;
-    int play_playlistpos;
-    int play_volume;
-    int play_state;
-    int state_repeat;
-    int state_shuffle;
-    
-    // font settings
-    LOGFONT font;
-    DWORD text_color;
-    DWORD bgcolor;
+	// playback info
+	int play_current;
+	int play_total;
+	int play_playlistpos;
+	int play_playlistlen;
+	int play_volume;
+	int play_state;
+	int play_kbps;
+	int play_khz;
 
-    // messages
+	int state_repeat;
+	int state_shuffle;
 
+	// font settings
+	LOGFONT font;
+	DWORD text_color;
+	DWORD bgcolor;
+
+	// read only timer tweaks
+	int MFT;	// main window fast timer
+	int MST;	// main window slow timer
+	int TFT;	// text mode fast timer
+	int TST;	// text mode slow timer
 };
 
 struct linesettings
 {
-    bool center;
-    bool largefont;
-    bool forceleft;
-    bool shadow;
-    bool darkbox;
-    bool dontscroll;
+	bool center;
+	bool largefont;
+	bool forceleft;
+	bool shadow;
+	bool darkbox;
+	bool dontscroll;
 };
 
 enum BG_Mode
 { 
-    BG_TRANSPARENT, 
-    BG_ALBUMART, 
-    BG_CUSTOM
+	BG_TRANSPARENT,
+	BG_ALBUMART,
+	BG_CUSTOM,
+	BG_WINAMP
 };
 
 enum IconPosition
 {
-    IP_UPPERLEFT,
-    IP_LOWERLEFT,
-    IP_UPPERRIGHT,
-    IP_LOWERRIGHT
+	IP_UPPERLEFT,
+	IP_LOWERLEFT,
+	IP_UPPERRIGHT,
+	IP_LOWERRIGHT
 };
 
 enum ThumbButtonID
 {
-    TB_PREVIOUS = 1300,
-    TB_PLAYPAUSE,
-    TB_STOP,
-    TB_NEXT,
-    TB_RATE,
-    TB_VOLDOWN,
-    TB_VOLUP,
-    TB_OPENFILE,
-    TB_MUTE,
-    TB_STOPAFTER,
-    TB_REPEAT,
-    TB_SHUFFLE,
-    TB_JTFE,
-    TB_DELETE,
-    TB_OPENEXPLORER
+	TB_PREVIOUS = 1300,
+	TB_PLAYPAUSE,
+	TB_STOP,
+	TB_NEXT,
+	TB_RATE,
+	TB_VOLDOWN,
+	TB_VOLUP,
+	TB_OPENFILE,
+	TB_MUTE,
+	TB_STOPAFTER,
+	TB_REPEAT,
+	TB_SHUFFLE,
+	TB_JTFE,
+	TB_DELETE,
+	TB_OPENEXPLORER
 };
 
 #define SECTION_NAME_GENERAL L"general"
 #define SECTION_NAME_FONT L"font"
-#define SECTION_NAME_RESUME L"resume"
-#define SECTION_NAME_MESSAGES L"messages"
 
 #define PLAYSTATE_PLAYING 1
 #define PLAYSTATE_PAUSED 3
 #define PLAYSTATE_NOTPLAYING 0
+
+extern winampGeneralPurposePlugin plugin;
+extern std::wstring SettingsFile;
+extern bool classicSkin, windowShade, doubleSize, modernSUI;
+extern HWND dialogParent;
+extern int repeat;
 
 #endif

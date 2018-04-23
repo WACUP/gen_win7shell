@@ -5,74 +5,92 @@
 
 #include "taskbar.h"
 
-iTaskBar::iTaskBar() :
-mWinampWnd(NULL),
-pTBL(NULL),
-progressbarstate(TBPF_NOPROGRESS)
+iTaskBar::iTaskBar() : pTBL(NULL), progressbarstate(TBPF_NOPROGRESS)
 {    
-    CoInitialize(0);
+	CoInitialize(0);
+	SetWindowAttr();
 }
 
 iTaskBar::~iTaskBar()
 {
-    if (pTBL != NULL)
-        pTBL->Release();
+	if (pTBL != NULL)
+	{
+		pTBL->Release();
+		pTBL = NULL;
+	}
 
-    CoUninitialize();
+	CoUninitialize();
 }
 
-bool iTaskBar::Reset(HWND WinampWnd)
+bool iTaskBar::Reset()
 {
-    mWinampWnd = WinampWnd;
+	if (pTBL != NULL)
+	{
+		pTBL->Release();
+		pTBL = NULL;
+	}
 
-    if (pTBL != NULL)
-        pTBL->Release();
+	HRESULT hr = ::CoCreateInstance(CLSID_TaskbarList, NULL, CLSCTX_INPROC_SERVER,
+									IID_ITaskbarList, reinterpret_cast<void**>(&pTBL));
+	if (!SUCCEEDED(hr) || !pTBL)
+	{
+		return false;
+	}
 
-    HRESULT hr = ::CoCreateInstance(CLSID_TaskbarList, NULL, CLSCTX_INPROC_SERVER,
-        IID_ITaskbarList, reinterpret_cast<void**>(&pTBL) );
-
-    if (!SUCCEEDED(hr))
-        return false;
-        
-    hr = pTBL->HrInit();
-    if (!SUCCEEDED(hr))
-        return false;
-
-    return true;
+	const bool ret = SUCCEEDED(pTBL->HrInit());
+	SetWindowAttr();
+	return ret;
 }
 
-HRESULT iTaskBar::SetImageList(HIMAGELIST ImageList)
+HRESULT iTaskBar::ThumbBarUpdateButtons(std::vector<THUMBBUTTON>& buttons, HIMAGELIST ImageList)
 {
-    return pTBL->ThumbBarSetImageList(mWinampWnd, ImageList);
+	if (ImageList != NULL)
+	{
+		pTBL->ThumbBarSetImageList(plugin.hwndParent, ImageList);
+		return pTBL->ThumbBarAddButtons(plugin.hwndParent, buttons.size(), &buttons[0]);
+	}
+
+	return pTBL->ThumbBarUpdateButtons(plugin.hwndParent, buttons.size(), &buttons[0]);
 }
 
-HRESULT iTaskBar::ThumbBarUpdateButtons( std::vector<THUMBBUTTON>& thbButtons, bool first )
+void iTaskBar::SetIconOverlay(HICON icon, const std::wstring &text)
 {
-    if (first)
-        return pTBL->ThumbBarAddButtons(mWinampWnd, thbButtons.size(), &thbButtons[0]);
-    else
-        return pTBL->ThumbBarUpdateButtons(mWinampWnd, thbButtons.size(), &thbButtons[0]);
+	if (pTBL)
+	{
+		pTBL->SetOverlayIcon(plugin.hwndParent, icon, text.c_str());
+	}
 }
 
-void iTaskBar::SetIconOverlay( HICON icon, std::wstring text )
+void iTaskBar::SetWindowAttr(/*const bool flip*/)
 {
-   pTBL->SetOverlayIcon(mWinampWnd, icon, text.c_str());
+	bool enabled = true;
+	DwmInvalidateIconicBitmaps(dialogParent);
+	DwmSetWindowAttribute(plugin.hwndParent, DWMWA_HAS_ICONIC_BITMAP, &enabled, sizeof(int));
+	DwmSetWindowAttribute(plugin.hwndParent, DWMWA_FORCE_ICONIC_REPRESENTATION, &enabled, sizeof(int));
+
+	/*if (flip)
+	{
+		DWMFLIP3DWINDOWPOLICY flip_policy = (flip ? DWMFLIP3D_EXCLUDEBELOW : DWMFLIP3D_DEFAULT);
+		DwmSetWindowAttribute(plugin.hwndParent, DWMWA_FLIP3D_POLICY, &flip_policy, sizeof(int));
+	}*/
 }
 
-void iTaskBar::SetWindowAttr(bool enable, bool flip, bool peek)
+void iTaskBar::SetProgressValue(ULONGLONG completed, ULONGLONG total)
 {
-    bool enabled = true;
-    DwmInvalidateIconicBitmaps(mWinampWnd);
-    DwmSetWindowAttribute(mWinampWnd, DWMWA_HAS_ICONIC_BITMAP, &enabled, sizeof(int));
-    DwmSetWindowAttribute(mWinampWnd, DWMWA_FORCE_ICONIC_REPRESENTATION, &enabled, sizeof(int));
+	if (pTBL)
+	{
+		pTBL->SetProgressValue(plugin.hwndParent, completed, total);
+	}
+}
 
-    enabled = peek;
-    DwmSetWindowAttribute(mWinampWnd, DWMWA_DISALLOW_PEEK, &peek, sizeof(int));
-    
-    if (flip)
-    {
-        DWMFLIP3DWINDOWPOLICY flip_policy;
-        flip_policy = flip ? DWMFLIP3D_EXCLUDEBELOW : DWMFLIP3D_DEFAULT;
-        DwmSetWindowAttribute(mWinampWnd, DWMWA_FLIP3D_POLICY, &flip_policy, sizeof(int));
-    }
+void iTaskBar::SetProgressState(TBPFLAG newstate)
+{
+	if (newstate != progressbarstate)
+	{
+		if (pTBL)
+		{
+			pTBL->SetProgressState(plugin.hwndParent, newstate);
+		}
+		progressbarstate = newstate;
+	}
 }

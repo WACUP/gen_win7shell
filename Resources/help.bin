@@ -1,0 +1,32 @@
+The text you enter here will be drawn on the thumbnail (if enabled). Dynamic text is supported via a set of metawords which if included in the text will be replaced by the real data associated to them. '\\' is an escape character.
+
+	---	 Text formatting 	---
+%c%	The line that contains this is drawn centered
+%l%	The line that contains this will be drawn with
+	a larger font
+%f%	The line that contains this will be drawn to the
+	left of the thumbnail
+%s%	Draws text shadow for the current line
+	(selected color)
+%b%	Draws a translucent box behind text (selected color)
+%d%	Prevents this text line from scrolling
+
+	---	 Text replacement 	---
+%title%		Title of currently playing media
+%artist%		Artist of currently playing media
+%album%	Name of album, empty if not found
+%year%		Release year of the album
+%track%		Track number
+%rating1%	Current song rating in digits (e.g. 4)
+%rating2%	Current song rating in stars (e.g. ★★★★ )
+%curtime%	Current playback time
+%timeleft%	Time left from current song
+%totaltime%	Total playback time
+%curpl%		Current playlist position
+%totalpl%	Total number of tracks in current playlist
+%kbps%		Bitrate in kb/s
+%khz%		Samplerate in kilohertz
+%volume%	Current volume in percentage
+		('%' sign not included)
+%shuffle%	Shuffle state (ON / OFF)
+%repeat%	Repeat state (ON / OFF)

@@ -115,14 +115,19 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				Optimization="3"
 				InlineFunctionExpansion="2"
 				FavorSizeOrSpeed="1"
 				AdditionalIncludeDirectories="..\..\sdk\wasabi"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;GEN_WIN7SHELL_EXPORTS"
+				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;GEN_WIN7SHELL_EXPORTS;_WIN32_WINNT=_WIN32_WINNT_WIN7;STRSAFE_USE_SECURE_CRT;_CRT_SECURE_NO_WARNINGS;STRSAFE_LIB"
 				StringPooling="true"
-				UsePrecompiledHeader="0"
-				WarningLevel="3"
+				RuntimeLibrary="2"
+				EnableFunctionLevelLinking="true"
+				BrowseInformation="1"
+				WarningLevel="4"
 				DebugInformationFormat="3"
+				DisableSpecificWarnings="4066;4238;4428;4512;4995"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -135,15 +140,15 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalOptions="/pdbpath:none"
 				AdditionalDependencies="comctl32.lib dwmapi.lib gdiplus.lib Msimg32.lib ws2_32.lib propsys.lib shlwapi.lib"
 				GenerateManifest="false"
-				IgnoreDefaultLibraryNames="TagLib\tag.lib"
+				IgnoreDefaultLibraryNames=""
+				DelayLoadDLLs=""
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
-				OptimizeForWindows98="1"
-				RandomizedBaseAddress="1"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -176,6 +181,7 @@
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="2"
 			CharacterSet="1"
+			WholeProgramOptimization="1"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -194,316 +200,14 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				Optimization="1"
+				Optimization="3"
 				FavorSizeOrSpeed="2"
-				WholeProgramOptimization="true"
-				AdditionalIncludeDirectories="../sdk/wasabi"
-				PreprocessorDefinitions="WIN32;_UNICODE;_WINDOWS;_USRDLL;GEN_WIN7SHELL_EXPORTS"
+				PreprocessorDefinitions="WIN32;_UNICODE;_WINDOWS;_USRDLL;_WIN32_WINNT=_WIN32_WINNT_WIN7;GEN_WIN7SHELL_EXPORTS;STRSAFE_USE_SECURE_CRT;_CRT_SECURE_NO_WARNINGS;STRSAFE_LIB"
 				StringPooling="true"
 				RuntimeLibrary="1"
-				UsePrecompiledHeader="0"
-				WarningLevel="3"
-			/>
-			<Tool
-				Name="VCManagedResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCPreLinkEventTool"
-			/>
-			<Tool
-				Name="VCLinkerTool"
-				AdditionalDependencies="comctl32.lib dwmapi.lib gdiplus.lib Msimg32.lib ws2_32.lib propsys.lib shlwapi.lib"
-				GenerateManifest="false"
-				SubSystem="2"
-				OptimizeReferences="2"
-				EnableCOMDATFolding="2"
-				LinkTimeCodeGeneration="1"
-				TargetMachine="1"
-			/>
-			<Tool
-				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCManifestTool"
-			/>
-			<Tool
-				Name="VCXDCMakeTool"
-			/>
-			<Tool
-				Name="VCBscMakeTool"
-			/>
-			<Tool
-				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCAppVerifierTool"
-			/>
-			<Tool
-				Name="VCPostBuildEventTool"
-				CommandLine="lng_generator &quot;$(OutDir)\$(ProjectName).dll&quot; /build&#x0D;&#x0A;copy &quot;$(OutDir)\$(ProjectName).dll&quot; &quot;$(ProgramFiles)\Winamp\Plugins&quot; /y&#x0D;&#x0A;"
-			/>
-		</Configuration>
-		<Configuration
-			Name="half-release|Win32"
-			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="2"
-			CharacterSet="1"
-			WholeProgramOptimization="0"
-			>
-			<Tool
-				Name="VCPreBuildEventTool"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="VCXMLDataGeneratorTool"
-			/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"
-			/>
-			<Tool
-				Name="VCMIDLTool"
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-				Optimization="0"
-				InlineFunctionExpansion="0"
-				FavorSizeOrSpeed="0"
-				WholeProgramOptimization="false"
-				AdditionalIncludeDirectories="..\..\sdk\wasabi"
-				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;GEN_WIN7SHELL_EXPORTS"
-				StringPooling="false"
-				MinimalRebuild="true"
-				BasicRuntimeChecks="3"
-				RuntimeLibrary="3"
-				UsePrecompiledHeader="0"
-				WarningLevel="3"
-				DebugInformationFormat="4"
-			/>
-			<Tool
-				Name="VCManagedResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCPreLinkEventTool"
-			/>
-			<Tool
-				Name="VCLinkerTool"
-				AdditionalDependencies="comctl32.lib dwmapi.lib gdiplus.lib Msimg32.lib ws2_32.lib propsys.lib shlwapi.lib"
-				GenerateManifest="false"
-				IgnoreDefaultLibraryNames="TagLib\tag.lib"
-				GenerateDebugInformation="true"
-				SubSystem="2"
-				OptimizeReferences="1"
-				EnableCOMDATFolding="1"
-				OptimizeForWindows98="1"
-				RandomizedBaseAddress="1"
-				TargetMachine="1"
-			/>
-			<Tool
-				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCManifestTool"
-				EmbedManifest="false"
-			/>
-			<Tool
-				Name="VCXDCMakeTool"
-			/>
-			<Tool
-				Name="VCBscMakeTool"
-			/>
-			<Tool
-				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCAppVerifierTool"
-			/>
-			<Tool
-				Name="VCPostBuildEventTool"
-				CommandLine="lng_generator &quot;$(OutDir)\$(ProjectName).dll&quot; /build&#x0D;&#x0A;copy &quot;$(OutDir)\$(ProjectName).dll&quot; &quot;$(ProgramFiles)\Winamp\Plugins&quot; /y&#x0D;&#x0A;"
-			/>
-		</Configuration>
-		<Configuration
-			Name="half-debug_|Win32"
-			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="1"
-			>
-			<Tool
-				Name="VCPreBuildEventTool"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="VCXMLDataGeneratorTool"
-			/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"
-			/>
-			<Tool
-				Name="VCMIDLTool"
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-			/>
-			<Tool
-				Name="VCManagedResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCPreLinkEventTool"
-			/>
-			<Tool
-				Name="VCLinkerTool"
-			/>
-			<Tool
-				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCManifestTool"
-			/>
-			<Tool
-				Name="VCXDCMakeTool"
-			/>
-			<Tool
-				Name="VCBscMakeTool"
-			/>
-			<Tool
-				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCAppVerifierTool"
-			/>
-			<Tool
-				Name="VCPostBuildEventTool"
-			/>
-		</Configuration>
-		<Configuration
-			Name="half-debug|Win32"
-			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="2"
-			CharacterSet="1"
-			WholeProgramOptimization="1"
-			>
-			<Tool
-				Name="VCPreBuildEventTool"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="VCXMLDataGeneratorTool"
-			/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"
-			/>
-			<Tool
-				Name="VCMIDLTool"
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-				Optimization="2"
-				EnableIntrinsicFunctions="true"
-				FavorSizeOrSpeed="0"
-				AdditionalIncludeDirectories="..\..\sdk\wasabi"
-				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;GEN_WIN7SHELL_EXPORTS"
-				MinimalRebuild="false"
-				BasicRuntimeChecks="0"
-				RuntimeLibrary="3"
 				EnableFunctionLevelLinking="true"
-				UsePrecompiledHeader="0"
-				WarningLevel="3"
-				DebugInformationFormat="3"
-			/>
-			<Tool
-				Name="VCManagedResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCPreLinkEventTool"
-			/>
-			<Tool
-				Name="VCLinkerTool"
-				AdditionalDependencies="comctl32.lib dwmapi.lib gdiplus.lib Msimg32.lib ws2_32.lib propsys.lib shlwapi.lib"
-				LinkIncremental="0"
-				GenerateDebugInformation="true"
-				SubSystem="0"
-				OptimizeReferences="2"
-				EnableCOMDATFolding="2"
-				LinkTimeCodeGeneration="1"
-				TargetMachine="1"
-			/>
-			<Tool
-				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCManifestTool"
-			/>
-			<Tool
-				Name="VCXDCMakeTool"
-			/>
-			<Tool
-				Name="VCBscMakeTool"
-			/>
-			<Tool
-				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCAppVerifierTool"
-			/>
-			<Tool
-				Name="VCPostBuildEventTool"
-				CommandLine="lng_generator &quot;$(OutDir)\$(ProjectName).dll&quot; /build&#x0D;&#x0A;copy &quot;$(OutDir)\$(ProjectName).dll&quot; &quot;$(ProgramFiles)\Winamp\Plugins&quot; /y&#x0D;&#x0A;"
-			/>
-		</Configuration>
-		<Configuration
-			Name="half-rel|Win32"
-			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="2"
-			CharacterSet="1"
-			WholeProgramOptimization="1"
-			>
-			<Tool
-				Name="VCPreBuildEventTool"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="VCXMLDataGeneratorTool"
-			/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"
-			/>
-			<Tool
-				Name="VCMIDLTool"
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-				InlineFunctionExpansion="2"
-				FavorSizeOrSpeed="1"
-				AdditionalIncludeDirectories="..\..\sdk\wasabi"
-				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;GEN_WIN7SHELL_EXPORTS"
-				StringPooling="true"
-				RuntimeLibrary="2"
-				UsePrecompiledHeader="0"
-				WarningLevel="3"
-				DebugInformationFormat="3"
+				BrowseInformation="1"
+				WarningLevel="4"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -518,13 +222,9 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="comctl32.lib dwmapi.lib gdiplus.lib Msimg32.lib ws2_32.lib propsys.lib shlwapi.lib"
 				GenerateManifest="false"
-				IgnoreDefaultLibraryNames="TagLib\tag.lib"
-				GenerateDebugInformation="true"
 				SubSystem="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
-				OptimizeForWindows98="1"
-				RandomizedBaseAddress="1"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -532,7 +232,6 @@
 			/>
 			<Tool
 				Name="VCManifestTool"
-				EmbedManifest="false"
 			/>
 			<Tool
 				Name="VCXDCMakeTool"
@@ -561,10 +260,6 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\albumart.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\gen_win7shell.cpp"
 				>
 			</File>
@@ -590,28 +285,6 @@
 						WholeProgramOptimization="false"
 					/>
 				</FileConfiguration>
-				<FileConfiguration
-					Name="half-release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						InlineFunctionExpansion="0"
-						EnableIntrinsicFunctions="false"
-						WholeProgramOptimization="false"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="half-rel|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						InlineFunctionExpansion="0"
-						EnableIntrinsicFunctions="false"
-						WholeProgramOptimization="false"
-					/>
-				</FileConfiguration>
 			</File>
 			<File
 				RelativePath=".\renderer.cpp"
@@ -622,15 +295,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\tabs.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\taskbar.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\versioncheck.cpp"
+				RelativePath=".\tools.cpp"
 				>
 			</File>
 		</Filter>
@@ -639,10 +308,6 @@
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
-			<File
-				RelativePath=".\albumart.h"
-				>
-			</File>
 			<File
 				RelativePath=".\api.h"
 				>
@@ -676,19 +341,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\tabs.h"
-				>
-			</File>
-			<File
 				RelativePath=".\taskbar.h"
 				>
 			</File>
 			<File
 				RelativePath=".\tools.h"
-				>
-			</File>
-			<File
-				RelativePath=".\versionchecker.h"
 				>
 			</File>
 		</Filter>
@@ -702,19 +359,23 @@
 				>
 			</File>
 			<File
-				RelativePath=".\Resources\applybut.ico"
-				>
-			</File>
-			<File
 				RelativePath=".\Resources\bookmark.ico"
 				>
 			</File>
 			<File
-				RelativePath=".\Resources\cancelbut.ico"
+				RelativePath=".\Resources\delete.ico"
 				>
 			</File>
 			<File
 				RelativePath=".\Resources\fav.ico"
+				>
+			</File>
+			<File
+				RelativePath=".\Resources\folder.ico"
+				>
+			</File>
+			<File
+				RelativePath=".\Resources\help.bin.gz"
 				>
 			</File>
 			<File
@@ -727,10 +388,6 @@
 			</File>
 			<File
 				RelativePath=".\Resources\next.ico"
-				>
-			</File>
-			<File
-				RelativePath=".\Resources\okbut.ico"
 				>
 			</File>
 			<File
@@ -770,19 +427,43 @@
 				>
 			</File>
 			<File
+				RelativePath=".\Resources\previous.ico"
+				>
+			</File>
+			<File
+				RelativePath=".\Resources\repeat_all.ico"
+				>
+			</File>
+			<File
+				RelativePath=".\Resources\repeat_off.ico"
+				>
+			</File>
+			<File
+				RelativePath=".\Resources\repeat_one.ico"
+				>
+			</File>
+			<File
 				RelativePath=".\Resources\Resume (2).ico"
 				>
 			</File>
 			<File
-				RelativePath=".\Resources\settings (2.ico"
+				RelativePath=".\Resources\search.ico"
+				>
+			</File>
+			<File
+				RelativePath=".\Resources\settings (2).ico"
+				>
+			</File>
+			<File
+				RelativePath=".\Resources\shuffle_off.ico"
+				>
+			</File>
+			<File
+				RelativePath=".\Resources\shuffle_on.ico"
 				>
 			</File>
 			<File
 				RelativePath=".\Resources\stop.ico"
-				>
-			</File>
-			<File
-				RelativePath=".\Resources\try.bmp"
 				>
 			</File>
 		</Filter>
