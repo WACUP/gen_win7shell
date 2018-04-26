@@ -86,9 +86,9 @@ LRESULT CALLBACK rateWndProc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lPara
 LRESULT CALLBACK KeyboardEvent(int nCode, WPARAM wParam, LPARAM lParam);
 #endif
 
-extern "C"__declspec(dllexport) LRESULT CALLBACK TabHandler_Taskbar(HWND, UINT, WPARAM, LPARAM);
-extern "C"__declspec(dllexport) LRESULT CALLBACK TabHandler_Thumbnail(HWND, UINT, WPARAM, LPARAM);
-extern "C"__declspec(dllexport) LRESULT CALLBACK TabHandler_ThumbnailImage(HWND, UINT, WPARAM, LPARAM);
+extern "C" __declspec(dllexport) LRESULT CALLBACK TabHandler_Taskbar(HWND, UINT, WPARAM, LPARAM);
+extern "C" __declspec(dllexport) LRESULT CALLBACK TabHandler_Thumbnail(HWND, UINT, WPARAM, LPARAM);
+extern "C" __declspec(dllexport) LRESULT CALLBACK TabHandler_ThumbnailImage(HWND, UINT, WPARAM, LPARAM);
 
 void updateToolbar(HIMAGELIST ImageList = NULL);
 void SetupJumpList();
@@ -2342,12 +2342,12 @@ LRESULT CALLBACK KeyboardEvent(int nCode, WPARAM wParam, LPARAM lParam)
 #endif
 
 // This is an export function called by winamp which returns this plugin info.
-extern "C"__declspec(dllexport) winampGeneralPurposePlugin * winampGetGeneralPurposePlugin()
+extern "C" __declspec(dllexport) winampGeneralPurposePlugin * winampGetGeneralPurposePlugin()
 {
 	return &plugin;
 }
 
-extern "C"__declspec(dllexport) int winampUninstallPlugin(HINSTANCE hDllInst, HWND hwndDlg, int param)
+extern "C" __declspec(dllexport) int winampUninstallPlugin(HINSTANCE hDllInst, HWND hwndDlg, int param)
 {
 	if (MessageBoxEx(hwndDlg, WASABI_API_LNGSTRINGW(IDS_UNINSTALL_PROMPT),
 					 BuildPluginNameW(), MB_YESNO, 0) == IDYES)
