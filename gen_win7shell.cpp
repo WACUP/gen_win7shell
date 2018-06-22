@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"3.0.2"
+#define PLUGIN_VERSION L"3.0.3"
 #define ICONSIZEPX 50
 #define NR_BUTTONS 15
 
@@ -151,7 +151,7 @@ const bool GenerateAppIDFromFolder(const wchar_t *search_path, wchar_t *app_id)
 			if (SUCCEEDED(pFolder->GetPath(0, &path)))
 			{
 				// we now check that things are a match
-				const int len = lstrlen(path);
+				const int len = wcslen(path);
 				if (!_wcsnicmp(search_path, path, len))
 				{
 					// and if they are then we'll merge
@@ -241,31 +241,12 @@ int init()
 		SetWindowSubclass(plugin.hwndParent, WndProc, (UINT_PTR)WndProc, 0);
 
 		// Delay loading mst parts until later on to improve the overall load time
-		delay_ipc = SendMessage(plugin.hwndParent, WM_WA_IPC, (WPARAM)&"7+_ipc", IPC_REGISTER_WINAMP_IPCMESSAGE);
+		delay_ipc = RegisterIPC((WPARAM)&"7+_ipc");
 		PostMessage(plugin.hwndParent, WM_WA_IPC, 0, delay_ipc);
 
 		return GEN_INIT_SUCCESS;
 	}
 	return GEN_INIT_FAILURE;
-}
-
-#define AddItemToMenu(hmenu, id, text) AddItemToMenu2(hmenu, id, text, (UINT)-1, 0);
-void AddItemToMenu2(HMENU hmenu, const UINT id, LPWSTR text, const UINT pos, const int fByPosition)
-{
-	MENUITEMINFO mii = {sizeof(MENUITEMINFO), MIIM_ID | MIIM_TYPE | MIIM_DATA,
-						(text ? MFT_STRING : MFT_SEPARATOR), 0, id, 0, 0, 0, 0,
-						text, (text ? lstrlen(text) : 0)};
-	if (id == -2)
-	{
-		mii.fMask |= MIIM_STATE;
-		mii.fState = MFS_GRAYED;
-	}
-	else if (id == -3)
-	{
-		mii.fType |= MFT_MENUBARBREAK;
-	}
-
-	InsertMenuItem(hmenu, pos, fByPosition, &mii);
 }
 
 void config()
