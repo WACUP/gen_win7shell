@@ -51,7 +51,7 @@ std::wstring AppID(L"Winamp"),	// this is updated on loading to what the
 bool thumbshowing = false, no_uninstall = true,
 	 classicSkin = true, windowShade = false,
 	 doubleSize = false, modernSUI = false,
-	 running = false;
+	 running = false, finishedLoad = false;
 HWND ratewnd = 0, dialogParent = 0;
 int pladv = 1, repeat = 0;
 LPARAM delay_ipc = -1;
@@ -466,6 +466,54 @@ void ResetThumbnail()
 	}
 }
 
+void UpdateOverlyStatus()
+{
+	Settings.play_state = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_ISPLAYING);
+
+	updateToolbar();
+
+	if (Settings.Overlay)
+	{
+		wchar_t tmp[64] = {0};
+		HICON icon = NULL;
+		switch (Settings.play_state)
+		{
+			case PLAYSTATE_PLAYING:
+			{
+				if (itaskbar != NULL)
+				{
+					icon = ImageList_GetIcon(theicons, tools::getBitmap(TB_PLAYPAUSE, 0), 0);
+					itaskbar->SetIconOverlay(icon, WASABI_API_LNGSTRINGW_BUF(IDS_PLAYING, tmp, 64));
+				}
+				break;
+			}
+			case PLAYSTATE_PAUSED:
+			{
+				if (itaskbar != NULL)
+				{
+					icon = ImageList_GetIcon(theicons, tools::getBitmap(TB_PLAYPAUSE, 1), 0);
+					itaskbar->SetIconOverlay(icon, WASABI_API_LNGSTRINGW_BUF(IDS_PAUSED, tmp, 64));
+				}
+				break;
+			}
+			default:
+			{
+				if (itaskbar != NULL)
+				{
+					icon = ImageList_GetIcon(theicons, tools::getBitmap(TB_STOP, 1), 0);
+					itaskbar->SetIconOverlay(icon, WASABI_API_LNGSTRINGW_BUF(IDS_PAUSED, tmp, 64));
+				}
+				break;
+			}
+		}
+
+		if (icon != NULL)
+		{
+			DestroyIcon(icon);
+		}
+	}
+}
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 						 UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
 {
@@ -796,50 +844,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 					{
 						case IPC_CB_MISC_STATUS:
 						{
-							Settings.play_state = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_ISPLAYING);
-
-							updateToolbar();
-
-							if (Settings.Overlay)
-							{
-								wchar_t tmp[64] = {0};
-								HICON icon = NULL;
-								switch (Settings.play_state)
-								{
-									case PLAYSTATE_PLAYING:
-									{
-										if (itaskbar != NULL)
-										{
-											icon = ImageList_GetIcon(theicons, tools::getBitmap(TB_PLAYPAUSE, 0), 0);
-											itaskbar->SetIconOverlay(icon, WASABI_API_LNGSTRINGW_BUF(IDS_PLAYING, tmp, 64));
-										}
-										break;
-									}
-									case PLAYSTATE_PAUSED:
-									{
-										if (itaskbar != NULL)
-										{
-											icon = ImageList_GetIcon(theicons, tools::getBitmap(TB_PLAYPAUSE, 1), 0);
-											itaskbar->SetIconOverlay(icon, WASABI_API_LNGSTRINGW_BUF(IDS_PAUSED, tmp, 64));
-										}
-										break;
-									}
-									default:
-									{
-										if (itaskbar != NULL)
-										{
-											icon = ImageList_GetIcon(theicons, tools::getBitmap(TB_STOP, 1), 0);
-											itaskbar->SetIconOverlay(icon, WASABI_API_LNGSTRINGW_BUF(IDS_PAUSED, tmp, 64));
-										}
-										break;
-									}
-								}
-
-								if (icon != NULL)
-								{
-									DestroyIcon(icon);
-								}
-							}
+							UpdateOverlyStatus();
 							break;
 						}
 						case IPC_CB_MISC_VOLUME:
@@ -1143,6 +1148,15 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 			}
 
 			Settings.play_current = cp;
+
+			// to ensure the overlay icons will show whilst
+			// not hammering things when playback commences
+			// we just do a one time update to get it right
+			if (!finishedLoad)
+			{
+				finishedLoad = true;
+				UpdateOverlyStatus();
+			}
 
 			switch (Settings.play_state)
 			{
@@ -1457,7 +1471,7 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 					Settings.Overlay = (Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK3)) == BST_CHECKED);
 					if (Settings.Overlay)
 					{
-						SendMessage(plugin.hwndParent, WM_WA_IPC, IPC_CB_MISC_STATUS, IPC_CB_MISC);
+						UpdateOverlyStatus();
 					}
 					else
 					{
@@ -1518,7 +1532,7 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 					if (MessageBox(hwnd, WASABI_API_LNGSTRINGW_BUF(IDS_DISABLE_SUPPORT_TEXT, temp, ARRAYSIZE(temp)),
 								   WASABI_API_LNGSTRINGW(IDS_DISABLE_SUPPORT), MB_YESNO | MB_ICONQUESTION) == IDYES)
 					{
-						WritePrivateProfileStringW(L"plugins", L"gen_win7shell.dll", L"1",
+						WritePrivateProfileStringW(L"Plugins", L"gen_win7shell.dll", L"1",
 												   get_paths()->profile_ini_file);
 						PostMessage(plugin.hwndParent, WM_WA_IPC, (WPARAM)-1, IPC_RESTARTWINAMP);
 					}
