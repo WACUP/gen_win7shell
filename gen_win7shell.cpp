@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"3.0.3"
+#define PLUGIN_VERSION L"3.1"
 #define ICONSIZEPX 50
 #define NR_BUTTONS 15
 
@@ -460,6 +460,7 @@ void ResetThumbnail()
 {
 	if (CreateThumbnailDrawer())
 	{
+		thumbnaildrawer->ClearAlbumart();
 		thumbnaildrawer->ClearBackground();
 		thumbnaildrawer->ClearCustomBackground();
 		thumbnaildrawer->ThumbnailPopup();
@@ -901,7 +902,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 						SetupAppID();
 
 						wchar_t ini_path[MAX_PATH] = {0};
-						PathCombine(ini_path, get_paths()->settings_dir, L"Plugins\\win7shell.ini");
+						PathCombine(ini_path, GetPaths()->settings_dir, L"Plugins\\win7shell.ini");
 						SettingsFile = ini_path;
 
 						// Read Settings into struct
@@ -1533,7 +1534,7 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 								   WASABI_API_LNGSTRINGW(IDS_DISABLE_SUPPORT), MB_YESNO | MB_ICONQUESTION) == IDYES)
 					{
 						WritePrivateProfileStringW(L"Plugins", L"gen_win7shell.dll", L"1",
-												   get_paths()->profile_ini_file);
+												   GetPaths()->profile_ini_file);
 						PostMessage(plugin.hwndParent, WM_WA_IPC, (WPARAM)-1, IPC_RESTARTWINAMP);
 					}
 					break;
@@ -1879,7 +1880,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 					unsigned char *data = (unsigned char *)WASABI_API_LOADRESFROMFILEW(L"GZ", MAKEINTRESOURCEW(IDR_HELP_GZ), &data_size),
 								  *output = NULL;
 
-					decompress_resource(data, data_size, &output, 0);
+					DecompressResource(data, data_size, &output, 0);
 					MessageBoxEx(PrefsHWND(), AutoWide((LPCSTR)output, CP_UTF8),
 								 WASABI_API_LNGSTRINGW(IDS_INFORMATION), MB_ICONINFORMATION, 0);
 
@@ -2350,7 +2351,7 @@ extern "C" __declspec(dllexport) int winampUninstallPlugin(HINSTANCE hDllInst, H
 		no_uninstall = false;
 
 		wchar_t ini_path[MAX_PATH] = {0};
-		PathCombine(ini_path, get_paths()->settings_dir, L"Plugins\\win7shell.ini");
+		PathCombine(ini_path, GetPaths()->settings_dir, L"Plugins\\win7shell.ini");
 		if (PathFileExists(ini_path))
 		{
 			DeleteFile(ini_path);

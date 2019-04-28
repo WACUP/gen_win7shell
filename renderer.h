@@ -18,6 +18,7 @@ public:
 	bool getAlbumArt(const std::wstring &fname, const int width,
 					 const int height, int& iconsize);
 	HBITMAP GetThumbnail(const bool get_bmp = true);
+	void ClearAlbumart();
 	void ClearBackground();
 	void ClearCustomBackground();
 	void ThumbnailPopup();
@@ -27,6 +28,7 @@ private:
 	ULONG_PTR gdiplusToken;
 	Gdiplus::Image *custom_img;
 	Gdiplus::Bitmap *background;
+	Gdiplus::Bitmap *albumart;
 
 	sSettings &m_settings;
 	MetaData &m_metadata;
@@ -34,6 +36,8 @@ private:
 	int m_width, m_height, m_iconwidth, m_iconheight, m_textpause;
 	std::vector<int> m_textpositions;
 	bool no_icon, fail, scroll_block, no_text;
+
+	bool render(const int width, const int height, const int iconsize);
 };
 
 #endif // renderer_h__

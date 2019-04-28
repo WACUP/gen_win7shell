@@ -224,7 +224,7 @@ namespace tools
 			static wchar_t winamp_dll[MAX_PATH] = {0};
 			if (!winamp_dll[0])
 			{
-				PathCombine(winamp_dll, get_paths()->winamp_dir, L"winamp.dll");
+				PathCombine(winamp_dll, GetPaths()->winamp_dir, L"winamp.dll");
 			}
 
 			int icon = -1;
