@@ -12,6 +12,7 @@
 #include <sdk/nu/autowide.h>
 #include <sdk/nu/autochar.h>
 #include <sdk/nu/autocharfn.h>
+#include <loader/loader/utils.h>
 
 int SettingsManager::GetInt(const std::wstring &key, const int default_value) const
 {
@@ -113,7 +114,7 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	wcsncpy(Destination_struct.Text, GetString(L"Text", L"‡").c_str(),
 											   ARRAYSIZE(Destination_struct.Text));
 
-	if (!lstrcmp(Destination_struct.Text, L"‡"))
+	if (!wcscmp(Destination_struct.Text, L"‡"))
 	{
 		wcsncpy(Destination_struct.Text,
 				L"%c%%s%%curpl% of %totalpl%.\\r%c%%s%%title%"
@@ -269,21 +270,10 @@ void SettingsManager::WriteSettings(const sSettings &Source_struct)
 
 	// now we see if the file remaining is empty as
 	// there's no point in keeping an empty file...
-	if (PathFileExists(SettingsFile.c_str()))
+	if (PathFileExists(SettingsFile.c_str()) &&
+		!GetFileSizeByPath(SettingsFile.c_str()))
 	{
-		HANDLE hFile = INVALID_HANDLE_VALUE;
-		DWORD size = INVALID_FILE_SIZE;
-		if ((hFile = CreateFile(SettingsFile.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING,
-								FILE_ATTRIBUTE_NORMAL, NULL)) != INVALID_HANDLE_VALUE)
-		{
-			size = GetFileSize(hFile, NULL);
-			CloseHandle(hFile);
-		}
-
-		if (!size)
-		{
-			DeleteFile(SettingsFile.c_str());
-		}
+		DeleteFile(SettingsFile.c_str());
 	}
 }
 
@@ -446,7 +436,7 @@ void SettingsManager::WriteButtons(std::vector<int> &tba)
 	std::wstring button_Text = button_TextStream.str();
 	button_Text.erase(button_Text.length() - 1, 1);
 
-	if (lstrcmp(button_Text.c_str(), L"1300,1301,1302,1303,1308,1314"))
+	if (wcscmp(button_Text.c_str(), L"1300,1301,1302,1303,1308,1314"))
 	{
 		WritePrivateProfileString(SECTION_NAME_GENERAL, L"ThumbButtons",
 								  button_Text.c_str(), SettingsFile.c_str());

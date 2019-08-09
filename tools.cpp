@@ -221,12 +221,6 @@ namespace tools
 
 		for (int i = 0; i < NR_THUMB_BUTTONS; ++i)
 		{
-			static wchar_t winamp_dll[MAX_PATH] = {0};
-			if (!winamp_dll[0])
-			{
-				PathCombine(winamp_dll, GetPaths()->winamp_dir, L"winamp.dll");
-			}
-
 			int icon = -1;
 			switch (IDI_TBICON0 + i)
 			{
@@ -276,7 +270,7 @@ namespace tools
 			{
 				const int icons[] = {203/*prev*/, 204/*play*/, 208/*pause*/, 205/*stop*/,
 									 206/*next*/, 207/*open*/, 209/*voldown*/, 210/*volup*/};
-				HICON hicon = LoadIcon(GetModuleHandle(winamp_dll), MAKEINTRESOURCE(icons[icon]));
+				HICON hicon = LoadIcon(GetModuleHandle(GetPaths()->wacup_core_dll), MAKEINTRESOURCE(icons[icon]));
 				if (hicon == NULL)
 				{
 					return NULL;

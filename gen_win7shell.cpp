@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"3.1"
+#define PLUGIN_VERSION L"3.1.2"
 #define ICONSIZEPX 50
 #define NR_BUTTONS 15
 
@@ -64,7 +64,7 @@ sSettings Settings = {0};
 std::vector<int> TButtons;
 iTaskBar *itaskbar = NULL;
 MetaData metadata;
-renderer* thumbnaildrawer = NULL;
+renderer *thumbnaildrawer = NULL;
 
 api_service *WASABI_API_SVC = 0;
 api_memmgr *WASABI_API_MEMMGR = 0;
@@ -238,7 +238,7 @@ int init()
 		plugin.description = (char*)BuildPluginNameW();
 
 		// Override window procedure
-		SetWindowSubclass(plugin.hwndParent, WndProc, (UINT_PTR)WndProc, 0);
+		Subclass(plugin.hwndParent, WndProc);
 
 		// Delay loading mst parts until later on to improve the overall load time
 		delay_ipc = RegisterIPC((WPARAM)&"7+_ipc");
@@ -520,19 +520,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 {
 	if ((message == WM_COMMAND || message == WM_SYSCOMMAND))
 	{
-		if (LOWORD(wParam) == WINAMP_OPTIONS_DSIZE)
-		{
-			doubleSize = !doubleSize;
-		}
-		else if (LOWORD(wParam) == WINAMP_FILE_SHUFFLE)
+		if (LOWORD(wParam) == WINAMP_FILE_SHUFFLE)
 		{
 			Settings.state_shuffle = !Settings.state_shuffle;
 			updateToolbar();
-		}
-		else if (LOWORD(wParam) == ID_PE_MANUAL_ADVANCE)
-		{
-			pladv = !pladv;
-			updateRepeatButton();
 		}
 		else if (LOWORD(wParam) == WINAMP_FILE_REPEAT)
 		{
@@ -594,9 +585,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 							}
 						}
 
-						const int index = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETLISTPOS);
-						LPCWSTR p = (LPCWSTR)SendMessage(plugin.hwndParent, WM_WA_IPC, index, IPC_GETPLAYLISTFILEW); 
-
+						LPCWSTR p = (LPCWSTR)SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GET_PLAYING_FILENAME); 
 						if (p != NULL)
 						{
 							metadata.reset(p);
@@ -736,7 +725,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 					{
 						SHFILEOPSTRUCTW fileop = {0};
 						wchar_t path[MAX_PATH] = {0};
-						lstrcpyn(path, metadata.getFileName().c_str(), ARRAYSIZE(path));
+						wcsncpy(path, metadata.getFileName().c_str(), ARRAYSIZE(path));
 
 						fileop.wFunc = FO_DELETE;
 						fileop.pFrom = path;
@@ -750,8 +739,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 
 						if (SHFileOperation(&fileop) == 0)
 						{
-							SendMessage((HWND)SendMessage(plugin.hwndParent, WM_WA_IPC, IPC_GETWND_PE, IPC_GETWND), WM_WA_IPC,
-											  IPC_PE_DELETEINDEX, SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETLISTPOS));
+							SendMessage(GetPlaylistWnd(), WM_WA_IPC, IPC_PE_DELETEINDEX,
+										SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETLISTPOS));
 						}
 
 						if (saved_play_state == PLAYSTATE_PLAYING)
@@ -868,6 +857,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 					{
 						dialogParent = hwnd;
 					}
+					break;
+				}
+				case IPC_CB_ONTOGGLEDOUBLESIZE:
+				{
+					doubleSize = !doubleSize;
+					break;
+				}
+				case IPC_CB_ONTOGGLEMANUALADVANCE:
+				{
+					pladv = !pladv;
+					updateRepeatButton();
 					break;
 				}
 				default:
@@ -990,7 +990,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 		SetupJumpList();
 	}
 
-	LRESULT ret = DefSubclassProc(hwnd, message, wParam, lParam);	 
+	LRESULT ret = DefSubclass(hwnd, message, wParam, lParam);	 
 
 	if (message == WM_SIZE)
 	{
@@ -1026,10 +1026,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 					ServiceBuild(WASABI_API_SVC, WASABI_API_SKIN, skinApiServiceGuid);
 				}
 
+				// TODO pull in the localised version from gen_ff
+				//		to ensure the checking will work correctly
+				LPCWSTR skin_name = (WASABI_API_SKIN != NULL ? WASABI_API_SKIN->getSkinName() : NULL);
 				classicSkin = (!WASABI_API_SKIN || WASABI_API_SKIN &&
 							   // TODO pull in the localised version from gen_ff
 							   //		to ensure the checking will work correctly
-							   !_wcsnicmp(WASABI_API_SKIN->getSkinName(), L"No skin loaded", 14));
+							   (skin_name && *skin_name && _wcsnicmp(skin_name, L"No skin loaded", 14)));
 
 				// this is needed when the vu mode is enabled to allow the
 				// data to be obtained if the main wnidow mode is disabled
@@ -1070,9 +1073,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 					(lParam == IPC_CB_MISC) && ((wParam == IPC_CB_MISC_TITLE) ||
 					(wParam == IPC_CB_MISC_AA_OPT_CHANGED) || (wParam == IPC_CB_MISC_TITLE_RATING)))
 				{
-
-					const int index = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETLISTPOS);
-					LPCWSTR p = (LPCWSTR)SendMessage(plugin.hwndParent, WM_WA_IPC, index, IPC_GETPLAYLISTFILEW); 
+					LPCWSTR p = (LPCWSTR)SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GET_PLAYING_FILENAME); 
 
 					if (p != NULL)
 					{
@@ -1100,10 +1101,10 @@ void CheckThumbShowing()
 		wchar_t class_name[24] = {0};
 		GetClassName(WindowFromPoint(pt), class_name, ARRAYSIZE(class_name));
 
-		if (lstrcmpi(class_name, L"MultitaskingViewFrame") &&
-			lstrcmpi(class_name, L"TaskListThumbnailWnd") &&
-			lstrcmpi(class_name, L"MSTaskListWClass") &&
-			lstrcmpi(class_name, L"ToolbarWindow32"))
+		if (_wcsicmp(class_name, L"MultitaskingViewFrame") &&
+			_wcsicmp(class_name, L"TaskListThumbnailWnd") &&
+			_wcsicmp(class_name, L"MSTaskListWClass") &&
+			_wcsicmp(class_name, L"ToolbarWindow32"))
 		{
 			thumbshowing = false;
 			//KillTimer(plugin.hwndParent, 6670);
@@ -2123,7 +2124,7 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 								wchar_t *w = NULL;
 								psiResult->GetDisplayName(SIGDN_FILESYSPATH, &w);
 								psiResult->Release();
-								lstrcpyn(filename, w, ARRAYSIZE(filename));
+								wcsncpy(filename, w, ARRAYSIZE(filename));
 								CoTaskMemFree(w);
 							}
 						} 

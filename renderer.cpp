@@ -248,6 +248,16 @@ RECT ScaleArtworkToArea(int w, int h, int cur_w, int cur_h)
 
 HBITMAP renderer::GetThumbnail(const bool get_bmp)
 {
+	// not everyone is going to even cause the
+	// preview to be generated so we will wait
+	// until its needed to load gdiplus as its
+	// a relatively slow to close down on exit
+	if (!gdiplusToken)
+	{
+		Gdiplus::GdiplusStartupInput gdiplusStartupInput;   
+		Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+	}
+
 	//Calculate icon size
 	int iconsize = m_height;
 
@@ -907,32 +917,22 @@ HBITMAP renderer::GetThumbnail(const bool get_bmp)
 }
 
 renderer::renderer(sSettings& settings, MetaData &metadata) : 
-	gdiplusToken(0),
-	custom_img(NULL),
-	background(NULL),
-	albumart(NULL),
-	m_settings(settings),
-	m_metadata(metadata),
-	m_width(-1), //thumbnail width
-	m_height(-1), //thumbnail height
-	m_iconwidth(0),
-	m_iconheight(0),
-	m_textpause(30), //number of frames for minimum text pause
-	no_icon(false),
-	fail(false),
-	scroll_block(false),
-	no_text(false)
-{
-	Gdiplus::GdiplusStartupInput gdiplusStartupInput;   
-	Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
-}
+	gdiplusToken(0), custom_img(NULL), background(NULL), albumart(NULL),
+	m_settings(settings), m_metadata(metadata), m_width(-1), m_height(-1),
+	m_iconwidth(0), m_iconheight(0), m_textpause(30), no_icon(false),
+	fail(false), scroll_block(false), no_text(false) { }
 
 renderer::~renderer()
 {
 	ClearAlbumart();
 	ClearBackground();
 	ClearCustomBackground();
-	Gdiplus::GdiplusShutdown(gdiplusToken);
+
+	if (gdiplusToken != 0)
+	{
+		Gdiplus::GdiplusShutdown(gdiplusToken);
+		gdiplusToken = 0;
+	}
 }
 
 void renderer::SetDimensions(const int new_w, const int new_h) 
