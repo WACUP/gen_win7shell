@@ -4,8 +4,6 @@
 #include <sdk/nu/servicebuilder.h>
 
 #include <api/service/api_service.h>
-extern api_service *serviceManager;
-#define WASABI_API_SVC serviceManager
 
 #include <api/service/waServiceFactory.h>
 
@@ -16,8 +14,6 @@ extern api_albumart *AGAVE_API_ALBUMART;
 #include <api/service/svcs/svc_imgwrite.h>
 
 #include <api/memmgr/api_memmgr.h>
-extern api_memmgr *memmgrApi;
-#define WASABI_API_MEMMGR memmgrApi
 
 #include <playlist/api_playlists.h>
 extern api_playlists *playlistsApi;

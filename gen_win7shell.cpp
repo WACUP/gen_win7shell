@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"3.1.2"
+#define PLUGIN_VERSION L"3.1.5"
 #define ICONSIZEPX 50
 #define NR_BUTTONS 15
 
@@ -30,7 +30,6 @@
 #include "settings.h"
 #include "taskbar.h"
 #include "renderer.h"
-#include <loader/hook/get_api_service.h>
 #include <loader/loader/utils.h>
 #include <loader/loader/paths.h>
 #include <loader/hook/squash.h>
@@ -66,11 +65,9 @@ iTaskBar *itaskbar = NULL;
 MetaData metadata;
 renderer *thumbnaildrawer = NULL;
 
-api_service *WASABI_API_SVC = 0;
-api_memmgr *WASABI_API_MEMMGR = 0;
 api_albumart *AGAVE_API_ALBUMART = 0;
 api_playlists *AGAVE_API_PLAYLISTS = 0;
-api_explorerfindfile *WASABI_API_EXPLORERFINDFILE = 0;
+//api_explorerfindfile *WASABI_API_EXPLORERFINDFILE = 0;
 api_skin *WASABI_API_SKIN = 0;
 api_language *WASABI_API_LNG = 0;
 // these two must be declared as they're used by the language api's
@@ -102,13 +99,10 @@ void quit(void);
 // this structure contains plugin information, version, name...
 winampGeneralPurposePlugin plugin =
 {
-	GPPHDR_VER_U,
 	(char*)L"Taskbar Integration",
-	init,
-	config,
-	quit,
-	0,
-	0
+	GPPHDR_VER_WACUP,
+	init, config, quit,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
 bool CreateThumbnailDrawer()
@@ -220,33 +214,28 @@ void SetupAppID()
 // event functions follow
 int init() 
 {
-	WASABI_API_SVC = GetServiceAPIPtr();/*/
-	// load all of the required wasabi services from the winamp client
-	WASABI_API_SVC = reinterpret_cast<api_service*>(SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GET_API_SERVICE));
-	if (WASABI_API_SVC == reinterpret_cast<api_service*>(1)) WASABI_API_SVC = NULL;/**/
-	if (WASABI_API_SVC != NULL)
-	{
-		/************************************************************************/
-		/* Winamp services                                                      */
-		/************************************************************************/
-		ServiceBuild(WASABI_API_SVC, WASABI_API_MEMMGR, memMgrApiServiceGuid);
-		ServiceBuild(WASABI_API_SVC, AGAVE_API_ALBUMART, albumArtGUID);
-		ServiceBuild(WASABI_API_SVC, AGAVE_API_PLAYLISTS, api_playlistsGUID);
-		ServiceBuild(WASABI_API_SVC, WASABI_API_LNG, languageApiGUID);
-		WASABI_API_START_LANG(plugin.hDllInstance, GenWin7PlusShellLangGUID);
+	/************************************************************************/
+	/* Winamp services                                                      */
+	/************************************************************************/
+	//ServiceBuild(plugin.service, WASABI_API_MEMMGR, memMgrApiServiceGuid);
+	//ServiceBuild(plugin.service, AGAVE_API_ALBUMART, albumArtGUID);
+	AGAVE_API_ALBUMART = plugin.albumart;
+	//ServiceBuild(plugin.service, AGAVE_API_PLAYLISTS, api_playlistsGUID);
+	AGAVE_API_PLAYLISTS = plugin.playlists;
+	//ServiceBuild(plugin.service, WASABI_API_LNG, languageApiGUID);
+	WASABI_API_LNG = plugin.language;
+	WASABI_API_START_LANG(plugin.hDllInstance, GenWin7PlusShellLangGUID);
 
-		plugin.description = (char*)BuildPluginNameW();
+	plugin.description = (char*)BuildPluginNameW();
 
-		// Override window procedure
-		Subclass(plugin.hwndParent, WndProc);
+	// Override window procedure
+	Subclass(plugin.hwndParent, WndProc);
 
-		// Delay loading mst parts until later on to improve the overall load time
-		delay_ipc = RegisterIPC((WPARAM)&"7+_ipc");
-		PostMessage(plugin.hwndParent, WM_WA_IPC, 0, delay_ipc);
+	// Delay loading mst parts until later on to improve the overall load time
+	delay_ipc = RegisterIPC((WPARAM)&"7+_ipc");
+	PostMessage(plugin.hwndParent, WM_WA_IPC, 0, delay_ipc);
 
-		return GEN_INIT_SUCCESS;
-	}
-	return GEN_INIT_FAILURE;
+	return GEN_INIT_SUCCESS;
 }
 
 void config()
@@ -307,12 +296,12 @@ void quit()
 		thumbnaildrawer = NULL;
 	}
 
-	ServiceRelease(WASABI_API_SVC, WASABI_API_MEMMGR, memMgrApiServiceGuid);
-	ServiceRelease(WASABI_API_SVC, AGAVE_API_ALBUMART, albumArtGUID);
-	ServiceRelease(WASABI_API_SVC, AGAVE_API_PLAYLISTS, api_playlistsGUID);
-	ServiceRelease(WASABI_API_SVC, WASABI_API_LNG, languageApiGUID);
-	ServiceRelease(WASABI_API_SVC, WASABI_API_EXPLORERFINDFILE, ExplorerFindFileApiGUID);
-	ServiceRelease(WASABI_API_SVC, WASABI_API_SKIN, skinApiServiceGuid);
+	//ServiceRelease(plugin.service, WASABI_API_MEMMGR, memMgrApiServiceGuid);
+	//ServiceRelease(plugin.service, AGAVE_API_ALBUMART, albumArtGUID);
+	//ServiceRelease(plugin.service, AGAVE_API_PLAYLISTS, api_playlistsGUID);
+	//ServiceRelease(plugin.service, WASABI_API_LNG, languageApiGUID);
+	//ServiceRelease(plugin.service, WASABI_API_EXPLORERFINDFILE, ExplorerFindFileApiGUID);
+	ServiceRelease(plugin.service, WASABI_API_SKIN, skinApiServiceGuid);
 }
 
 HWND WINAPI TASKBAR_CreateDialogParam(HINSTANCE original, LPCWSTR id, HWND parent, DLGPROC proc, LPARAM param)
@@ -709,15 +698,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 						LPCWSTR filename = metadata.getFileName().c_str();
 						if (PathFileExists(filename))
 						{
-							if (WASABI_API_EXPLORERFINDFILE == NULL)
+							/*if (WASABI_API_EXPLORERFINDFILE == NULL)
 							{
-								ServiceBuild(WASABI_API_SVC, WASABI_API_EXPLORERFINDFILE, ExplorerFindFileApiGUID);
+								ServiceBuild(plugin.service, WASABI_API_EXPLORERFINDFILE, ExplorerFindFileApiGUID);
 							}
 							if (WASABI_API_EXPLORERFINDFILE != NULL)
 							{
 								WASABI_API_EXPLORERFINDFILE->AddFile(filename);
 								WASABI_API_EXPLORERFINDFILE->ShowFiles();
-							}
+							}/*/
+							plugin.explorerfindfile->AddFile(filename);
+							plugin.explorerfindfile->ShowFiles();
 						}
 						return 0;
 					}
@@ -1023,7 +1014,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 				// copes with modern skins being later used
 				if (!WASABI_API_SKIN)
 				{
-					ServiceBuild(WASABI_API_SVC, WASABI_API_SKIN, skinApiServiceGuid);
+					ServiceBuild(plugin.service, WASABI_API_SKIN, skinApiServiceGuid);
 				}
 
 				// TODO pull in the localised version from gen_ff
@@ -1983,6 +1974,17 @@ BOOL CALLBACK EnumDialogControls(HWND hwnd, LPARAM lParam)
 	return TRUE;
 }
 
+void UpdateIconControls(HWND hwnd)
+{
+	EnableWindow(GetDlgItem(hwnd, IDC_ICONSIZE), Settings.AsIcon);
+	EnableWindow(GetDlgItem(hwnd, IDC_SLIDER1), Settings.AsIcon);
+	EnableWindow(GetDlgItem(hwnd, IDC_RADIO4), Settings.AsIcon);
+	EnableWindow(GetDlgItem(hwnd, IDC_RADIO7), Settings.AsIcon);
+	EnableWindow(GetDlgItem(hwnd, IDC_ICONPOS), Settings.AsIcon);
+	EnableWindow(GetDlgItem(hwnd, IDC_RADIO6), Settings.AsIcon);
+	EnableWindow(GetDlgItem(hwnd, IDC_RADIO8), Settings.AsIcon);
+}
+
 LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 {
 	switch (Message)
@@ -2019,6 +2021,8 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 			}
 
 			EnumChildWindows(hwnd, EnumDialogControls, (Settings.Thumbnailbackground != BG_WINAMP));
+
+			UpdateIconControls(hwnd);
 			break;
 		}
 		case WM_HSCROLL:
@@ -2152,6 +2156,7 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 				case IDC_CHECK25:
 				{
 					Settings.AsIcon = (Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK25)) == BST_CHECKED);
+					UpdateIconControls(hwnd);
 					ResetThumbnail();
 					break;
 				}

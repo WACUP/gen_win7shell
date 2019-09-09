@@ -15,8 +15,7 @@ public:
 	renderer(sSettings& settings, MetaData &metadata);
 	~renderer();
 
-	bool getAlbumArt(const std::wstring &fname, const int width,
-					 const int height, int& iconsize);
+	bool getAlbumArt(const std::wstring &fname, int& iconheight, int& iconwidth);
 	HBITMAP GetThumbnail(const bool get_bmp = true);
 	void ClearAlbumart();
 	void ClearBackground();
@@ -37,7 +36,7 @@ private:
 	std::vector<int> m_textpositions;
 	bool no_icon, fail, scroll_block, no_text;
 
-	bool render(const int width, const int height, const int iconsize);
+	bool render();
 };
 
 #endif // renderer_h__
