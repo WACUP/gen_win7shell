@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"3.1.5"
+#define PLUGIN_VERSION L"3.1.6"
 #define ICONSIZEPX 50
 #define NR_BUTTONS 15
 
@@ -302,6 +302,8 @@ void quit()
 	//ServiceRelease(plugin.service, WASABI_API_LNG, languageApiGUID);
 	//ServiceRelease(plugin.service, WASABI_API_EXPLORERFINDFILE, ExplorerFindFileApiGUID);
 	ServiceRelease(plugin.service, WASABI_API_SKIN, skinApiServiceGuid);
+
+	UnSubclass(plugin.hwndParent, WndProc);
 }
 
 HWND WINAPI TASKBAR_CreateDialogParam(HINSTANCE original, LPCWSTR id, HWND parent, DLGPROC proc, LPARAM param)
@@ -350,7 +352,7 @@ void updateToolbar(HIMAGELIST ImageList)
 		std::vector<THUMBBUTTON> thbButtons;
 		for (size_t i = 0; i != TButtons.size(); ++i)
 		{
-			THUMBBUTTON button = {THB_BITMAP | THB_TOOLTIP, TButtons[i], 0, NULL, {0}, THBF_ENABLED};
+			THUMBBUTTON button = {THB_BITMAP | THB_TOOLTIP, (UINT)TButtons[i], 0, NULL, {0}, THBF_ENABLED};
 
 			if (button.iId == TB_RATE || button.iId == TB_STOPAFTER ||
 				button.iId == TB_DELETE || button.iId == TB_JTFE ||
@@ -696,19 +698,45 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 					case TB_OPENEXPLORER:
 					{
 						LPCWSTR filename = metadata.getFileName().c_str();
-						if (PathFileExists(filename))
+						if (filename && *filename)
 						{
-							/*if (WASABI_API_EXPLORERFINDFILE == NULL)
+							if (PathFileExists(filename))
 							{
-								ServiceBuild(plugin.service, WASABI_API_EXPLORERFINDFILE, ExplorerFindFileApiGUID);
+								/*if (WASABI_API_EXPLORERFINDFILE == NULL)
+								{
+									ServiceBuild(plugin.service, WASABI_API_EXPLORERFINDFILE, ExplorerFindFileApiGUID);
+								}
+								if (WASABI_API_EXPLORERFINDFILE != NULL)
+								{
+									WASABI_API_EXPLORERFINDFILE->AddFile(filename);
+									WASABI_API_EXPLORERFINDFILE->ShowFiles();
+								}/*/
+								plugin.explorerfindfile->AddFile(filename);
+								plugin.explorerfindfile->ShowFiles();
 							}
-							if (WASABI_API_EXPLORERFINDFILE != NULL)
+							else
 							{
-								WASABI_API_EXPLORERFINDFILE->AddFile(filename);
-								WASABI_API_EXPLORERFINDFILE->ShowFiles();
-							}/*/
-							plugin.explorerfindfile->AddFile(filename);
-							plugin.explorerfindfile->ShowFiles();
+								// TODO it would be useful if there was a common interface
+								//		that allows for determining the real filename when
+								//		there's extras after the extension or custom urls
+								//		so it can just be used where needed without plug-in
+								//		workarounds to fix issues (explorerfindfile is meant
+								//		cope with zip:// but for some reason it fails now &
+								//		it just won't cope with cda:// style entries either)
+								if (!_wcsnicmp(filename, L"zip://", 6))
+								{
+									filename += 6;
+								}
+
+								// if there's an extension then we'll give it another go
+								// as typically no extension means that it won't work...
+								LPCWSTR ext = PathFindExtension(filename);
+								if (ext && *ext)
+								{
+									plugin.explorerfindfile->AddFile(filename);
+									plugin.explorerfindfile->ShowFiles();
+								}
+							}
 						}
 						return 0;
 					}
@@ -1875,11 +1903,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 					DecompressResource(data, data_size, &output, 0);
 					MessageBoxEx(PrefsHWND(), AutoWide((LPCSTR)output, CP_UTF8),
 								 WASABI_API_LNGSTRINGW(IDS_INFORMATION), MB_ICONINFORMATION, 0);
-
-					if (output)
-					{
-						free(output);
-					}
+					DecompressResourceFree(output);
 					break;
 				}
 				case IDC_DEFAULT:

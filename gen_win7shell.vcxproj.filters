@@ -1,0 +1,163 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
+    </Filter>
+    <Filter Include="External Libraries">
+      <UniqueIdentifier>{aa4172f7-294c-4268-8a86-8560d38fb47f}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="gen_win7shell.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="jumplist.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="lines.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="metadata.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="settings.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="taskbar.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="tools.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="api.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gen_win7shell.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="jumplist.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lines.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="metadata.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="settings.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="taskbar.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="tools.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="app.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\bookmark.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\delete.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\fav.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\folder.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\help.bin.gz">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\minus.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\mute1.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\next.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\open (2).ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\open.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\pause.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\play (2).ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\play.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\playlist.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\playstop.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\plus.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\previous.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\repeat_all.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\repeat_off.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\repeat_one.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\Resume (2).ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\search.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\settings (2).ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\shuffle_off.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\shuffle_on.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Resources\stop.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
+</Project>
