@@ -3,6 +3,7 @@
 #include "tools.h"
 #include "api.h"
 #include <loader/loader/paths.h>
+#include <loader/loader/utils.h>
 
 namespace tools
 {
@@ -141,9 +142,14 @@ namespace tools
 		HRESULT hr = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&psl));
 		if (SUCCEEDED(hr))
 		{
-			wchar_t fname[MAX_PATH] = {0};
-			GetModuleFileName(0, fname, MAX_PATH);
-			PathRenameExtension(fname, L".exe");
+			// due to how WACUP works, a wacup.exe or
+			// a winamp.exe might be being used (this
+			// is ignoring the winamp.original aspect
+			// that this code was dealing with). this
+			// call will get the appropriate filepath
+			// for the instance of the loader in use!
+			wchar_t fname[MAX_PATH] = { 0 };
+			RealWACUPPath(fname, ARRAYSIZE(fname));
 
 			wchar_t shortfname[MAX_PATH] = {0};
 			GetShortPathName(fname, shortfname, MAX_PATH);
@@ -196,22 +202,14 @@ namespace tools
 		return hr;
 	}
 
-	bool is_in_recent(std::wstring &filename)
+	/*bool is_in_recent(std::wstring &filename)
 	{
 		wchar_t path[MAX_PATH] = {0};
-		SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, 0, path);
-
-		std::wstring::size_type pos = filename.find_last_of(L"\\");
-		if (pos != std::wstring::npos)
-		{
-			filename.erase(0, pos + 1);
-		}
-
-		PathAppend(path, L"\\Microsoft\\Windows\\Recent\\");
+		ExpandEnvironmentStrings(L"%appdata%\\Microsoft\\Windows\\Recent", path, ARRAYSIZE(path));
 		PathAppend(path, filename.c_str());
 		PathAddExtension(path, L".lnk");
 		return !!PathFileExists(path);
-	}
+	}*/
 
 	HIMAGELIST prepareIcons()
 	{

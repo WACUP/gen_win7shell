@@ -10,6 +10,7 @@
 #include <strsafe.h>
 #include "jumplist.h"
 #include "api.h"
+#include <loader/loader/utils.h>
 
 JumpList::JumpList(const std::wstring AppID, const bool delete_now) : pcdl(NULL)
 {
@@ -57,9 +58,14 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 			psl->SetIconLocation(path.c_str(), iconindex);
 			if (mode)
 			{
+				// due to how WACUP works, a wacup.exe or
+				// a winamp.exe might be being used (this
+				// is ignoring the winamp.original aspect
+				// that this code was dealing with). this
+				// call will get the appropriate filepath
+				// for the instance of the loader in use!
 				wchar_t fname[MAX_PATH] = {0};
-				GetModuleFileName(0, fname, MAX_PATH);
-				PathRenameExtension(fname, L".exe");
+				RealWACUPPath(fname, ARRAYSIZE(fname));
 
 				if (mode == 1)
 				{

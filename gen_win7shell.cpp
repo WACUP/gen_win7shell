@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"3.1.6"
+#define PLUGIN_VERSION L"3.2"
 #define ICONSIZEPX 50
 #define NR_BUTTONS 15
 
@@ -711,8 +711,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 									WASABI_API_EXPLORERFINDFILE->AddFile(filename);
 									WASABI_API_EXPLORERFINDFILE->ShowFiles();
 								}/*/
-								plugin.explorerfindfile->AddFile(filename);
-								plugin.explorerfindfile->ShowFiles();
+								plugin.explorerfindfile->AddAndShowFile(filename);
 							}
 							else
 							{
@@ -733,8 +732,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 								LPCWSTR ext = PathFindExtension(filename);
 								if (ext && *ext)
 								{
-									plugin.explorerfindfile->AddFile(filename);
-									plugin.explorerfindfile->ShowFiles();
+									plugin.explorerfindfile->AddAndShowFile(filename);
 								}
 							}
 						}
@@ -819,7 +817,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 					Settings.play_current = 0;
 					Settings.play_state = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_ISPLAYING);
 
-					if ((Settings.JLrecent || Settings.JLfrequent) && !tools::is_in_recent(filename))
+					if ((Settings.JLrecent || Settings.JLfrequent)/* && !tools::is_in_recent(filename)*/)
 					{
 						std::wstring title(metadata.getMetadata(L"title") + L" - " + metadata.getMetadata(L"artist"));
 
