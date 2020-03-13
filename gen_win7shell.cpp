@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"3.2"
+#define PLUGIN_VERSION L"3.2.1"
 #define ICONSIZEPX 50
 #define NR_BUTTONS 15
 
@@ -1427,6 +1427,10 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 			const BOOL enabled = GetTaskbarMode();
 			CheckDlgButton(hwnd, IDC_SHOW_IN_TASKBAR, (enabled ? BST_CHECKED : BST_UNCHECKED));
 			EnableWindow(GetDlgItem(hwnd, 1267), enabled);
+			EnableWindow(GetDlgItem(hwnd, IDC_ICON_COMBO), enabled);
+			EnableWindow(GetDlgItem(hwnd, IDC_HIDE_ON_MINIMISE), enabled);
+
+			CheckDlgButton(hwnd, IDC_HIDE_ON_MINIMISE, (GetTaskbarOnMinimiseMode() ? BST_CHECKED : BST_UNCHECKED));
 
 			SetupTaskberIcon(hwnd);
 			break;
@@ -1440,6 +1444,12 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 					const bool enabled = (IsDlgButtonChecked(hwnd, IDC_SHOW_IN_TASKBAR) == BST_CHECKED);
 					EnableWindow(GetDlgItem(hwnd, 1267), UpdateTaskbarMode(enabled));
 					EnableWindow(GetDlgItem(hwnd, IDC_ICON_COMBO), enabled);
+					EnableWindow(GetDlgItem(hwnd, IDC_HIDE_ON_MINIMISE), enabled);
+					break;
+				}
+				case IDC_HIDE_ON_MINIMISE:
+				{
+					UpdateTaskbarOnMinimiseMode((IsDlgButtonChecked(hwnd, IDC_HIDE_ON_MINIMISE) == BST_CHECKED));
 					break;
 				}
 				case IDC_CLEARALL:
