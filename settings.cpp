@@ -24,20 +24,25 @@ bool SettingsManager::GetBool(const std::wstring &key, const bool default_value)
 	return !!GetPrivateProfileIntW(currentSection.c_str(), key.c_str(), default_value, SettingsFile.c_str());
 }
 
-std::wstring SettingsManager::GetString(const std::wstring &key, const std::wstring &default_value,
+std::wstring SettingsManager::GetString(const std::wstring &key,
+										const std::wstring &default_value,
 										const size_t max_size) const
 {
-	LPWSTR _section = (LPWSTR)currentSection.c_str(),
-		   _key = (LPWSTR)key.c_str(),
-		   _default = (LPWSTR)default_value.c_str(),
-		   _file = (LPWSTR)SettingsFile.c_str();
+	LPCSTR _section = AutoCharDup((LPWSTR)currentSection.c_str(), CP_UTF8),
+		   _key = AutoCharDup((LPWSTR)key.c_str(), CP_UTF8),
+		   _default = AutoCharDup((LPWSTR)default_value.c_str(), CP_UTF8),
+		   _file = AutoCharFnDup((LPWSTR)SettingsFile.c_str());
 
 	std::string buffer;
 	buffer.resize(max_size);
-	const DWORD len = GetPrivateProfileStringA(AutoChar(_section, CP_UTF8), AutoChar(_key, CP_UTF8),
-											   AutoChar(_default, CP_UTF8), &buffer[0],
-											   max_size, AutoCharFn(_file));
+	const DWORD len = GetPrivateProfileStringA(_section, _key, _default,
+											   &buffer[0], max_size, _file);
 	buffer.resize(len);
+
+	free((void *)_section);
+	free((void *)_key);
+	free((void *)_default);
+	free((void *)_file);
 
 	if (!buffer.empty())
 	{
@@ -74,20 +79,24 @@ void SettingsManager::WriteBool(const std::wstring &key, const bool value,
 void SettingsManager::WriteString(const std::wstring &key, const std::wstring &value,
 								  const std::wstring &default_value) const
 {
-	LPWSTR _section = (LPWSTR)currentSection.c_str(),
-		   _key = (LPWSTR)key.c_str(),
-		   _file = (LPWSTR)SettingsFile.c_str();
+	LPCSTR _section = AutoCharDup((LPWSTR)currentSection.c_str(), CP_UTF8),
+		   _key = AutoCharDup((LPWSTR)key.c_str(), CP_UTF8),
+		   _file = AutoCharFnDup((LPWSTR)SettingsFile.c_str());
 	if (value != default_value)
 	{
-		LPWSTR _value = (LPWSTR)value.c_str();
-		WritePrivateProfileStringA(AutoChar(_section, CP_UTF8), AutoChar(_key, CP_UTF8),
-								   AutoChar(_value, CP_UTF8), AutoCharFn(_file));
+		LPCSTR _value = AutoCharDup((LPWSTR)value.c_str(), CP_UTF8);
+		WritePrivateProfileStringA(_section, _key,
+								   _value, _file);
+		free((void *)_value);
 	}
 	else
 	{
-		WritePrivateProfileStringA(AutoChar(_section, CP_UTF8), AutoChar(_key, CP_UTF8),
-								   NULL, AutoCharFn(_file));
+		WritePrivateProfileStringA(_section, _key,
+								   NULL, _file);
 	}
+	free((void *)_section);
+	free((void *)_key);
+	free((void *)_file);
 }
 
 void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<int> &tba)

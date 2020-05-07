@@ -796,7 +796,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 
 					if (filename.empty())
 					{
-						LPCWSTR p = (LPCWSTR)SendMessage(plugin.hwndParent, WM_WA_IPC, Settings.play_playlistpos, IPC_GETPLAYLISTFILEW); 
+						LPCWSTR p = (LPCWSTR)SendMessage(plugin.hwndParent, WM_WA_IPC, 1, IPC_GET_PLAYING_FILENAME);
 						if (p != NULL)
 						{
 							filename = p;
@@ -937,7 +937,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 
 						theicons = tools::prepareIcons();
 
-						LPCWSTR p = (LPCWSTR)SendMessage(plugin.hwndParent, WM_WA_IPC, Settings.play_playlistpos, IPC_GETPLAYLISTFILEW); 
+						LPCWSTR p = (LPCWSTR)SendMessage(plugin.hwndParent, WM_WA_IPC, 1, IPC_GET_PLAYING_FILENAME);
 						if (p != NULL)
 						{
 							metadata.reset(p);
@@ -2347,7 +2347,7 @@ LRESULT CALLBACK KeyboardEvent(int nCode, WPARAM wParam, LPARAM lParam)
 {
 	if (!thumbshowing || wParam != WM_MOUSEWHEEL)
 	{
-		return CallNextHookEx(hMouseHook, nCode, wParam, lParam);
+		return CallNextHookEx(NULL, nCode, wParam, lParam);
 	}
 
 	if ((short)((HIWORD(((MSLLHOOKSTRUCT*)lParam)->mouseData))) > 0)
@@ -2371,7 +2371,7 @@ LRESULT CALLBACK KeyboardEvent(int nCode, WPARAM wParam, LPARAM lParam)
 		PostMessage(plugin.hwndParent, WM_WA_IPC, Settings.play_volume, IPC_SETVOLUME);
 	}
 
-	return CallNextHookEx(hMouseHook, nCode, wParam, lParam);
+	return CallNextHookEx(NULL, nCode, wParam, lParam);
 }
 #endif
 

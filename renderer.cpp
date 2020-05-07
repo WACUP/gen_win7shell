@@ -40,14 +40,15 @@ Gdiplus::Bitmap* ResizeAncCloneBitmap(Gdiplus::Bitmap *bmp, const float width, c
 
 bool renderer::getAlbumArt(const std::wstring &fname, int& iconheight, int& iconwidth)
 {
-	if (!albumart)
+	if (!albumart && (AGAVE_API_ALBUMART != NULL))
 	{
 		ARGB32 *cur_image = 0;
 		int cur_w = 0, cur_h = 0;
 		// when running under WACUP this request is cached for us
 		// so we don't have to worry too much about it being slow
-		if (AGAVE_API_ALBUMART->GetAlbumArt(fname.c_str(), L"cover", &cur_w,
-											&cur_h, &cur_image) == ALBUMART_SUCCESS)
+		const int ret = AGAVE_API_ALBUMART->GetAlbumArtResize(fname.c_str(), L"cover", &cur_w,
+															  &cur_h, &cur_image, 600, 600);
+		if ((ret == ALBUMART_SUCCESS) || (ret == ALBUMART_GOTCACHE))
 		{
 			BITMAPINFO bmi = {0};
 			bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
