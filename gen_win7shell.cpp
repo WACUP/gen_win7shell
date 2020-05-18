@@ -1,5 +1,5 @@
-#define PLUGIN_VERSION L"3.2.1"
-#define ICONSIZEPX 50
+#define PLUGIN_VERSION L"3.2.2"
+
 #define NR_BUTTONS 15
 
 #include <windows.h>
