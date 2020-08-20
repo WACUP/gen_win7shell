@@ -293,118 +293,118 @@ void SettingsManager::WriteSettings_ToForm(HWND hwnd, HWND WinampWnd, const sSet
 	{
 		case BG_TRANSPARENT:
 		{
-			SendMessage(GetDlgItem(hwnd, IDC_RADIO1), (UINT)BM_SETCHECK, BST_CHECKED, 0);
+			SendDlgItemMessage(hwnd, IDC_RADIO1, (UINT)BM_SETCHECK, BST_CHECKED, 0);
 			break;
 		}
 		case BG_ALBUMART:
 		{
-			SendMessage(GetDlgItem(hwnd, IDC_RADIO2), (UINT)BM_SETCHECK, BST_CHECKED, 0);
+			SendDlgItemMessage(hwnd, IDC_RADIO2, (UINT)BM_SETCHECK, BST_CHECKED, 0);
 			break;
 		}
 		case BG_CUSTOM:
 		{
-			SendMessage(GetDlgItem(hwnd, IDC_RADIO3), (UINT)BM_SETCHECK, BST_CHECKED, 0);
+			SendDlgItemMessage(hwnd, IDC_RADIO3, (UINT)BM_SETCHECK, BST_CHECKED, 0);
 			break;
 		}
 		case BG_WINAMP:
 		{
-			SendMessage(GetDlgItem(hwnd, IDC_RADIO9), (UINT)BM_SETCHECK, BST_CHECKED, 0);
+			SendDlgItemMessage(hwnd, IDC_RADIO9, (UINT)BM_SETCHECK, BST_CHECKED, 0);
 			// this is so when the main mode is toggled that the image has something valid
-			SendMessage(GetDlgItem(hwnd, IDC_RADIO2), (UINT)BM_SETCHECK, BST_CHECKED, 0);
+			SendDlgItemMessage(hwnd, IDC_RADIO2, (UINT)BM_SETCHECK, BST_CHECKED, 0);
 			break;
 		}
 	}
 
 	if (Settings.Thumbnailbackground != BG_WINAMP)
 	{
-		SendMessage(GetDlgItem(hwnd, IDC_RADIO10), (UINT)BM_SETCHECK, BST_CHECKED, 0);
+		SendDlgItemMessage(hwnd, IDC_RADIO10, (UINT)BM_SETCHECK, BST_CHECKED, 0);
 	}
 
 	switch (Settings.IconPosition)
 	{
 		case IP_UPPERLEFT:
 		{
-			SendMessage(GetDlgItem(hwnd, IDC_RADIO4), (UINT)BM_SETCHECK, BST_CHECKED, 0);
+			SendDlgItemMessage(hwnd, IDC_RADIO4, (UINT)BM_SETCHECK, BST_CHECKED, 0);
 			break;
 		}
 		case IP_LOWERLEFT:
 		{
-			SendMessage(GetDlgItem(hwnd, IDC_RADIO7), (UINT)BM_SETCHECK, BST_CHECKED, 0);
+			SendDlgItemMessage(hwnd, IDC_RADIO7, (UINT)BM_SETCHECK, BST_CHECKED, 0);
 			break;
 		}
 		case IP_UPPERRIGHT:
 		{
-			SendMessage(GetDlgItem(hwnd, IDC_RADIO6), (UINT)BM_SETCHECK, BST_CHECKED, 0);
+			SendDlgItemMessage(hwnd, IDC_RADIO6, (UINT)BM_SETCHECK, BST_CHECKED, 0);
 			break;
 		}
 		case IP_LOWERRIGHT:
 		{
-			SendMessage(GetDlgItem(hwnd, IDC_RADIO8), (UINT)BM_SETCHECK, BST_CHECKED, 0);
+			SendDlgItemMessage(hwnd, IDC_RADIO8, (UINT)BM_SETCHECK, BST_CHECKED, 0);
 			break;
 		}
 	}
 
-	SendMessage(GetDlgItem(hwnd, IDC_COMBO1), CB_ADDSTRING, 0, (LPARAM)WASABI_API_LNGSTRINGW(IDS_TRANSPARENT));
-	SendMessage(GetDlgItem(hwnd, IDC_COMBO1), CB_ADDSTRING, 0, (LPARAM)WASABI_API_LNGSTRINGW(IDS_ALBUM_ART));
-	SendMessage(GetDlgItem(hwnd, IDC_COMBO1), CB_ADDSTRING, 0, (LPARAM)WASABI_API_LNGSTRINGW(IDS_CUSTOM_BACKGROUND));
+	SendDlgItemMessage(hwnd, IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)WASABI_API_LNGSTRINGW(IDS_TRANSPARENT));
+	SendDlgItemMessage(hwnd, IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)WASABI_API_LNGSTRINGW(IDS_ALBUM_ART));
+	SendDlgItemMessage(hwnd, IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)WASABI_API_LNGSTRINGW(IDS_CUSTOM_BACKGROUND));
 
-	SendMessage(GetDlgItem(hwnd, IDC_COMBO1), CB_SETCURSEL, Settings.Revertto, 0);
+	SendDlgItemMessage(hwnd, IDC_COMBO1, CB_SETCURSEL, Settings.Revertto, 0);
 
 	//Player control buttons
-	SendMessage(GetDlgItem(hwnd, IDC_CHECK6), (UINT) BM_SETCHECK, Settings.Thumbnailbuttons, 0);
+	SendDlgItemMessage(hwnd, IDC_CHECK6, (UINT) BM_SETCHECK, Settings.Thumbnailbuttons, 0);
 
 	//Progressbar
-	SendMessage(GetDlgItem(hwnd, IDC_CHECK2), (UINT) BM_SETCHECK, Settings.Progressbar, 0);
+	SendDlgItemMessage(hwnd, IDC_CHECK2, (UINT) BM_SETCHECK, Settings.Progressbar, 0);
 
 	//Streamstatus
-	SendMessage(GetDlgItem(hwnd, IDC_CHECK4), (UINT) BM_SETCHECK, Settings.Streamstatus, 0);
+	SendDlgItemMessage(hwnd, IDC_CHECK4, (UINT) BM_SETCHECK, Settings.Streamstatus, 0);
 
 	//Stoppedstatus
-	SendMessage(GetDlgItem(hwnd, IDC_CHECK5), (UINT) BM_SETCHECK, Settings.Stoppedstatus, 0);
+	SendDlgItemMessage(hwnd, IDC_CHECK5, (UINT) BM_SETCHECK, Settings.Stoppedstatus, 0);
 
 	//Overlay
-	SendMessage(GetDlgItem(hwnd, IDC_CHECK3), (UINT) BM_SETCHECK, Settings.Overlay, 0);
+	SendDlgItemMessage(hwnd, IDC_CHECK3, (UINT) BM_SETCHECK, Settings.Overlay, 0);
 
 	//antialias
-	SendMessage(GetDlgItem(hwnd, IDC_CHECK8), (UINT) BM_SETCHECK, Settings.Antialias, 0);
+	SendDlgItemMessage(hwnd, IDC_CHECK8, (UINT) BM_SETCHECK, Settings.Antialias, 0);
 
 	//shrinkframe
-	SendMessage(GetDlgItem(hwnd, IDC_CHECK1), (UINT) BM_SETCHECK, Settings.Shrinkframe, 0);
+	SendDlgItemMessage(hwnd, IDC_CHECK1, (UINT) BM_SETCHECK, Settings.Shrinkframe, 0);
 
 	//Show image as icon
-	SendMessage(GetDlgItem(hwnd, IDC_CHECK25), (UINT) BM_SETCHECK, Settings.AsIcon, 0);
+	SendDlgItemMessage(hwnd, IDC_CHECK25, (UINT) BM_SETCHECK, Settings.AsIcon, 0);
 
 	//VU Meter
-	SendMessage(GetDlgItem(hwnd, IDC_CHECK26), (UINT) BM_SETCHECK, Settings.VuMeter, 0);
+	SendDlgItemMessage(hwnd, IDC_CHECK26, (UINT) BM_SETCHECK, Settings.VuMeter, 0);
 
 	//Thumbnail pb
-	SendMessage(GetDlgItem(hwnd, IDC_CHECK29), (UINT) BM_SETCHECK, Settings.Thumbnailpb, 0);
+	SendDlgItemMessage(hwnd, IDC_CHECK29, (UINT) BM_SETCHECK, Settings.Thumbnailpb, 0);
 
 	//Add 2 recent
-	SendMessage(GetDlgItem(hwnd, IDC_CHECK_A2R), (UINT) BM_SETCHECK, !Settings.Add2RecentDocs, 0);
+	SendDlgItemMessage(hwnd, IDC_CHECK_A2R, (UINT) BM_SETCHECK, !Settings.Add2RecentDocs, 0);
 
-	SendMessage(GetDlgItem(hwnd, IDC_CHECK30), (UINT) BM_SETCHECK, Settings.JLrecent, 0);
-	SendMessage(GetDlgItem(hwnd, IDC_CHECK31), (UINT) BM_SETCHECK, Settings.JLfrequent, 0);
-	SendMessage(GetDlgItem(hwnd, IDC_CHECK32), (UINT) BM_SETCHECK, Settings.JLtasks, 0);
-	SendMessage(GetDlgItem(hwnd, IDC_CHECK33), (UINT) BM_SETCHECK, Settings.JLbms, 0);
-	SendMessage(GetDlgItem(hwnd, IDC_CHECK34), (UINT) BM_SETCHECK, Settings.JLpl, 0);
+	SendDlgItemMessage(hwnd, IDC_CHECK30, (UINT) BM_SETCHECK, Settings.JLrecent, 0);
+	SendDlgItemMessage(hwnd, IDC_CHECK31, (UINT) BM_SETCHECK, Settings.JLfrequent, 0);
+	SendDlgItemMessage(hwnd, IDC_CHECK32, (UINT) BM_SETCHECK, Settings.JLtasks, 0);
+	SendDlgItemMessage(hwnd, IDC_CHECK33, (UINT) BM_SETCHECK, Settings.JLbms, 0);
+	SendDlgItemMessage(hwnd, IDC_CHECK34, (UINT) BM_SETCHECK, Settings.JLpl, 0);
 
 #ifdef USE_MOUSE
-	SendMessage(GetDlgItem(hwnd, IDC_CHECK35), (UINT) BM_SETCHECK, Settings.VolumeControl, 0);
+	SendDlgItemMessage(hwnd, IDC_CHECK35, (UINT) BM_SETCHECK, Settings.VolumeControl, 0);
 #endif
 
-	SendMessage(GetDlgItem(hwnd, IDC_CHECK36), (UINT) BM_SETCHECK, static_cast<WPARAM>(Settings.LowFrameRate), 0);
+	SendDlgItemMessage(hwnd, IDC_CHECK36, (UINT) BM_SETCHECK, static_cast<WPARAM>(Settings.LowFrameRate), 0);
 
 	//Trackbar
-	SendMessage(GetDlgItem(hwnd, IDC_SLIDER1), TBM_SETPOS, TRUE, Settings.IconSize);
-	SendMessage(GetDlgItem(hwnd, IDC_SLIDER_TRANSPARENCY), TBM_SETPOS, TRUE, Settings.BG_Transparency);
+	SendDlgItemMessage(hwnd, IDC_SLIDER1, TBM_SETPOS, TRUE, Settings.IconSize);
+	SendDlgItemMessage(hwnd, IDC_SLIDER_TRANSPARENCY, TBM_SETPOS, TRUE, Settings.BG_Transparency);
 
 	std::wstringstream size;
-	size << "Icon size (" << SendMessage(GetDlgItem(hwnd, IDC_SLIDER1), TBM_GETPOS, NULL, NULL) << "%)";
+	size << "Icon size (" << SendDlgItemMessage(hwnd, IDC_SLIDER1, TBM_GETPOS, NULL, NULL) << "%)";
 	SetWindowTextW(GetDlgItem(hwnd, IDC_ICONSIZE), size.str().c_str());
 
 	size.str(L"");
-	size << SendMessage(GetDlgItem(hwnd, IDC_SLIDER_TRANSPARENCY), TBM_GETPOS, NULL, NULL) << "%";
+	size << SendDlgItemMessage(hwnd, IDC_SLIDER_TRANSPARENCY, TBM_GETPOS, NULL, NULL) << "%";
 	SetWindowTextW(GetDlgItem(hwnd, IDC_TRANSPARENCY_PERCENT), size.str().c_str());
 
 	SetWindowText(GetDlgItem(hwnd, IDC_EDIT2), Settings.BGPath);
@@ -423,9 +423,9 @@ void SettingsManager::WriteSettings_ToForm(HWND hwnd, HWND WinampWnd, const sSet
 
 	SetWindowText(GetDlgItem(hwnd, IDC_EDIT3), tmpbuf.c_str());
 
-	EnableWindow(GetDlgItem(hwnd, IDC_CHECK4), Settings.Progressbar);
-	EnableWindow(GetDlgItem(hwnd, IDC_CHECK5), Settings.Progressbar);
-	EnableWindow(GetDlgItem(hwnd, IDC_CHECK27), Settings.Thumbnailbuttons);
+	EnableControl(hwnd, IDC_CHECK4, Settings.Progressbar);
+	EnableControl(hwnd, IDC_CHECK5, Settings.Progressbar);
+	EnableControl(hwnd, IDC_CHECK27, Settings.Thumbnailbuttons);
 }
 
 void SettingsManager::WriteButtons(std::vector<int> &tba)

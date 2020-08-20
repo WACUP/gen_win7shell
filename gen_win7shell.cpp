@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"3.2.2"
+#define PLUGIN_VERSION L"3.2.3"
 
 #define NR_BUTTONS 15
 
@@ -88,7 +88,7 @@ extern "C" __declspec(dllexport) LRESULT CALLBACK TabHandler_Thumbnail(HWND, UIN
 extern "C" __declspec(dllexport) LRESULT CALLBACK TabHandler_ThumbnailImage(HWND, UINT, WPARAM, LPARAM);
 
 void updateToolbar(HIMAGELIST ImageList = NULL);
-void SetupJumpList();
+void SetupJumpList(void);
 void AddStringtoList(HWND window, const int control_ID);
 
 // Winamp EVENTS
@@ -105,7 +105,7 @@ winampGeneralPurposePlugin plugin =
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-bool CreateThumbnailDrawer()
+bool CreateThumbnailDrawer(void)
 {
 	if (thumbnaildrawer == NULL)
 	{
@@ -170,7 +170,7 @@ const bool GenerateAppIDFromFolder(const wchar_t *search_path, wchar_t *app_id)
 	return false;
 }
 
-void SetupAppID()
+void SetupAppID(void)
 {
 	// we do this to make sure we can group things correctly
 	// especially if used in a plug-in in Winamp so that the
@@ -212,7 +212,7 @@ void SetupAppID()
 }
 
 // event functions follow
-int init() 
+int init(void)
 {
 	/************************************************************************/
 	/* Winamp services                                                      */
@@ -238,7 +238,7 @@ int init()
 	return GEN_INIT_SUCCESS;
 }
 
-void config()
+void config(void)
 {
 	HMENU popup = CreatePopupMenu();
 	RECT r = {0};
@@ -275,7 +275,7 @@ void config()
 	DestroyMenu(popup);
 }
 
-void quit() 
+void quit(void)
 {
 #ifdef USE_MOUSE
 	if (hMouseHook != NULL)
@@ -423,7 +423,7 @@ BOOL CALLBACK checkSkinProc(HWND hwnd, LPARAM lParam)
 	return TRUE;
 }
 
-void updateRepeatButton()
+void updateRepeatButton(void)
 {
 	// update repeat state
 	int current_repeat_state = repeat;
@@ -439,7 +439,7 @@ void updateRepeatButton()
 	}
 }
 
-void SetThumbnailTimer()
+void SetThumbnailTimer(void)
 {
 	KillTimer(plugin.hwndParent, 6670);
 	SetTimer(plugin.hwndParent, 6670, (Settings.Thumbnailbackground == BG_WINAMP) ?
@@ -447,7 +447,7 @@ void SetThumbnailTimer()
 			 (!Settings.LowFrameRate ? Settings.TFT : Settings.TST), TimerProc);
 }
 
-void ResetThumbnail()
+void ResetThumbnail(void)
 {
 	if (CreateThumbnailDrawer())
 	{
@@ -458,7 +458,7 @@ void ResetThumbnail()
 	}
 }
 
-void UpdateOverlyStatus()
+void UpdateOverlyStatus(void)
 {
 	Settings.play_state = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_ISPLAYING);
 
@@ -1108,7 +1108,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 	return ret;
 }
 
-void CheckThumbShowing()
+void CheckThumbShowing(void)
 {
 #if 0
 	if (thumbshowing)
@@ -1411,7 +1411,7 @@ LRESULT CALLBACK rateWndProc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lPara
 	return 0;
 }
 
-HWND PrefsHWND()
+HWND PrefsHWND(void)
 {
 	return (HWND)SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETPREFSWND);
 }
@@ -1426,9 +1426,9 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 
 			const BOOL enabled = GetTaskbarMode();
 			CheckDlgButton(hwnd, IDC_SHOW_IN_TASKBAR, (enabled ? BST_CHECKED : BST_UNCHECKED));
-			EnableWindow(GetDlgItem(hwnd, 1267), enabled);
-			EnableWindow(GetDlgItem(hwnd, IDC_ICON_COMBO), enabled);
-			EnableWindow(GetDlgItem(hwnd, IDC_HIDE_ON_MINIMISE), enabled);
+			EnableControl(hwnd, 1267, enabled);
+			EnableControl(hwnd, IDC_ICON_COMBO, enabled);
+			EnableControl(hwnd, IDC_HIDE_ON_MINIMISE, enabled);
 
 			CheckDlgButton(hwnd, IDC_HIDE_ON_MINIMISE, (GetTaskbarOnMinimiseMode() ? BST_CHECKED : BST_UNCHECKED));
 
@@ -1442,9 +1442,9 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 				case IDC_SHOW_IN_TASKBAR:
 				{
 					const bool enabled = (IsDlgButtonChecked(hwnd, IDC_SHOW_IN_TASKBAR) == BST_CHECKED);
-					EnableWindow(GetDlgItem(hwnd, 1267), UpdateTaskbarMode(enabled));
-					EnableWindow(GetDlgItem(hwnd, IDC_ICON_COMBO), enabled);
-					EnableWindow(GetDlgItem(hwnd, IDC_HIDE_ON_MINIMISE), enabled);
+					EnableControl(hwnd, 1267, UpdateTaskbarMode(enabled));
+					EnableControl(hwnd, IDC_ICON_COMBO, enabled);
+					EnableControl(hwnd, IDC_HIDE_ON_MINIMISE, enabled);
 					break;
 				}
 				case IDC_HIDE_ON_MINIMISE:
@@ -1461,7 +1461,7 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 
 					if (DeleteFile(filepath) != 0)
 					{
-						EnableWindow(GetDlgItem(hwnd, IDC_CLEARALL), false);
+						EnableControl(hwnd, IDC_CLEARALL, false);
 					}
 					break;
 				}
@@ -1515,12 +1515,12 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 				{
 					Settings.Progressbar = (Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK2)) == BST_CHECKED);
 
-					EnableWindow(GetDlgItem(hwnd, IDC_CHECK4), Settings.Progressbar);
-					EnableWindow(GetDlgItem(hwnd, IDC_CHECK5), Settings.Progressbar);
+					EnableControl(hwnd, IDC_CHECK4, Settings.Progressbar);
+					EnableControl(hwnd, IDC_CHECK5, Settings.Progressbar);
 
 					if (Settings.Progressbar)
 					{
-						SendMessage(GetDlgItem(hwnd, IDC_CHECK26), (UINT) BM_SETCHECK, 0, 0);	
+						SendDlgItemMessage(hwnd, IDC_CHECK26, (UINT) BM_SETCHECK, 0, 0);
 						Settings.VuMeter = false;
 					}
 					break;
@@ -1541,9 +1541,9 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 
 					if (Settings.VuMeter)
 					{
-						SendMessage(GetDlgItem(hwnd, IDC_CHECK2), (UINT) BM_SETCHECK, 0, 0);	
-						EnableWindow(GetDlgItem(hwnd, IDC_CHECK4), 0);
-						EnableWindow(GetDlgItem(hwnd, IDC_CHECK5), 0);
+						SendDlgItemMessage(hwnd, IDC_CHECK2, (UINT) BM_SETCHECK, 0, 0);
+						EnableControl(hwnd, IDC_CHECK4, 0);
+						EnableControl(hwnd, IDC_CHECK5, 0);
 						Settings.Progressbar = false;
 					}
 
@@ -1627,7 +1627,7 @@ static void UpdateContolButtons(HWND hwnd)
 					   IDC_BUTTON_ORDER, IDC_LIST1, IDC_UPBUTT, IDC_DOWNBUTT};
 	for (int i = 0; i < ARRAYSIZE(ids); i++)
 	{
-		EnableWindow(GetDlgItem(hwnd, ids[i]), Settings.Thumbnailbuttons);
+		EnableControl(hwnd, ids[i], Settings.Thumbnailbuttons);
 	}
 }
 
@@ -1640,7 +1640,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 			// Reset buttons
 			for (int i = IDC_PCB1; i <= IDC_PCB15; i++)
 			{
-				SendMessage(GetDlgItem(hwnd, i), BM_SETCHECK, BST_UNCHECKED, NULL);
+				SendDlgItemMessage(hwnd, i, BM_SETCHECK, BST_UNCHECKED, NULL);
 			}
 
 			SettingsManager::WriteSettings_ToForm(hwnd, plugin.hwndParent, Settings);
@@ -1653,7 +1653,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 								   IDC_CHECK8, IDC_CHECK1, IDC_CHECK29};
 				for (int i = 0; i < ARRAYSIZE(ids); i++)
 				{
-					EnableWindow(GetDlgItem(hwnd, ids[i]), FALSE);
+					EnableControl(hwnd, ids[i], FALSE);
 				}
 
 				DestroyWindow(GetDlgItem(hwnd, IDC_BUTTON_HELP));
@@ -1665,14 +1665,14 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 			{
 				const int index = SendMessage(list, LB_ADDSTRING, NULL, (LPARAM)tools::getToolTip(TButtons[i], -1));
 				SendMessage(list, LB_SETITEMDATA, index, TButtons[i]);
-				SendMessage(GetDlgItem(hwnd, TButtons[i]), BM_SETCHECK, BST_CHECKED, NULL);
+				SendDlgItemMessage(hwnd, TButtons[i], BM_SETCHECK, BST_CHECKED, NULL);
 			}
 			
 			// Set button icons
 			for (int i = 0; i < NR_BUTTONS; i++)
 			{
 				HICON icon = ImageList_GetIcon(theicons, tools::getBitmap(TB_PREVIOUS+i, i == 10 ? 1 : 0), 0);
-				SendMessage(GetDlgItem(hwnd, IDC_PCB1+i), BM_SETIMAGE, IMAGE_ICON, (LPARAM)icon);
+				SendDlgItemMessage(hwnd, IDC_PCB1+i, BM_SETIMAGE, IMAGE_ICON, (LPARAM)icon);
 				DestroyIcon(icon);
 			}
 
@@ -1811,7 +1811,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 					}
 
 					// Show note
-					ShowWindow(GetDlgItem(hwnd, IDC_BUTTON_RESTART), SW_SHOW);
+					ShowControl(hwnd, IDC_BUTTON_RESTART, SW_SHOW);
 					break;
 				}
 				case IDC_DOWNBUTT:
@@ -1837,13 +1837,13 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 					}
 
 					// Show note
-					ShowWindow(GetDlgItem(hwnd, IDC_BUTTON_RESTART), SW_SHOW);
+					ShowControl(hwnd, IDC_BUTTON_RESTART, SW_SHOW);
 					break;
 				}
 				case IDC_CHECK6:
 				{
 					Settings.Thumbnailbuttons = (Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK6)) == BST_CHECKED);
-					EnableWindow(GetDlgItem(hwnd, IDC_CHECK27), SendMessage(GetDlgItem(hwnd, IDC_CHECK6), (UINT) BM_GETCHECK, 0, 0));
+					EnableControl(hwnd, IDC_CHECK27, SendDlgItemMessage(hwnd, IDC_CHECK6, (UINT) BM_GETCHECK, 0, 0));
 					UpdateContolButtons(hwnd);
 
 					if (Settings.Thumbnailbuttons)
@@ -1856,7 +1856,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 					else
 					{
 						// Show note
-						ShowWindow(GetDlgItem(hwnd, IDC_BUTTON_RESTART), SW_SHOW);
+						ShowControl(hwnd, IDC_BUTTON_RESTART, SW_SHOW);
 					}
 					break;
 				}
@@ -2008,13 +2008,13 @@ BOOL CALLBACK EnumDialogControls(HWND hwnd, LPARAM lParam)
 
 void UpdateIconControls(HWND hwnd)
 {
-	EnableWindow(GetDlgItem(hwnd, IDC_ICONSIZE), Settings.AsIcon);
-	EnableWindow(GetDlgItem(hwnd, IDC_SLIDER1), Settings.AsIcon);
-	EnableWindow(GetDlgItem(hwnd, IDC_RADIO4), Settings.AsIcon);
-	EnableWindow(GetDlgItem(hwnd, IDC_RADIO7), Settings.AsIcon);
-	EnableWindow(GetDlgItem(hwnd, IDC_ICONPOS), Settings.AsIcon);
-	EnableWindow(GetDlgItem(hwnd, IDC_RADIO6), Settings.AsIcon);
-	EnableWindow(GetDlgItem(hwnd, IDC_RADIO8), Settings.AsIcon);
+	EnableControl(hwnd, IDC_ICONSIZE, Settings.AsIcon);
+	EnableControl(hwnd, IDC_SLIDER1, Settings.AsIcon);
+	EnableControl(hwnd, IDC_RADIO4, Settings.AsIcon);
+	EnableControl(hwnd, IDC_RADIO7, Settings.AsIcon);
+	EnableControl(hwnd, IDC_ICONPOS, Settings.AsIcon);
+	EnableControl(hwnd, IDC_RADIO6, Settings.AsIcon);
+	EnableControl(hwnd, IDC_RADIO8, Settings.AsIcon);
 }
 
 LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
@@ -2024,9 +2024,9 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 		case WM_INITDIALOG:
 		{
 			SettingsManager::WriteSettings_ToForm(hwnd, plugin.hwndParent, Settings);
-			SendMessage(GetDlgItem(hwnd, IDC_EDIT2), EM_SETREADONLY, TRUE, NULL);
-			SendMessage(GetDlgItem(hwnd, IDC_SLIDER1), TBM_SETRANGE, FALSE, MAKELPARAM(30, 100));
-			SendMessage(GetDlgItem(hwnd, IDC_SLIDER_TRANSPARENCY), TBM_SETRANGE, FALSE, MAKELPARAM(0, 100));
+			SendDlgItemMessage(hwnd, IDC_EDIT2, EM_SETREADONLY, TRUE, NULL);
+			SendDlgItemMessage(hwnd, IDC_SLIDER1, TBM_SETRANGE, FALSE, MAKELPARAM(30, 100));
+			SendDlgItemMessage(hwnd, IDC_SLIDER_TRANSPARENCY, TBM_SETRANGE, FALSE, MAKELPARAM(0, 100));
 
 			switch (Settings.IconPosition)
 			{
@@ -2089,24 +2089,24 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 				case IDC_RADIO9:
 				case IDC_RADIO10:
 				{
-					if (SendMessage(GetDlgItem(hwnd, IDC_RADIO9), (UINT) BM_GETCHECK, 0 , 0))
+					if (SendDlgItemMessage(hwnd, IDC_RADIO9, (UINT) BM_GETCHECK, 0 , 0))
 					{
 						Settings.Thumbnailbackground = BG_WINAMP;
 					}
-					else if (SendMessage(GetDlgItem(hwnd, IDC_RADIO1), (UINT) BM_GETCHECK, 0 , 0))
+					else if (SendDlgItemMessage(hwnd, IDC_RADIO1, (UINT) BM_GETCHECK, 0 , 0))
 					{
 						Settings.Thumbnailbackground = BG_TRANSPARENT;
 					}
-					else if (SendMessage(GetDlgItem(hwnd, IDC_RADIO2), (UINT) BM_GETCHECK, 0 , 0))
+					else if (SendDlgItemMessage(hwnd, IDC_RADIO2, (UINT) BM_GETCHECK, 0 , 0))
 					{
 						Settings.Thumbnailbackground = BG_ALBUMART;
 					}
-					else if (SendMessage(GetDlgItem(hwnd, IDC_RADIO3), (UINT) BM_GETCHECK, 0 , 0))
+					else if (SendDlgItemMessage(hwnd, IDC_RADIO3, (UINT) BM_GETCHECK, 0 , 0))
 					{
 						Settings.Thumbnailbackground = BG_CUSTOM;
 						if (GetWindowTextLength(GetDlgItem(hwnd, IDC_EDIT2)) == 0)
 						{
-							PostMessage(GetDlgItem(hwnd, IDC_BUTTON3), BM_CLICK, 0, 0);
+							PostDlgItemMessage(hwnd, IDC_BUTTON3, BM_CLICK, 0, 0);
 						}
 					}
 
@@ -2174,14 +2174,14 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 					}
 					else if (!Settings.BGPath[0])
 					{
-						SendMessage(GetDlgItem(hwnd, IDC_RADIO2), (UINT)BM_SETCHECK, BST_CHECKED, 0);
-						SendMessage(GetDlgItem(hwnd, IDC_RADIO3), (UINT)BM_SETCHECK, BST_UNCHECKED, 0);
+						SendDlgItemMessage(hwnd, IDC_RADIO2, (UINT)BM_SETCHECK, BST_CHECKED, 0);
+						SendDlgItemMessage(hwnd, IDC_RADIO3, (UINT)BM_SETCHECK, BST_UNCHECKED, 0);
 					}
 					break;
 				}
 				case IDC_COMBO1:
 				{
-					Settings.Revertto = SendMessage(GetDlgItem(hwnd, IDC_COMBO1), CB_GETCURSEL, 0, 0);
+					Settings.Revertto = SendDlgItemMessage(hwnd, IDC_COMBO1, CB_GETCURSEL, 0, 0);
 					ResetThumbnail();
 					break;
 				}
@@ -2197,22 +2197,22 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 				case IDC_RADIO7:
 				case IDC_RADIO8:
 				{
-					if (SendMessage(GetDlgItem(hwnd, IDC_RADIO4), (UINT)BM_GETCHECK, 0 , 0))
+					if (SendDlgItemMessage(hwnd, IDC_RADIO4, (UINT)BM_GETCHECK, 0 , 0))
 					{
 						SetWindowText(GetDlgItem(hwnd, IDC_ICONPOS), WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_TL));
 						Settings.IconPosition = IP_UPPERLEFT;
 					}
-					else if (SendMessage(GetDlgItem(hwnd, IDC_RADIO7), (UINT)BM_GETCHECK, 0 , 0))
+					else if (SendDlgItemMessage(hwnd, IDC_RADIO7, (UINT)BM_GETCHECK, 0 , 0))
 					{
 						SetWindowText(GetDlgItem(hwnd, IDC_ICONPOS), WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_BL));
 						Settings.IconPosition = IP_LOWERLEFT;
 					}
-					else if (SendMessage(GetDlgItem(hwnd, IDC_RADIO6), (UINT)BM_GETCHECK, 0 , 0))
+					else if (SendDlgItemMessage(hwnd, IDC_RADIO6, (UINT)BM_GETCHECK, 0 , 0))
 					{
 						SetWindowText(GetDlgItem(hwnd, IDC_ICONPOS), WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_TR));
 						Settings.IconPosition = IP_UPPERRIGHT;
 					}
-					else if (SendMessage(GetDlgItem(hwnd, IDC_RADIO8), (UINT)BM_GETCHECK, 0 , 0))
+					else if (SendDlgItemMessage(hwnd, IDC_RADIO8, (UINT)BM_GETCHECK, 0 , 0))
 					{
 						SetWindowText(GetDlgItem(hwnd, IDC_ICONPOS), WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_BR));
 						Settings.IconPosition = IP_LOWERRIGHT;
@@ -2295,10 +2295,10 @@ void AddStringtoList(HWND window, const int control_ID)
 	}
 
 	// Show note
-	ShowWindow(GetDlgItem(window, IDC_BUTTON_RESTART), SW_SHOW);
+	ShowControl(window, IDC_BUTTON_RESTART, SW_SHOW);
 }
 
-void SetupJumpList()
+void SetupJumpList(void)
 {
 	JumpList *jl = new JumpList(AppID, true);
 	if ((jl != NULL) && (Settings.JLbms || Settings.JLfrequent ||
@@ -2376,7 +2376,7 @@ LRESULT CALLBACK KeyboardEvent(int nCode, WPARAM wParam, LPARAM lParam)
 #endif
 
 // This is an export function called by winamp which returns this plugin info.
-extern "C" __declspec(dllexport) winampGeneralPurposePlugin * winampGetGeneralPurposePlugin()
+extern "C" __declspec(dllexport) winampGeneralPurposePlugin * winampGetGeneralPurposePlugin(void)
 {
 	return &plugin;
 }

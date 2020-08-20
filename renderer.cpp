@@ -47,7 +47,7 @@ bool renderer::getAlbumArt(const std::wstring &fname, int& iconheight, int& icon
 		// when running under WACUP this request is cached for us
 		// so we don't have to worry too much about it being slow
 		const int ret = AGAVE_API_ALBUMART->GetAlbumArtResize(fname.c_str(), L"cover", &cur_w,
-															  &cur_h, &cur_image, 600, 600);
+															  &cur_h, &cur_image, 600, 600, FALSE);
 		if ((ret == ALBUMART_SUCCESS) || (ret == ALBUMART_GOTCACHE))
 		{
 			BITMAPINFO bmi = {0};
