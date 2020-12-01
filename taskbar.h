@@ -10,7 +10,7 @@
 class iTaskBar
 {
 public:
-	iTaskBar();
+	iTaskBar(sSettings& settings);
 	~iTaskBar();
 
 	bool Reset();
@@ -19,11 +19,12 @@ public:
 	void SetIconOverlay(HICON icon, const std::wstring &text);
 	void SetProgressValue(ULONGLONG completed, ULONGLONG total);    
 
-private:
-	static void SetWindowAttr(/*const bool flip*/);
+	void SetWindowAttr(void);
 
+private:
 	ITaskbarList4* pTBL;
 	TBPFLAG progressbarstate;
+	sSettings &m_settings;
 };
 
 #endif // taskbar_h__

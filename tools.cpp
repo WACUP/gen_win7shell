@@ -211,7 +211,7 @@ namespace tools
 		return !!PathFileExists(path);
 	}*/
 
-	HIMAGELIST prepareIcons()
+	HIMAGELIST prepareIcons(void)
 	{
 		HIMAGELIST himlIcons = ImageList_Create(GetSystemMetrics(SM_CXSMICON),
 												GetSystemMetrics(SM_CYSMICON),
@@ -219,6 +219,7 @@ namespace tools
 
 		for (int i = 0; i < NR_THUMB_BUTTONS; ++i)
 		{
+#if 0
 			int icon = -1;
 			switch (IDI_TBICON0 + i)
 			{
@@ -279,6 +280,7 @@ namespace tools
 				}
 			}
 			else
+#endif
 			{
 				HICON hicon = LoadIcon(plugin.hDllInstance, MAKEINTRESOURCE(IDI_TBICON0 + i)); 
 				if (hicon == NULL)
@@ -335,7 +337,7 @@ namespace tools
 		return ss.str();
 	}
 
-	std::wstring getBookmarks()
+	std::wstring getBookmarks(void)
 	{
 		std::wifstream is((wchar_t*)SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_ADDBOOKMARKW));
 		if (is.fail())

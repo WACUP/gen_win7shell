@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"3.2.3"
+#define PLUGIN_VERSION L"3.5"
 
 #define NR_BUTTONS 15
 
@@ -50,7 +50,8 @@ std::wstring AppID(L"Winamp"),	// this is updated on loading to what the
 bool thumbshowing = false, no_uninstall = true,
 	 classicSkin = true, windowShade = false,
 	 doubleSize = false, modernSUI = false,
-	 running = false, finishedLoad = false;
+	 modernFix = false, finishedLoad = false,
+	 running = false;
 HWND ratewnd = 0, dialogParent = 0;
 int pladv = 1, repeat = 0;
 LPARAM delay_ipc = -1;
@@ -76,8 +77,8 @@ HINSTANCE WASABI_API_LNG_HINST = 0, WASABI_API_ORIG_HINST = 0;
 
 // CALLBACKS
 VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime);
-LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
-						 UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
+LRESULT CALLBACK HookWinampWnd(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
+							   UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
 LRESULT CALLBACK rateWndProc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lParam);
 #ifdef USE_MOUSE
 LRESULT CALLBACK KeyboardEvent(int nCode, WPARAM wParam, LPARAM lParam);
@@ -96,13 +97,15 @@ int init(void);
 void config(void);
 void quit(void);
 
+void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM lParam);
+
 // this structure contains plugin information, version, name...
 winampGeneralPurposePlugin plugin =
 {
 	(char*)L"Taskbar Integration",
 	GPPHDR_VER_WACUP,
 	init, config, quit,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+	GEN_INIT_WACUP_HAS_MESSAGES
 };
 
 bool CreateThumbnailDrawer(void)
@@ -114,16 +117,6 @@ bool CreateThumbnailDrawer(void)
 	}
 
 	return (thumbnaildrawer != NULL);
-}
-
-static wchar_t pluginTitleW[256];
-wchar_t* BuildPluginNameW(void)
-{
-	if (!pluginTitleW[0])
-	{
-		StringCchPrintf(pluginTitleW, ARRAYSIZE(pluginTitleW), WASABI_API_LNGSTRINGW(IDS_PLUGIN_NAME), PLUGIN_VERSION);
-	}
-	return pluginTitleW;
 }
 
 const bool GenerateAppIDFromFolder(const wchar_t *search_path, wchar_t *app_id)
@@ -197,7 +190,7 @@ void SetupAppID(void)
 			{
 				MessageBoxEx(plugin.hwndParent,
 							 WASABI_API_LNGSTRINGW(IDS_ERROR_SETTING_APPID),
-							 BuildPluginNameW(), MB_ICONWARNING | MB_OK, 0);
+							 (LPWSTR)plugin.description, MB_ICONWARNING | MB_OK, 0);
 			}
 			else
 			{
@@ -226,10 +219,12 @@ int init(void)
 	WASABI_API_LNG = plugin.language;
 	WASABI_API_START_LANG(plugin.hDllInstance, GenWin7PlusShellLangGUID);
 
-	plugin.description = (char*)BuildPluginNameW();
+	wchar_t pluginTitleW[256] = { 0 };
+	StringCchPrintf(pluginTitleW, ARRAYSIZE(pluginTitleW), WASABI_API_LNGSTRINGW(IDS_PLUGIN_NAME), PLUGIN_VERSION);
+	plugin.description = (char*)_wcsdup(pluginTitleW);
 
 	// Override window procedure
-	Subclass(plugin.hwndParent, WndProc);
+	Subclass(plugin.hwndParent, HookWinampWnd);
 
 	// Delay loading mst parts until later on to improve the overall load time
 	delay_ipc = RegisterIPC((WPARAM)&"7+_ipc");
@@ -259,8 +254,8 @@ void config(void)
 		case 1:
 		{
 			wchar_t text[512] = {0};
-			StringCchPrintf(text, 512, WASABI_API_LNGSTRINGW(IDS_ABOUT_MESSAGE),
-							L"Darren Owen aka DrO (2018)", TEXT(__DATE__));
+			StringCchPrintf(text, ARRAYSIZE(text), WASABI_API_LNGSTRINGW(IDS_ABOUT_MESSAGE),
+							L"Darren Owen aka DrO (2018-2020)", TEXT(__DATE__));
 			AboutMessageBox(list, text, (LPWSTR)plugin.description);
 			break;
 		}
@@ -303,7 +298,7 @@ void quit(void)
 	//ServiceRelease(plugin.service, WASABI_API_EXPLORERFINDFILE, ExplorerFindFileApiGUID);
 	ServiceRelease(plugin.service, WASABI_API_SKIN, skinApiServiceGuid);
 
-	UnSubclass(plugin.hwndParent, WndProc);
+	UnSubclass(plugin.hwndParent, HookWinampWnd);
 }
 
 HWND WINAPI TASKBAR_CreateDialogParam(HINSTANCE original, LPCWSTR id, HWND parent, DLGPROC proc, LPARAM param)
@@ -460,7 +455,7 @@ void ResetThumbnail(void)
 
 void UpdateOverlyStatus(void)
 {
-	Settings.play_state = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_ISPLAYING);
+	Settings.play_state = GetPlayingState();
 
 	updateToolbar();
 
@@ -506,523 +501,127 @@ void UpdateOverlyStatus(void)
 	}
 }
 
-LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
-						 UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM lParam)
 {
-	if ((message == WM_COMMAND || message == WM_SYSCOMMAND))
-	{
-		if (LOWORD(wParam) == WINAMP_FILE_SHUFFLE)
-		{
-			Settings.state_shuffle = !Settings.state_shuffle;
-			updateToolbar();
-		}
-		else if (LOWORD(wParam) == WINAMP_FILE_REPEAT)
-		{
-			repeat = !repeat;
-			updateRepeatButton();
-		}
-	}
-
-	switch (message)
-	{
-		case WM_DWMSENDICONICTHUMBNAIL:
-		{
-			if (CreateThumbnailDrawer())
-			{
-				// just update the dimensions and let the timer
-				// process the rendering later on as is needed.
-				thumbnaildrawer->SetDimensions(HIWORD(lParam), LOWORD(lParam));
-				running = true;
-
-				SetThumbnailTimer();
-			}
-			return 0;
-		}
-		case WM_COMMAND:
-		{
-			switch (LOWORD(wParam))
-			{
-				case WINAMP_OPTIONS_WINDOWSHADE_GLOBAL:
-				{
-					if (hwnd != GetForegroundWindow())
-					{
-						break;
-					}
-				}
-				case WINAMP_OPTIONS_WINDOWSHADE:
-				{
-					windowShade = !windowShade;
-					break;
-				}
-			}
-
-			if (HIWORD(wParam) == THBN_CLICKED)
-			{
-				switch (LOWORD(wParam))
-				{
-					case TB_PREVIOUS:
-					case TB_NEXT:
-					{
-						SendMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(((LOWORD(wParam) == TB_PREVIOUS) ? 40044 : 40048), 0), 0);
-						Settings.play_playlistpos = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETLISTPOS);
-
-						if (Settings.Thumbnailbackground == BG_ALBUMART)
-						{
-							ResetThumbnail();
-
-							if (Settings.play_state != PLAYSTATE_PLAYING)
-							{
-								DwmInvalidateIconicBitmaps(dialogParent);
-							}
-						}
-
-						LPCWSTR p = (LPCWSTR)SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GET_PLAYING_FILENAME); 
-						if (p != NULL)
-						{
-							metadata.reset(p);
-						}
-
-						if (CreateThumbnailDrawer())
-						{
-							thumbnaildrawer->ThumbnailPopup();
-						}
-						return 0;
-					}
-					case TB_PLAYPAUSE:
-					{
-						const int res = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_ISPLAYING);
-						PostMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(((res == 1) ? 40046 : 40045), 0), 0);
-						Settings.play_state = res;
-						return 0;
-					}
-					case TB_STOP:
-					{
-						PostMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(40047, 0), 0);
-						Settings.play_state = PLAYSTATE_NOTPLAYING; 
-						return 0;
-					}
-					case TB_RATE:
-					{
-						ratewnd = WASABI_API_CREATEDIALOGW(IDD_RATEDLG, plugin.hwndParent, rateWndProc);
-
-						RECT rc = {0};
-						POINT point = {0};
-						GetCursorPos(&point);
-						GetWindowRect(ratewnd, &rc);
-						MoveWindow(ratewnd, point.x - 155, point.y - 15, rc.right - rc.left, rc.bottom - rc.top, false);
-						KillTimer(plugin.hwndParent, 6669);
-						SetTimer(plugin.hwndParent, 6669, 5000, TimerProc);
-						ShowWindow(ratewnd, SW_SHOW);
-						return 0;
-					}
-					case TB_VOLDOWN:
-					{
-						Settings.play_volume -= 25;
-						if (Settings.play_volume < 0)
-						{
-							Settings.play_volume = 0;
-						}
-						PostMessage(plugin.hwndParent, WM_WA_IPC, Settings.play_volume, IPC_SETVOLUME);
-						return 0;
-					}
-					case TB_VOLUP:
-					{
-						Settings.play_volume += 25;
-						if (Settings.play_volume > 255)
-						{
-							Settings.play_volume = 255;
-						}
-						PostMessage(plugin.hwndParent, WM_WA_IPC, Settings.play_volume, IPC_SETVOLUME);
-						return 0;
-					}
-					case TB_OPENFILE:
-					{
-						PostMessage(plugin.hwndParent, WM_WA_IPC, (WPARAM)(HWND)0, IPC_OPENFILEBOX);
-						return 0;
-					}
-					case TB_MUTE:
-					{
-						static int lastvolume;
-						if (Settings.play_volume == 0)
-						{
-							Settings.play_volume = lastvolume;
-							PostMessage(plugin.hwndParent, WM_WA_IPC, Settings.play_volume, IPC_SETVOLUME);
-						}
-						else
-						{
-							lastvolume = Settings.play_volume;
-							PostMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_SETVOLUME);
-						}
-						return 0;
-					}
-					case TB_STOPAFTER:
-					{
-						PostMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(40157, 0), 0);
-						return 0;
-					}
-					case TB_REPEAT:
-					{
-						// get
-						Settings.state_repeat = repeat;
-						if (Settings.state_repeat == 1 && pladv == 1)
-						{
-							Settings.state_repeat = 2;
-						}
-
-						++Settings.state_repeat;
-
-						if (Settings.state_repeat > 2)
-						{
-							Settings.state_repeat = 0;
-						}
-
-						SendMessage(plugin.hwndParent, WM_WA_IPC, Settings.state_repeat >= 1 ? 1 : 0, IPC_SET_REPEAT);
-						SendMessage(plugin.hwndParent, WM_WA_IPC, Settings.state_repeat == 2 ? 1 : 0, IPC_SET_MANUALPLADVANCE);            
-						updateToolbar();
-						return 0;
-					}
-					case TB_SHUFFLE:
-					{
-						Settings.state_shuffle = !Settings.state_shuffle;
-						SendMessage(plugin.hwndParent, WM_WA_IPC, Settings.state_shuffle, IPC_SET_SHUFFLE);
-						updateToolbar();
-						return 0;
-					}
-					case TB_JTFE:
-					{
-						ShowWindow(plugin.hwndParent, SW_SHOWNORMAL);
-						SetForegroundWindow(plugin.hwndParent);
-						PostMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(WINAMP_JUMPFILE, 0), 0);
-						return 0;
-					}
-					case TB_OPENEXPLORER:
-					{
-						LPCWSTR filename = metadata.getFileName().c_str();
-						if (filename && *filename)
-						{
-							if (PathFileExists(filename))
-							{
-								/*if (WASABI_API_EXPLORERFINDFILE == NULL)
-								{
-									ServiceBuild(plugin.service, WASABI_API_EXPLORERFINDFILE, ExplorerFindFileApiGUID);
-								}
-								if (WASABI_API_EXPLORERFINDFILE != NULL)
-								{
-									WASABI_API_EXPLORERFINDFILE->AddFile(filename);
-									WASABI_API_EXPLORERFINDFILE->ShowFiles();
-								}/*/
-								plugin.explorerfindfile->AddAndShowFile(filename);
-							}
-							else
-							{
-								// TODO it would be useful if there was a common interface
-								//		that allows for determining the real filename when
-								//		there's extras after the extension or custom urls
-								//		so it can just be used where needed without plug-in
-								//		workarounds to fix issues (explorerfindfile is meant
-								//		cope with zip:// but for some reason it fails now &
-								//		it just won't cope with cda:// style entries either)
-								if (!_wcsnicmp(filename, L"zip://", 6))
-								{
-									filename += 6;
-								}
-
-								// if there's an extension then we'll give it another go
-								// as typically no extension means that it won't work...
-								LPCWSTR ext = PathFindExtension(filename);
-								if (ext && *ext)
-								{
-									plugin.explorerfindfile->AddAndShowFile(filename);
-								}
-							}
-						}
-						return 0;
-					}
-					case TB_DELETE:
-					{
-						SHFILEOPSTRUCTW fileop = {0};
-						wchar_t path[MAX_PATH] = {0};
-						wcsncpy(path, metadata.getFileName().c_str(), ARRAYSIZE(path));
-
-						fileop.wFunc = FO_DELETE;
-						fileop.pFrom = path;
-						fileop.pTo = L"";
-						fileop.fFlags = FOF_ALLOWUNDO | FOF_FILESONLY;
-						fileop.lpszProgressTitle = L"";
-
-						const int saved_play_state = Settings.play_state;
-						SendMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(40047, 0), 0);
-						Settings.play_state = PLAYSTATE_NOTPLAYING; 
-
-						if (SHFileOperation(&fileop) == 0)
-						{
-							SendMessage(GetPlaylistWnd(), WM_WA_IPC, IPC_PE_DELETEINDEX,
-										SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETLISTPOS));
-						}
-
-						if (saved_play_state == PLAYSTATE_PLAYING)
-						{
-							PostMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(40045, 0), 0);
-						}
-
-						return 0;
-					}
-				}
-			}
-			break;
-		}
-		case WM_WA_IPC:
-		{
-			switch (lParam)
-			{
-				case IPC_PLAYING_FILEW:
-				{
-					if (wParam == 0)
-					{
-						return 0;
-					}
-
-					std::wstring filename(L"");
-					try
-					{
-						filename = (wchar_t*)wParam;
-					}
-					catch (...)
-					{
-						return 0;
-					}
-
-					Settings.play_playlistpos = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETLISTPOS);
-
-					if (filename.empty())
-					{
-						LPCWSTR p = (LPCWSTR)SendMessage(plugin.hwndParent, WM_WA_IPC, 1, IPC_GET_PLAYING_FILENAME);
-						if (p != NULL)
-						{
-							filename = p;
-						}
-					}
-
-					metadata.reset(filename);
-					if (metadata.CheckPlayCount())
-					{
-						JumpList *JL = new JumpList(AppID);
-						if (JL != NULL)
-						{
-							delete JL;
-						}
-					}
-
-					Settings.play_total = SendMessage(plugin.hwndParent, WM_WA_IPC, 2, IPC_GETOUTPUTTIME);
-					Settings.play_current = 0;
-					Settings.play_state = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_ISPLAYING);
-
-					if ((Settings.JLrecent || Settings.JLfrequent)/* && !tools::is_in_recent(filename)*/)
-					{
-						std::wstring title(metadata.getMetadata(L"title") + L" - " + metadata.getMetadata(L"artist"));
-
-						if (Settings.play_total > 0)
-						{
-							title += L"  (" + tools::SecToTime(Settings.play_total / 1000) + L")";
-						}
-
-						IShellLink *psl = NULL;
-						SHARDAPPIDINFOLINK applink = {0};
-						if ((tools::CreateShellLink(filename.c_str(), title.c_str(), &psl) == S_OK) &&
-							(Settings.play_state == PLAYSTATE_PLAYING) && Settings.Add2RecentDocs && psl)
-						{
-							time_t rawtime = NULL;
-							time (&rawtime);
-							psl->SetDescription(_wctime(&rawtime));
-							applink.psl = psl;
-							applink.pszAppID = AppID.c_str();
-							SHAddToRecentDocs(SHARD_LINK, psl);
-							psl->Release();
-						}
-					}
-
-					DwmInvalidateIconicBitmaps(dialogParent);
-					ResetThumbnail();
-					break;
-				}
-				case IPC_CB_MISC:
-				{
-					switch (wParam)
-					{
-						case IPC_CB_MISC_STATUS:
-						{
-							UpdateOverlyStatus();
-							break;
-						}
-						case IPC_CB_MISC_VOLUME:
-						{
-							Settings.play_volume = IPC_GETVOLUME(plugin.hwndParent);
-							break;
-						}
-					}
-					break;
-				}
-				case IPC_SETDIALOGBOXPARENT:
-				case IPC_UPDATEDIALOGBOXPARENT:
-				{
-					DwmInvalidateIconicBitmaps(dialogParent);
-
-					// we cache this now as winamp will have
-					// cached it too by now so we're in-sync
-					dialogParent = (HWND)wParam;
-					if (!IsWindow(dialogParent))
-					{
-						dialogParent = hwnd;
-					}
-					break;
-				}
-				case IPC_CB_ONTOGGLEDOUBLESIZE:
-				{
-					doubleSize = !doubleSize;
-					break;
-				}
-				case IPC_CB_ONTOGGLEMANUALADVANCE:
-				{
-					pladv = !pladv;
-					updateRepeatButton();
-					break;
-				}
-				default:
-				{
-					if (lParam == delay_ipc)
-					{
-						// we track this instead of re-querying all of the
-						// time so as to minimise blocking of the main wnd
-						dialogParent = (HWND)SendMessage(plugin.hwndParent, WM_WA_IPC, (WPARAM)0, IPC_GETDIALOGBOXPARENT);
-						if (!IsWindow(dialogParent))
-						{
-							dialogParent = hwnd;
-						}
-
-						pladv = !!SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GET_MANUALPLADVANCE);
-
-						windowShade = !!SendMessage(plugin.hwndParent, WM_WA_IPC, (WPARAM)-1, IPC_IS_WNDSHADE);
-
-						doubleSize = !!SendMessage(plugin.hwndParent, WM_WA_IPC, (WPARAM)0, IPC_ISDOUBLESIZE);
-
-						// Accept messages even if Winamp was run as Administrator
-						ChangeWindowMessageFilter(WM_COMMAND, 1);
-						ChangeWindowMessageFilter(WM_DWMSENDICONICTHUMBNAIL, 1);
-						ChangeWindowMessageFilter(WM_DWMSENDICONICLIVEPREVIEWBITMAP, 1);
-
-						// Register taskbarcreated message
-						WM_TASKBARBUTTONCREATED = RegisterWindowMessage(L"TaskbarButtonCreated");
-
-						// we do this to make sure we can group things correctly
-						// especially if used in a plug-in in Winamp so that the
-						// taskbar handling will be correct vs existing pinnings
-						SetupAppID();
-
-						wchar_t ini_path[MAX_PATH] = {0};
-						PathCombine(ini_path, GetPaths()->settings_dir, L"Plugins\\win7shell.ini");
-						SettingsFile = ini_path;
-
-						// Read Settings into struct
-						SettingsManager SManager;
-						SManager.ReadSettings(Settings, TButtons);
-
-						// Create jumplist
-						SetupJumpList();
-
-						// Timers, settings, icons
-						Settings.play_playlistpos = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETLISTPOS);
-						Settings.play_playlistlen = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETLISTLENGTH);
-						Settings.play_total = SendMessage(plugin.hwndParent, WM_WA_IPC, 2, IPC_GETOUTPUTTIME);
-						Settings.play_volume = IPC_GETVOLUME(plugin.hwndParent);
-
-						theicons = tools::prepareIcons();
-
-						LPCWSTR p = (LPCWSTR)SendMessage(plugin.hwndParent, WM_WA_IPC, 1, IPC_GET_PLAYING_FILENAME);
-						if (p != NULL)
-						{
-							metadata.reset(p);
-						}
-
-						// update shuffle and repeat
-						Settings.state_shuffle = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GET_SHUFFLE);
-
-						Settings.state_repeat = repeat = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GET_REPEAT);
-						if (Settings.state_repeat == 1 && pladv == 1)
-						{
-							Settings.state_repeat = 2;
-						}
-
-						// Create the taskbar interface
-						itaskbar = new iTaskBar();
-						if ((itaskbar != NULL) && itaskbar->Reset())
-						{
-							updateToolbar(theicons);
-						}
-
-#ifdef USE_MOUSE
-						// Set up hook for mouse scroll volume control
-						if (Settings.VolumeControl)
-						{
-							hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, (HOOKPROC) KeyboardEvent, plugin.hDllInstance, NULL);
-							if (hMouseHook == NULL)
-							{
-								MessageBoxEx(plugin.hwndParent,
-											 WASABI_API_LNGSTRINGW(IDS_ERROR_REGISTERING_MOUSE_HOOK),
-											 BuildPluginNameW(), MB_ICONWARNING, 0);
-							}
-						}
-#endif
-
-						CreateThumbnailDrawer();
-
-						if (Settings.VuMeter)
-						{
-							SetTimer(plugin.hwndParent, 6668, 66, TimerProc);
-						}
-
-						SetTimer(plugin.hwndParent, 6667, Settings.LowFrameRate ? 400 : 100, TimerProc);
-					}
-					break;
-				}
-			}
-			break;
-		}
-		case WM_SYSCOMMAND:
-		{
-			if (wParam == SC_CLOSE)
-			{
-				PostMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(40001, 0), 0);
-			}
-			break;
-		}
-	}
-
-	if (message == WM_TASKBARBUTTONCREATED)
-	{
-		if ((itaskbar != NULL) && itaskbar->Reset())
-		{
-			updateToolbar(theicons);
-		}
-
-		SetupJumpList();
-	}
-
-	LRESULT ret = DefSubclass(hwnd, message, wParam, lParam);	 
-
-	if (message == WM_SIZE)
-	{
-		// look at things that could need us to
-		// force a refresh of the iconic bitmap
-		// this is mainly for classic skins...
-		SetThumbnailTimer();
-	}
-	else if (message == WM_WA_IPC)
+	if (uMsg == WM_WA_IPC)
 	{
 		switch (lParam)
 		{
+			case IPC_PLAYING_FILEW:
+			{
+				Settings.play_playlistpos = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETLISTPOS);
+
+				std::wstring filename((wchar_t*)wParam);
+				if (filename.empty())
+				{
+					LPCWSTR p = (LPCWSTR)SendMessage(plugin.hwndParent, WM_WA_IPC, 1, IPC_GET_PLAYING_FILENAME);
+					if (p != NULL)
+					{
+						filename = p;
+					}
+				}
+
+				metadata.reset(filename);
+				if (metadata.CheckPlayCount())
+				{
+					JumpList *JL = new JumpList(AppID);
+					if (JL != NULL)
+					{
+						delete JL;
+					}
+				}
+
+				Settings.play_total = GetCurrentTrackLengthMilliSeconds();
+				Settings.play_current = 0;
+				Settings.play_state = GetPlayingState();
+
+				if ((Settings.JLrecent || Settings.JLfrequent)/* && !tools::is_in_recent(filename)*/)
+				{
+					std::wstring title(metadata.getMetadata(L"title") + L" - " + metadata.getMetadata(L"artist"));
+
+					if (Settings.play_total > 0)
+					{
+						title += L"  (" + tools::SecToTime(Settings.play_total / 1000) + L")";
+					}
+
+					IShellLink *psl = NULL;
+					SHARDAPPIDINFOLINK applink = {0};
+					if ((tools::CreateShellLink(filename.c_str(), title.c_str(), &psl) == S_OK) &&
+						(Settings.play_state == PLAYSTATE_PLAYING) && Settings.Add2RecentDocs && psl)
+					{
+						time_t rawtime = NULL;
+						time (&rawtime);
+						psl->SetDescription(_wctime(&rawtime));
+						applink.psl = psl;
+						applink.pszAppID = AppID.c_str();
+						SHAddToRecentDocs(SHARD_LINK, psl);
+						psl->Release();
+					}
+				}
+
+				DwmInvalidateIconicBitmaps(hWnd);
+				ResetThumbnail();
+				break;
+			}
+			case IPC_CB_MISC:
+			{
+				switch (wParam)
+				{
+					case IPC_CB_MISC_STATUS:
+					{
+						UpdateOverlyStatus();
+						break;
+					}
+					case IPC_CB_MISC_VOLUME:
+					{
+						Settings.play_volume = IPC_GETVOLUME(plugin.hwndParent);
+						break;
+					}
+				}
+				break;
+			}
+			case IPC_SETDIALOGBOXPARENT:
+			case IPC_UPDATEDIALOGBOXPARENT:
+			{
+				// we cache this now as winamp will have
+				// cached it too by now so we're in-sync
+				dialogParent = (HWND)wParam;
+				if (!IsWindow(dialogParent))
+				{
+					dialogParent = hWnd;
+				}
+
+				// look at things that could need us to
+				// force a refresh of the iconic bitmap
+				SetThumbnailTimer();
+				break;
+			}
+			case IPC_CB_ONTOGGLEDOUBLESIZE:
+			{
+				doubleSize = wParam;
+				break;
+			}
+			case IPC_CB_ONTOGGLEMANUALADVANCE:
+			{
+				pladv = wParam;
+				updateRepeatButton();
+				break;
+			}
+			case IPC_CB_ONTOGGLEREPEAT:
+			{
+				repeat = wParam;
+				updateRepeatButton();
+				break;
+			}
+			case IPC_CB_ONTOGGLESHUFFLE:
+			{
+				Settings.state_shuffle = wParam;
+				updateToolbar();
+				break;
+			}
 			case IPC_PLAYLIST_MODIFIED:
 			{
-				Settings.play_playlistlen = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETLISTLENGTH);
+				Settings.play_playlistlen = wParam;
 				break;
 			}
 			case IPC_ADDBOOKMARK:
@@ -1036,9 +635,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 			}
 			case IPC_SKIN_CHANGED_NEW:
 			{
+				// this is needed when the vu mode is enabled to allow the
+				// data to be obtained if the main wnidow mode is disabled
+				static void(*export_sa_setreq)(int) =
+					(void(__cdecl *)(int))SendMessage(plugin.hwndParent, WM_WA_IPC, 1, IPC_GETSADATAFUNC);
+				if (export_sa_setreq)
+				{
+					export_sa_setreq(Settings.VuMeter);
+				}
+
 				// delay doing this until needed as it then
 				// copes with modern skins being later used
-				if (!WASABI_API_SKIN)
+				if (WASABI_API_SKIN == NULL)
 				{
 					ServiceBuild(plugin.service, WASABI_API_SKIN, skinApiServiceGuid);
 				}
@@ -1047,29 +655,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 				//		to ensure the checking will work correctly
 				LPCWSTR skin_name = (WASABI_API_SKIN != NULL ? WASABI_API_SKIN->getSkinName() : NULL);
 				classicSkin = (!WASABI_API_SKIN || WASABI_API_SKIN &&
-							   // TODO pull in the localised version from gen_ff
-							   //		to ensure the checking will work correctly
-							   (skin_name && *skin_name && _wcsnicmp(skin_name, L"No skin loaded", 14)));
-
-				// this is needed when the vu mode is enabled to allow the
-				// data to be obtained if the main wnidow mode is disabled
-				static void (*export_sa_setreq)(int) =
-					   (void (__cdecl *)(int))SendMessage(plugin.hwndParent, WM_WA_IPC, 1, IPC_GETSADATAFUNC);
-				if (export_sa_setreq)
-				{
-					export_sa_setreq(Settings.VuMeter);
-				}
-
-				// fall-through for the other handling needed
-			}
-			case IPC_SETDIALOGBOXPARENT:
-			case IPC_UPDATEDIALOGBOXPARENT:
-			{
-				// look at things that could need us to
-				// force a refresh of the iconic bitmap
-				SetThumbnailTimer();
+							  // TODO pull in the localised version from gen_ff
+							  //		to ensure the checking will work correctly
+							  (skin_name && *skin_name && !_wcsicmp(skin_name, L"No skin loaded")));
 
 				modernSUI = false;
+				modernFix = (skin_name && *skin_name && !_wcsnicmp(skin_name, L"Winamp Modern", 13));
 				if (!classicSkin)
 				{
 					// see if it's likely to be a SUI or not as
@@ -1080,37 +671,417 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 					// we're wanting to do support alpha better
 					EnumChildWindows(dialogParent, checkSkinProc, 0);
 				}
-				break;
+
+				if (itaskbar != NULL)
+				{
+					itaskbar->SetWindowAttr();
+				}
+
+				// fall-through for the other handling needed
 			}
 			default:
 			{
 				// make sure if not playing but prev / next is done
 				// that we update the thumbnail for the current one
-				if ((lParam == IPC_FILE_TAG_MAY_HAVE_UPDATED) || (lParam == IPC_FILE_TAG_MAY_HAVE_UPDATEDW) ||
+				if ((lParam == IPC_FILE_TAG_MAY_HAVE_UPDATEDW) ||
+					(lParam == IPC_FILE_TAG_MAY_HAVE_UPDATED) ||
 					(lParam == IPC_CB_MISC) && ((wParam == IPC_CB_MISC_TITLE) ||
-					(wParam == IPC_CB_MISC_AA_OPT_CHANGED) || (wParam == IPC_CB_MISC_TITLE_RATING)))
+					(wParam == IPC_CB_MISC_AA_OPT_CHANGED) ||
+					(wParam == IPC_CB_MISC_TITLE_RATING)))
 				{
-					LPCWSTR p = (LPCWSTR)SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GET_PLAYING_FILENAME); 
+					LPCWSTR p = (LPCWSTR)SendMessage(plugin.hwndParent, WM_WA_IPC,
+													 0, IPC_GET_PLAYING_FILENAME);
 
 					if (p != NULL)
 					{
 						metadata.reset(p);
 					}
 
-					DwmInvalidateIconicBitmaps(dialogParent);
+					DwmInvalidateIconicBitmaps(hWnd);
 					ResetThumbnail();
 					break;
+				}
+				else if (lParam == delay_ipc)
+				{
+					// we track this instead of re-querying all of the
+					// time so as to minimise blocking of the main wnd
+					// which helps to determine modern vs classic skin
+					dialogParent = (HWND)SendMessage(hWnd, WM_WA_IPC, 0, IPC_GETDIALOGBOXPARENT);
+
+					pladv = !!SendMessage(hWnd, WM_WA_IPC, 0, IPC_GET_MANUALPLADVANCE);
+
+					windowShade = !!SendMessage(hWnd, WM_WA_IPC, (WPARAM)-1, IPC_IS_WNDSHADE);
+
+					doubleSize = !!SendMessage(hWnd, WM_WA_IPC, (WPARAM)0, IPC_ISDOUBLESIZE);
+
+					// Accept messages even if Winamp was run as Administrator
+					ChangeWindowMessageFilter(WM_COMMAND, 1);
+					ChangeWindowMessageFilter(WM_DWMSENDICONICTHUMBNAIL, 1);
+					ChangeWindowMessageFilter(WM_DWMSENDICONICLIVEPREVIEWBITMAP, 1);
+
+					// Register taskbarcreated message
+					WM_TASKBARBUTTONCREATED = RegisterWindowMessage(L"TaskbarButtonCreated");
+
+					// we do this to make sure we can group things correctly
+					// especially if used in a plug-in in Winamp so that the
+					// taskbar handling will be correct vs existing pinnings
+					SetupAppID();
+
+					wchar_t ini_path[MAX_PATH] = {0};
+					PathCombine(ini_path, GetPaths()->settings_dir,
+								L"Plugins\\win7shell.ini");
+					SettingsFile = ini_path;
+
+					// Read Settings into struct
+					SettingsManager SManager;
+					SManager.ReadSettings(Settings, TButtons);
+
+					// Create jumplist
+					SetupJumpList();
+
+					// Timers, settings, icons
+					Settings.play_playlistpos = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETLISTPOS);
+					Settings.play_playlistlen = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETLISTLENGTH);
+					Settings.play_total = GetCurrentTrackLengthMilliSeconds();
+					Settings.play_volume = IPC_GETVOLUME(plugin.hwndParent);
+
+					theicons = tools::prepareIcons();
+
+					LPCWSTR p = (LPCWSTR)SendMessage(plugin.hwndParent, WM_WA_IPC, 1, IPC_GET_PLAYING_FILENAME);
+					if (p != NULL)
+					{
+						metadata.reset(p);
+					}
+
+					// update shuffle and repeat
+					Settings.state_shuffle = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GET_SHUFFLE);
+
+					Settings.state_repeat = repeat = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GET_REPEAT);
+					if (Settings.state_repeat == 1 && pladv == 1)
+					{
+						Settings.state_repeat = 2;
+					}
+
+					// Create the taskbar interface
+					itaskbar = new iTaskBar(Settings);
+					if ((itaskbar != NULL) && itaskbar->Reset())
+					{
+						updateToolbar(theicons);
+					}
+
+#ifdef USE_MOUSE
+					// Set up hook for mouse scroll volume control
+					if (Settings.VolumeControl)
+					{
+						hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, (HOOKPROC) KeyboardEvent, plugin.hDllInstance, NULL);
+						if (hMouseHook == NULL)
+						{
+							MessageBoxEx(plugin.hwndParent,
+											WASABI_API_LNGSTRINGW(IDS_ERROR_REGISTERING_MOUSE_HOOK),
+											(LPWSTR)plugin.description, MB_ICONWARNING, 0);
+						}
+					}
+#endif
+
+					CreateThumbnailDrawer();
+
+					if (Settings.VuMeter)
+					{
+						SetTimer(plugin.hwndParent, 6668, 66, TimerProc);
+					}
+
+					SetTimer(plugin.hwndParent, 6667, Settings.LowFrameRate ? 400 : 100, TimerProc);
+				}
+				break;
+			}
+		}
+	}
+	else if ((uMsg == WM_SYSCOMMAND) && (wParam == SC_CLOSE))
+	{
+		PostMessage(plugin.hwndParent, WM_COMMAND, 40001, 0);
+	}
+	else if (uMsg == WM_COMMAND)
+	{
+		switch (LOWORD(wParam))
+		{
+			case WINAMP_OPTIONS_WINDOWSHADE_GLOBAL:
+			{
+				if (hWnd != GetForegroundWindow())
+				{
+					break;
+				}
+				// fall through
+			}
+			case WINAMP_OPTIONS_WINDOWSHADE:
+			{
+				windowShade = !windowShade;
+				break;
+			}
+		}
+	}
+}
+
+LRESULT CALLBACK HookWinampWnd(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
+							   UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+{
+	if (message == WM_DWMSENDICONICTHUMBNAIL)
+	{
+		if (CreateThumbnailDrawer())
+		{
+			// just update the dimensions and let the timer
+			// process the rendering later on as is needed.
+			thumbnaildrawer->SetDimensions(HIWORD(lParam), LOWORD(lParam));
+			running = true;
+
+			SetThumbnailTimer();
+			return 0;
+		}
+	}
+	else if (message == WM_COMMAND)
+	{
+		if (HIWORD(wParam) == THBN_CLICKED)
+		{
+			switch (LOWORD(wParam))
+			{
+				case TB_PREVIOUS:
+				case TB_NEXT:
+				{
+					SendMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(((LOWORD(wParam) == TB_PREVIOUS) ? 40044 : 40048), 0), 0);
+					Settings.play_playlistpos = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETLISTPOS);
+
+					if (Settings.Thumbnailbackground == BG_ALBUMART)
+					{
+						ResetThumbnail();
+
+						if (Settings.play_state != PLAYSTATE_PLAYING)
+						{
+							DwmInvalidateIconicBitmaps(plugin.hwndParent);
+						}
+					}
+
+					LPCWSTR p = (LPCWSTR)SendMessage(plugin.hwndParent, WM_WA_IPC,
+													 0, IPC_GET_PLAYING_FILENAME); 
+					if (p != NULL)
+					{
+						metadata.reset(p);
+					}
+
+					if (CreateThumbnailDrawer())
+					{
+						thumbnaildrawer->ThumbnailPopup();
+					}
+					return 0;
+				}
+				case TB_PLAYPAUSE:
+				{
+					const int res = GetPlayingState();
+					PostMessage(plugin.hwndParent, WM_COMMAND,
+								MAKEWPARAM(((res == 1) ?
+								40046 : 40045), 0), 0);
+					Settings.play_state = res;
+					return 0;
+				}
+				case TB_STOP:
+				{
+					PostMessage(plugin.hwndParent, WM_COMMAND,
+								MAKEWPARAM(40047, 0), 0);
+					Settings.play_state = PLAYSTATE_NOTPLAYING; 
+					return 0;
+				}
+				case TB_RATE:
+				{
+					ratewnd = WASABI_API_CREATEDIALOGW(IDD_RATEDLG, plugin.hwndParent, rateWndProc);
+
+					RECT rc = {0};
+					POINT point = {0};
+					GetCursorPos(&point);
+					GetWindowRect(ratewnd, &rc);
+					MoveWindow(ratewnd, point.x - 155, point.y - 15, rc.right - rc.left, rc.bottom - rc.top, false);
+					KillTimer(plugin.hwndParent, 6669);
+					SetTimer(plugin.hwndParent, 6669, 5000, TimerProc);
+					ShowWindow(ratewnd, SW_SHOWNA);
+					return 0;
+				}
+				case TB_VOLDOWN:
+				{
+					Settings.play_volume -= 25;
+					if (Settings.play_volume < 0)
+					{
+						Settings.play_volume = 0;
+					}
+					PostMessage(plugin.hwndParent, WM_WA_IPC, Settings.play_volume, IPC_SETVOLUME);
+					return 0;
+				}
+				case TB_VOLUP:
+				{
+					Settings.play_volume += 25;
+					if (Settings.play_volume > 255)
+					{
+						Settings.play_volume = 255;
+					}
+					PostMessage(plugin.hwndParent, WM_WA_IPC, Settings.play_volume, IPC_SETVOLUME);
+					return 0;
+				}
+				case TB_OPENFILE:
+				{
+					PostMessage(plugin.hwndParent, WM_WA_IPC, (WPARAM)(HWND)0, IPC_OPENFILEBOX);
+					return 0;
+				}
+				case TB_MUTE:
+				{
+					static int lastvolume;
+					if (Settings.play_volume == 0)
+					{
+						Settings.play_volume = lastvolume;
+						PostMessage(plugin.hwndParent, WM_WA_IPC, Settings.play_volume, IPC_SETVOLUME);
+					}
+					else
+					{
+						lastvolume = Settings.play_volume;
+						PostMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_SETVOLUME);
+					}
+					return 0;
+				}
+				case TB_STOPAFTER:
+				{
+					PostMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(40157, 0), 0);
+					return 0;
+				}
+				case TB_REPEAT:
+				{
+					// get
+					Settings.state_repeat = repeat;
+					if (Settings.state_repeat == 1 && pladv == 1)
+					{
+						Settings.state_repeat = 2;
+					}
+
+					++Settings.state_repeat;
+
+					if (Settings.state_repeat > 2)
+					{
+						Settings.state_repeat = 0;
+					}
+
+					SendMessage(plugin.hwndParent, WM_WA_IPC, Settings.state_repeat >= 1 ? 1 : 0, IPC_SET_REPEAT);
+					SendMessage(plugin.hwndParent, WM_WA_IPC, Settings.state_repeat == 2 ? 1 : 0, IPC_SET_MANUALPLADVANCE);            
+					updateToolbar();
+					return 0;
+				}
+				case TB_SHUFFLE:
+				{
+					Settings.state_shuffle = !Settings.state_shuffle;
+					SendMessage(plugin.hwndParent, WM_WA_IPC, Settings.state_shuffle, IPC_SET_SHUFFLE);
+					updateToolbar();
+					return 0;
+				}
+				case TB_JTFE:
+				{
+					ShowWindow(plugin.hwndParent, SW_SHOWNORMAL);
+					SetForegroundWindow(plugin.hwndParent);
+					PostMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(WINAMP_JUMPFILE, 0), 0);
+					return 0;
+				}
+				case TB_OPENEXPLORER:
+				{
+					LPCWSTR filename = metadata.getFileName().c_str();
+					if (filename && *filename)
+					{
+						if (PathFileExists(filename))
+						{
+							/*if (WASABI_API_EXPLORERFINDFILE == NULL)
+							{
+								ServiceBuild(plugin.service, WASABI_API_EXPLORERFINDFILE, ExplorerFindFileApiGUID);
+							}
+							if (WASABI_API_EXPLORERFINDFILE != NULL)
+							{
+								WASABI_API_EXPLORERFINDFILE->AddFile(filename);
+								WASABI_API_EXPLORERFINDFILE->ShowFiles();
+							}/*/
+							plugin.explorerfindfile->AddAndShowFile(filename);
+						}
+						else
+						{
+							// TODO it would be useful if there was a common interface
+							//		that allows for determining the real filename when
+							//		there's extras after the extension or custom urls
+							//		so it can just be used where needed without plug-in
+							//		workarounds to fix issues (explorerfindfile is meant
+							//		cope with zip:// but for some reason it fails now &
+							//		it just won't cope with cda:// style entries either)
+							if (!_wcsnicmp(filename, L"zip://", 6))
+							{
+								filename += 6;
+							}
+
+							// if there's an extension then we'll give it another go
+							// as typically no extension means that it won't work...
+							LPCWSTR ext = PathFindExtension(filename);
+							if (ext && *ext)
+							{
+								plugin.explorerfindfile->AddAndShowFile(filename);
+							}
+						}
+					}
+					return 0;
+				}
+				case TB_DELETE:
+				{
+					SHFILEOPSTRUCTW fileop = {0};
+					wchar_t path[MAX_PATH] = {0};
+					wcsncpy(path, metadata.getFileName().c_str(), ARRAYSIZE(path));
+
+					fileop.wFunc = FO_DELETE;
+					fileop.pFrom = path;
+					fileop.pTo = L"";
+					fileop.fFlags = FOF_ALLOWUNDO | FOF_FILESONLY;
+					fileop.lpszProgressTitle = L"";
+
+					const int saved_play_state = Settings.play_state;
+					SendMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(40047, 0), 0);
+					Settings.play_state = PLAYSTATE_NOTPLAYING; 
+
+					if (SHFileOperation(&fileop) == 0)
+					{
+						SendMessage(GetPlaylistWnd(), WM_WA_IPC, IPC_PE_DELETEINDEX,
+									SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETLISTPOS));
+					}
+
+					if (saved_play_state == PLAYSTATE_PLAYING)
+					{
+						PostMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(40045, 0), 0);
+					}
+					return 0;
 				}
 			}
 		}
 	}
 
+	LRESULT ret = DefSubclass(hwnd, message, wParam, lParam);	 
+
+	if (message == WM_SIZE)
+	{
+		// look at things that could need us to
+		// force a refresh of the iconic bitmap
+		// this is mainly for classic skins...
+		SetThumbnailTimer();
+	}
+	else if (message == WM_TASKBARBUTTONCREATED)
+	{
+		if ((itaskbar != NULL) && itaskbar->Reset())
+		{
+			updateToolbar(theicons);
+		}
+
+		SetupJumpList();
+	}
+
 	return ret;
 }
 
+#if 0
 void CheckThumbShowing(void)
 {
-#if 0
 	if (thumbshowing)
 	{
 		POINT pt = {0};
@@ -1127,10 +1098,10 @@ void CheckThumbShowing(void)
 			//KillTimer(plugin.hwndParent, 6670);
 		}
 
-		//DwmInvalidateIconicBitmaps(dialogParent);
+		//DwmInvalidateIconicBitmaps(hWnd);
 	}
-#endif
 }
+#endif
 
 VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 {
@@ -1138,7 +1109,9 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 	{
 		case 6667:	// main timer
 		{
+#if 0
 			CheckThumbShowing();
+#endif
 
 			if (!(Settings.Progressbar || Settings.VuMeter) && (itaskbar != NULL))
 			{
@@ -1147,7 +1120,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 
 			if (Settings.play_state == PLAYSTATE_PLAYING || Settings.Thumbnailpb)
 			{
-				Settings.play_total = SendMessage(plugin.hwndParent, WM_WA_IPC, 2, IPC_GETOUTPUTTIME);
+				Settings.play_total = GetCurrentTrackLengthMilliSeconds();
 			}
 
 			if (Settings.play_state != PLAYSTATE_NOTPLAYING)
@@ -1160,85 +1133,83 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 				Settings.play_kbps = Settings.play_khz = 0;
 			}
 
-			const int cp = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETOUTPUTTIME);
-			if (Settings.play_current == cp)
+			const int cp = GetCurrentTrackPos();
+			if (Settings.play_current != cp)
 			{
-				return;
-			}
+				Settings.play_current = cp;
 
-			Settings.play_current = cp;
-
-			// to ensure the overlay icons will show whilst
-			// not hammering things when playback commences
-			// we just do a one time update to get it right
-			if (!finishedLoad)
-			{
-				finishedLoad = true;
-				UpdateOverlyStatus();
-			}
-
-			switch (Settings.play_state)
-			{
-				case PLAYSTATE_PLAYING: 
+				// to ensure the overlay icons will show whilst
+				// not hammering things when playback commences
+				// we just do a one time update to get it right
+				if (!finishedLoad)
 				{
-					if (Settings.play_current == -1 ||
-						Settings.play_total <= 0)
-					{ 
-						static unsigned char count2 = 0;
-						if (count2 == 8)
-						{   
-							count2 = 0;
-							metadata.reset(L"", true);
-						}
-						else
-						{
-							++count2;
-						}
-					}
+					finishedLoad = true;
+					UpdateOverlyStatus();
+				}
 
-					if (Settings.Progressbar && (itaskbar != NULL))
+				switch (Settings.play_state)
+				{
+					case PLAYSTATE_PLAYING: 
 					{
-						if (Settings.play_current == -1 || Settings.play_total <= 0)
-						{
-							itaskbar->SetProgressState(Settings.Streamstatus ? TBPF_INDETERMINATE : TBPF_NOPROGRESS);
+						if (Settings.play_current == -1 ||
+							Settings.play_total <= 0)
+						{ 
+							static unsigned char count2 = 0;
+							if (count2 == 8)
+							{   
+								count2 = 0;
+								metadata.reset(L"", true);
+							}
+							else
+							{
+								++count2;
+							}
 						}
-						else
+
+						if (Settings.Progressbar && (itaskbar != NULL))
 						{
-							itaskbar->SetProgressState(TBPF_NORMAL);
+							if (Settings.play_current == -1 || Settings.play_total <= 0)
+							{
+								itaskbar->SetProgressState(Settings.Streamstatus ? TBPF_INDETERMINATE : TBPF_NOPROGRESS);
+							}
+							else
+							{
+								itaskbar->SetProgressState(TBPF_NORMAL);
+								itaskbar->SetProgressValue(Settings.play_current, Settings.play_total);
+							}
+						}
+						break;
+					}
+					case PLAYSTATE_PAUSED:
+					{
+						if (Settings.Progressbar && (itaskbar != NULL))
+						{
+							itaskbar->SetProgressState(TBPF_PAUSED);
 							itaskbar->SetProgressValue(Settings.play_current, Settings.play_total);
-						}
-					}
-					break;
-				}
-				case PLAYSTATE_PAUSED:
-				{
-					if (Settings.Progressbar && (itaskbar != NULL))
-					{
-						itaskbar->SetProgressState(TBPF_PAUSED);
-						itaskbar->SetProgressValue(Settings.play_current, Settings.play_total);
 
-						if (Settings.play_total == -1)
-						{
-							itaskbar->SetProgressValue(100, 100);
+							if (Settings.play_total == -1)
+							{
+								itaskbar->SetProgressValue(100, 100);
+							}
 						}
+						break;
 					}
-					break;
-				}
-				default:
-				{
-					if (Settings.Progressbar && (itaskbar != NULL)) 
+					default:
 					{
-						if (Settings.Stoppedstatus)
+						if (Settings.Progressbar && (itaskbar != NULL)) 
 						{
-							itaskbar->SetProgressState(TBPF_ERROR);
-							itaskbar->SetProgressValue(100, 100);
+							if (Settings.Stoppedstatus)
+							{
+								itaskbar->SetProgressState(TBPF_ERROR);
+								itaskbar->SetProgressValue(100, 100);
+							}
+							else
+							{
+								itaskbar->SetProgressState(TBPF_NOPROGRESS);
+							}
 						}
-						else
-						{
-							itaskbar->SetProgressState(TBPF_NOPROGRESS);
-						}
+						break;
 					}
-					break;
 				}
 			}
 			break;
@@ -1319,7 +1290,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 				HBITMAP thumbnail = thumbnaildrawer->GetThumbnail();
 				if (thumbnail != NULL)
 				{
-					HRESULT hr = DwmSetIconicThumbnail(plugin.hwndParent, thumbnail, 0);
+					const HRESULT hr = DwmSetIconicThumbnail(plugin.hwndParent, thumbnail, 0);
 
 					DeleteObject(thumbnail);
 					thumbnail = NULL;
@@ -1330,7 +1301,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 						break;
 					}
 
-					if (classicSkin)
+					/*if (classicSkin)
 					{
 						RECT r = {0};
 						GetClientRect(plugin.hwndParent, &r);
@@ -1349,11 +1320,13 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 							DwmSetIconicLivePreviewBitmap(plugin.hwndParent, thumbnail, NULL, 0);
 							DeleteObject(thumbnail);
 						}
-					}
+					}*/
 				}
 			}
 
+#if 0
 			CheckThumbShowing();
+#endif
 			break;
 		}
 	}
@@ -1427,7 +1400,6 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 			const BOOL enabled = GetTaskbarMode();
 			CheckDlgButton(hwnd, IDC_SHOW_IN_TASKBAR, (enabled ? BST_CHECKED : BST_UNCHECKED));
 			EnableControl(hwnd, 1267, enabled);
-			EnableControl(hwnd, IDC_ICON_COMBO, enabled);
 			EnableControl(hwnd, IDC_HIDE_ON_MINIMISE, enabled);
 
 			CheckDlgButton(hwnd, IDC_HIDE_ON_MINIMISE, (GetTaskbarOnMinimiseMode() ? BST_CHECKED : BST_UNCHECKED));
@@ -1443,7 +1415,6 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 				{
 					const bool enabled = (IsDlgButtonChecked(hwnd, IDC_SHOW_IN_TASKBAR) == BST_CHECKED);
 					EnableControl(hwnd, 1267, UpdateTaskbarMode(enabled));
-					EnableControl(hwnd, IDC_ICON_COMBO, enabled);
 					EnableControl(hwnd, IDC_HIDE_ON_MINIMISE, enabled);
 					break;
 				}
@@ -1554,25 +1525,13 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 					}
 					break;
 				}
-				case 1267:
-				{
-					// TODO localise this
-					wchar_t temp[256] = {0};
-					if (MessageBox(hwnd, WASABI_API_LNGSTRINGW_BUF(IDS_DISABLE_SUPPORT_TEXT, temp, ARRAYSIZE(temp)),
-								   WASABI_API_LNGSTRINGW(IDS_DISABLE_SUPPORT), MB_YESNO | MB_ICONQUESTION) == IDYES)
-					{
-						WritePrivateProfileStringW(L"Plugins", L"gen_win7shell.dll", L"1",
-												   GetPaths()->profile_ini_file);
-						PostMessage(plugin.hwndParent, WM_WA_IPC, (WPARAM)-1, IPC_RESTARTWINAMP);
-					}
-					break;
-				}
 				case IDC_ICON_COMBO:
 				{
 					if (HIWORD(wParam) == CBN_SELCHANGE)
 					{
 						UpdateTaskberIcon(hwnd);
 					}
+					break;
 				}
 #ifdef USE_MOUSE
 				case IDC_CHECK35:
@@ -1588,7 +1547,7 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 							{
 								MessageBoxEx(plugin.hwndParent,
 											 WASABI_API_LNGSTRINGW(IDS_ERROR_REGISTERING_MOUSE_HOOK),
-											 BuildPluginNameW(), MB_ICONWARNING, 0);
+											 (LPWSTR)plugin.description, MB_ICONWARNING, 0);
 							}
 						}
 					}
@@ -1811,7 +1770,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 					}
 
 					// Show note
-					ShowControl(hwnd, IDC_BUTTON_RESTART, SW_SHOW);
+					ShowControl(hwnd, IDC_BUTTON_RESTART, SW_SHOWNA);
 					break;
 				}
 				case IDC_DOWNBUTT:
@@ -1837,7 +1796,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 					}
 
 					// Show note
-					ShowControl(hwnd, IDC_BUTTON_RESTART, SW_SHOW);
+					ShowControl(hwnd, IDC_BUTTON_RESTART, SW_SHOWNA);
 					break;
 				}
 				case IDC_CHECK6:
@@ -1856,7 +1815,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 					else
 					{
 						// Show note
-						ShowControl(hwnd, IDC_BUTTON_RESTART, SW_SHOW);
+						ShowControl(hwnd, IDC_BUTTON_RESTART, SW_SHOWNA);
 					}
 					break;
 				}
@@ -2002,7 +1961,7 @@ BOOL CALLBACK EnumDialogControls(HWND hwnd, LPARAM lParam)
 		return TRUE;
 	}
 
-	ShowWindow(hwnd, (lParam ? SW_SHOW : SW_HIDE));
+	ShowWindow(hwnd, (lParam ? SW_SHOWNA : SW_HIDE));
 	return TRUE;
 }
 
@@ -2112,13 +2071,18 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 
 					EnumChildWindows(hwnd, EnumDialogControls, (Settings.Thumbnailbackground != BG_WINAMP));
 
-					if ((itaskbar != NULL) && itaskbar->Reset())
+					if (itaskbar != NULL)
 					{
-						updateToolbar(theicons);
+						if (itaskbar->Reset())
+						{
+							updateToolbar(theicons);
+						}
+
+						itaskbar->SetWindowAttr();
 					}
 
 					SetThumbnailTimer();
-					DwmInvalidateIconicBitmaps(dialogParent);
+					DwmInvalidateIconicBitmaps(plugin.hwndParent);
 					break;
 				}
 				case IDC_EDIT2:
@@ -2295,7 +2259,7 @@ void AddStringtoList(HWND window, const int control_ID)
 	}
 
 	// Show note
-	ShowControl(window, IDC_BUTTON_RESTART, SW_SHOW);
+	ShowControl(window, IDC_BUTTON_RESTART, SW_SHOWNA);
 }
 
 void SetupJumpList(void)
@@ -2384,7 +2348,7 @@ extern "C" __declspec(dllexport) winampGeneralPurposePlugin * winampGetGeneralPu
 extern "C" __declspec(dllexport) int winampUninstallPlugin(HINSTANCE hDllInst, HWND hwndDlg, int param)
 {
 	if (MessageBoxEx(hwndDlg, WASABI_API_LNGSTRINGW(IDS_UNINSTALL_PROMPT),
-					 BuildPluginNameW(), MB_YESNO, 0) == IDYES)
+					 (LPWSTR)plugin.description, MB_YESNO, 0) == IDYES)
 	{
 		no_uninstall = false;
 

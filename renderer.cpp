@@ -7,6 +7,7 @@
 #include "api.h"
 #include "lines.h"
 #include <dwmapi.h>
+#include <loader/loader/utils.h>
 
 Gdiplus::Bitmap* ResizeAncCloneBitmap(Gdiplus::Bitmap *bmp, const float width, const float height)
 {
@@ -220,23 +221,6 @@ bool renderer::render()
 	return false;
 }
 
-RECT ScaleArtworkToArea(const int w, const int h, const int cur_w, const int cur_h)
-{
-	// maintain 'square' stretching, fill in dst
-	double aspX = (double)(w) / (double)cur_w,
-		   aspY = (double)(h) / (double)cur_h,
-		   asp = min(aspX, aspY);
-	const int newW = (int)(cur_w * asp),
-			  newH = (int)(cur_h * asp);
-
-	RECT dst;
-	dst.left = (w - newW) / 2;
-	dst.top = (h - newH) / 2;
-	dst.right = dst.left + newW;
-	dst.bottom = dst.top + newH;
-	return dst;
-}
-
 HBITMAP renderer::GetThumbnail(const bool get_bmp)
 {
 	// not everyone is going to even cause the
@@ -313,12 +297,17 @@ HBITMAP renderer::GetThumbnail(const bool get_bmp)
 				// see if it's a classic skin and it's in windowshade mode
 				// as depending upon the OS, etc this may not be just 14px
 				// (or 28px for double-size) so is better to double-check!
-				if (classicSkin && windowShade)
+				/*if (classicSkin && windowShade)
 				{
 					r.bottom = r.top + (doubleSize ? 28 : 14);
-				}
+				}*/
 
-				Gdiplus::Bitmap bmp((r.right - r.left), (r.bottom - r.top), PixelFormat32bppPARGB);
+				// because winamp modern is just weird due to it's drawers
+				// it's simpler to force a half-height to make it look ok
+				const INT height = (!modernFix ? (r.bottom - r.top) :
+								   (INT)((r.bottom - r.top) / 1.74f)),
+						  width = (r.right - r.left);
+				Gdiplus::Bitmap bmp(width, height, PixelFormat32bppPARGB);
 				Gdiplus::Graphics gfx(&bmp);
 
 				HDC hdc = gfx.GetHDC();
@@ -333,10 +322,12 @@ HBITMAP renderer::GetThumbnail(const bool get_bmp)
 				// use WM_PRINTCLIENT to better support alpha levels
 				// the main downside of WM_PRINTCLIENT is it's slow
 				// when used as part of a SUI based modern skin :(
-				if (modernSUI)
+				// note: winamp modern is treated as a special case
+				//		 due to the weirdness due to it's drawer :(
+				if (modernSUI || modernFix)
 				{
-					HDC hdcWindow = GetWindowDC(dialogParent);
-					BitBlt(hdc, 0, 0, bmp.GetWidth(), bmp.GetHeight(), hdcWindow, 0, 0, SRCCOPY);
+					const HDC hdcWindow = GetDCEx(dialogParent, NULL, DCX_CACHE | DCX_WINDOW);
+					BitBlt(hdc, 0, 0, width, height, hdcWindow, 0, 0, SRCCOPY);
 					ReleaseDC(dialogParent, hdcWindow);
 				}
 				else
@@ -356,12 +347,12 @@ HBITMAP renderer::GetThumbnail(const bool get_bmp)
 				// gen_ff for what should be a non-visible section
 				// of the skin (but it gets reset / not drawn onto
 				// the hdc nicely to make use of the existing alpha)
-				const bool doReplace = (!classicSkin && !modernSUI);
+				const bool doReplace = (modernFix || (/*!classicSkin &&*/ !modernSUI));
 				Gdiplus::ImageAttributes ImgAtt;
 				Gdiplus::Color queried(255, 0, 0, 0), replace(255, 0, 0, 0);
 				if (doReplace)
 				{
-					bmp.GetPixel(bmp.GetWidth() - 1, bmp.GetHeight() - 1, &queried);
+					bmp.GetPixel((width - 1), (height - 1), &queried);
 					ImgAtt.SetColorKey(queried, queried, Gdiplus::ColorAdjustTypeBitmap);
 				}
 
@@ -370,10 +361,11 @@ HBITMAP renderer::GetThumbnail(const bool get_bmp)
 				// that for some modern skins the preview is better
 				// than it would otherwise be (due to gen_ff loosing
 				// that information when it's put into the hdc *ugg*)
-				RECT rt = ScaleArtworkToArea(m_width, m_height, bmp.GetWidth(), bmp.GetHeight());
+				RECT rt = { 0 };
+				ScaleArtworkToArea(&rt, m_width, m_height, width, height);
 				Gdiplus::Rect dest(rt.left, rt.top, (rt.right - rt.left), (rt.bottom - rt.top));
-				graphics.DrawImage(&bmp, dest, 0, 0, bmp.GetWidth(), bmp.GetHeight(), Gdiplus::UnitPixel,
-								   (doReplace ? (replace.ToCOLORREF() == queried.ToCOLORREF() ? &ImgAtt : 0) : 0));
+				graphics.DrawImage(&bmp, dest, 0, 0, width, height, Gdiplus::UnitPixel, (doReplace ?
+								   (replace.ToCOLORREF() == queried.ToCOLORREF() ? &ImgAtt : 0) : 0));
 				break;
 			}
 			case BG_ALBUMART:

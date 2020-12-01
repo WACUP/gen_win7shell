@@ -19,10 +19,10 @@ namespace tools
 	const int NR_THUMB_BUTTONS = 19;
 
 	// Functions declarations
-	std::wstring getBookmarks();
+	std::wstring getBookmarks(void);
 	HRESULT CreateShellLink(PCWSTR filename, PCWSTR pszTitle, IShellLink **ppsl);
 	//bool is_in_recent(std::wstring &filename);
-	HIMAGELIST prepareIcons();
+	HIMAGELIST prepareIcons(void);
 	std::wstring SecToTime(const int sec);
 	LPCWSTR getToolTip(const int button, const int mode = -1);
 	int getBitmap(const int button, const int mode);
