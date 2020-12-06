@@ -136,70 +136,104 @@ namespace tools
 		return L"";
 	}
 
-	HRESULT CreateShellLink(PCWSTR filename, PCWSTR pszTitle, IShellLink **ppsl)
+	HRESULT CreateShellLink(LPCWSTR filename, LPCWSTR pszTitle, IShellLink **ppsl)
 	{
-		IShellLink *psl = NULL;
-		HRESULT hr = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&psl));
-		if (SUCCEEDED(hr))
+		if (filename && *filename)
 		{
-			// due to how WACUP works, a wacup.exe or
-			// a winamp.exe might be being used (this
-			// is ignoring the winamp.original aspect
-			// that this code was dealing with). this
-			// call will get the appropriate filepath
-			// for the instance of the loader in use!
-			wchar_t fname[MAX_PATH] = { 0 };
-			RealWACUPPath(fname, ARRAYSIZE(fname));
-
-			wchar_t shortfname[MAX_PATH] = {0};
-			GetShortPathName(fname, shortfname, MAX_PATH);
-
-			fname[0] = 0;
-			if (GetShortPathName(filename, fname, MAX_PATH) == 0)
+			IShellLink *psl = NULL;
+			HRESULT hr = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&psl));
+			if (SUCCEEDED(hr) && psl)
 			{
-				wcsncpy(fname, filename, MAX_PATH);
-			}
-			psl->SetIconLocation(shortfname, 0);
+				// due to how WACUP works, a wacup.exe or
+				// a winamp.exe might be being used (this
+				// is ignoring the winamp.original aspect
+				// that this code was dealing with). this
+				// call will get the appropriate filepath
+				// for the instance of the loader in use!
+				wchar_t fname[MAX_PATH] = { 0 };
+				RealWACUPPath(fname, ARRAYSIZE(fname));
 
-			hr = psl->SetPath(shortfname);
-
-			if (SUCCEEDED(hr))
-			{
-				hr = psl->SetArguments(fname);
-				if (SUCCEEDED(hr))
+				LPSHELLFOLDER pDesktopFolder = 0;
+				if (SUCCEEDED(SHGetDesktopFolder(&pDesktopFolder)) && pDesktopFolder)
 				{
-					// The title property is required on Jump List items provided as an IShellLink
-					// instance.  This value is used as the display name in the Jump List.
-					IPropertyStore *pps = NULL;
-					hr = psl->QueryInterface(IID_PPV_ARGS(&pps));
+					BOOL failed = FALSE;
+					LPITEMIDLIST filepidl = 0;
+					hr = pDesktopFolder->ParseDisplayName(NULL, 0, fname, 0, &filepidl, 0);
 					if (SUCCEEDED(hr))
 					{
-						PROPVARIANT propvar = {0};
-						hr = InitPropVariantFromString(pszTitle, &propvar);
-						if (SUCCEEDED(hr))
-						{
-							hr = pps->SetValue(PKEY_Title, propvar);
-							if (SUCCEEDED(hr))
-							{
-								hr = pps->Commit();
-								if (SUCCEEDED(hr))
-								{
-									hr = psl->QueryInterface(IID_PPV_ARGS(ppsl));
-								}
-							}
-							PropVariantClear(&propvar);
-						}
-						pps->Release();
+						hr = psl->SetIDList(filepidl);
+					}
+					else
+					{
+						hr = HRESULT_FROM_WIN32(GetLastError());
+						failed = TRUE;
+					}
+
+					pDesktopFolder->Release();
+
+					if (failed)
+					{
+						psl->Release();
+						return hr;
 					}
 				}
+
+				wchar_t shortfname[MAX_PATH] = {0};
+				GetShortPathName(fname, shortfname, ARRAYSIZE(shortfname));
+
+				fname[0] = 0;
+				if (GetShortPathName(filename, fname, ARRAYSIZE(fname)) == 0)
+				{
+					wcsncpy(fname, filename, ARRAYSIZE(fname) - 1);
+				}
+				psl->SetIconLocation(shortfname, 0);
+
+				// for some reason this randomly crashes for
+				// some setups & from the call stack its due
+				// to trying to figure out the pidl from the
+				// passed in path so we'll instead try to do
+				// it ourselves & just pass in a pidl above
+				//hr = psl->SetPath(shortfname);
+
+				if (SUCCEEDED(hr))
+				{
+					hr = psl->SetArguments(fname);
+					if (SUCCEEDED(hr))
+					{
+						// The title property is required on Jump List items provided as an IShellLink
+						// instance.  This value is used as the display name in the Jump List.
+						IPropertyStore *pps = NULL;
+						hr = psl->QueryInterface(IID_PPV_ARGS(&pps));
+						if (SUCCEEDED(hr))
+						{
+							PROPVARIANT propvar = {0};
+							hr = InitPropVariantFromString(pszTitle, &propvar);
+							if (SUCCEEDED(hr))
+							{
+								hr = pps->SetValue(PKEY_Title, propvar);
+								if (SUCCEEDED(hr))
+								{
+									hr = pps->Commit();
+									if (SUCCEEDED(hr))
+									{
+										hr = psl->QueryInterface(IID_PPV_ARGS(ppsl));
+									}
+								}
+								PropVariantClear(&propvar);
+							}
+							pps->Release();
+						}
+					}
+				}
+				else
+				{
+					hr = HRESULT_FROM_WIN32(GetLastError());
+				}
+				psl->Release();
 			}
-			else
-			{
-				hr = HRESULT_FROM_WIN32(GetLastError());
-			}
-			psl->Release();
+			return hr;
 		}
-		return hr;
+		return S_FALSE;
 	}
 
 	/*bool is_in_recent(std::wstring &filename)

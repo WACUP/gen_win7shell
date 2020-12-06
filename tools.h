@@ -20,7 +20,7 @@ namespace tools
 
 	// Functions declarations
 	std::wstring getBookmarks(void);
-	HRESULT CreateShellLink(PCWSTR filename, PCWSTR pszTitle, IShellLink **ppsl);
+	HRESULT CreateShellLink(LPCWSTR filename, LPCWSTR pszTitle, IShellLink **ppsl);
 	//bool is_in_recent(std::wstring &filename);
 	HIMAGELIST prepareIcons(void);
 	std::wstring SecToTime(const int sec);

@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"3.5"
+#define PLUGIN_VERSION L"3.5.1"
 
 #define NR_BUTTONS 15
 
@@ -535,7 +535,8 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 				Settings.play_current = 0;
 				Settings.play_state = GetPlayingState();
 
-				if ((Settings.JLrecent || Settings.JLfrequent)/* && !tools::is_in_recent(filename)*/)
+				if ((Settings.JLrecent || Settings.JLfrequent)/* && !tools::is_in_recent(filename)*/ &&
+					(Settings.play_state == PLAYSTATE_PLAYING) && Settings.Add2RecentDocs)
 				{
 					std::wstring title(metadata.getMetadata(L"title") + L" - " + metadata.getMetadata(L"artist"));
 
@@ -546,8 +547,7 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 
 					IShellLink *psl = NULL;
 					SHARDAPPIDINFOLINK applink = {0};
-					if ((tools::CreateShellLink(filename.c_str(), title.c_str(), &psl) == S_OK) &&
-						(Settings.play_state == PLAYSTATE_PLAYING) && Settings.Add2RecentDocs && psl)
+					if ((tools::CreateShellLink(filename.c_str(), title.c_str(), &psl) == S_OK) && psl)
 					{
 						time_t rawtime = NULL;
 						time (&rawtime);
