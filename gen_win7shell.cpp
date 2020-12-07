@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"3.5.1"
+#define PLUGIN_VERSION L"3.5.2"
 
 #define NR_BUTTONS 15
 
@@ -546,15 +546,21 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 					}
 
 					IShellLink *psl = NULL;
-					SHARDAPPIDINFOLINK applink = {0};
 					if ((tools::CreateShellLink(filename.c_str(), title.c_str(), &psl) == S_OK) && psl)
 					{
+						SHARDAPPIDINFOLINK applink = { 0 };
 						time_t rawtime = NULL;
 						time (&rawtime);
 						psl->SetDescription(_wctime(&rawtime));
 						applink.psl = psl;
 						applink.pszAppID = AppID.c_str();
-						SHAddToRecentDocs(SHARD_LINK, psl);
+						SHAddToRecentDocs(SHARD_LINK, psl);						
+					}
+
+					// try to ensure we clean-up everything even if
+					// the CreateShellLink failed e.g. on SetPath()
+					if (psl)
+					{
 						psl->Release();
 					}
 				}

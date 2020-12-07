@@ -138,7 +138,7 @@ namespace tools
 
 	HRESULT CreateShellLink(LPCWSTR filename, LPCWSTR pszTitle, IShellLink **ppsl)
 	{
-		if (filename && *filename)
+		if (ppsl && filename && *filename)
 		{
 			IShellLink *psl = NULL;
 			HRESULT hr = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&psl));
@@ -161,7 +161,20 @@ namespace tools
 					hr = pDesktopFolder->ParseDisplayName(NULL, 0, fname, 0, &filepidl, 0);
 					if (SUCCEEDED(hr))
 					{
-						hr = psl->SetIDList(filepidl);
+						// based on testing, both this & also the
+						// psl->SetPath() are sometimes failing &
+						// I can't find any reason for it. due to
+						// that it is necessary to try & catch it
+						// so we don't take down the entire thing
+						__try
+						{
+							hr = psl->SetIDList(filepidl);
+						}
+						__except (EXCEPTION_EXECUTE_HANDLER)
+						{
+							hr = S_FALSE;
+							failed = TRUE;
+						}
 					}
 					else
 					{
