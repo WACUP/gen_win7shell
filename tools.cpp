@@ -158,8 +158,19 @@ namespace tools
 				{
 					BOOL failed = FALSE;
 					LPITEMIDLIST filepidl = 0;
-					hr = pDesktopFolder->ParseDisplayName(NULL, 0, fname, 0, &filepidl, 0);
-					if (SUCCEEDED(hr))
+					// like below, this has also been seen to fail
+					// so we will try & catch it & fail gracefully
+					__try
+					{
+						hr = pDesktopFolder->ParseDisplayName(NULL, 0, fname, 0, &filepidl, 0);
+					}
+					__except (EXCEPTION_EXECUTE_HANDLER)
+					{
+						hr = S_FALSE;
+						failed = TRUE;
+					}
+
+					if (SUCCEEDED(hr) && (filepidl != NULL))
 					{
 						// based on testing, both this & also the
 						// psl->SetPath() are sometimes failing &
@@ -182,6 +193,7 @@ namespace tools
 						failed = TRUE;
 					}
 
+					CoTaskMemFree(filepidl);
 					pDesktopFolder->Release();
 
 					if (failed)
@@ -266,7 +278,7 @@ namespace tools
 
 		for (int i = 0; i < NR_THUMB_BUTTONS; ++i)
 		{
-#if 0
+#if 1
 			int icon = -1;
 			switch (IDI_TBICON0 + i)
 			{
