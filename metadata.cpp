@@ -2,7 +2,8 @@
 #include <map>
 #include <ctype.h>
 #include "metadata.h"
-#include "sdk/winamp/wa_ipc.h"
+#include <sdk/winamp/wa_ipc.h>
+#include <loader/loader/utils.h>
 
 bool MetaData::reset(const std::wstring &filename, const bool force)
 {
@@ -48,7 +49,7 @@ std::wstring MetaData::getMetadata(const std::wstring &tag)
 		const bool artist = (tag == L"artist"), title = (tag == L"title");
 		if (title || artist)
 		{
-			ret = (wchar_t*)SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GET_PLAYING_TITLE);
+			ret = GetPlayingTitle(0);
 			if (ret.empty())
 			{
 				return L"";

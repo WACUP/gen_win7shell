@@ -58,29 +58,43 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 			psl->SetIconLocation(path.c_str(), iconindex);
 			if (mode)
 			{
-				// due to how WACUP works, a wacup.exe or
-				// a winamp.exe might be being used (this
-				// is ignoring the winamp.original aspect
-				// that this code was dealing with). this
-				// call will get the appropriate filepath
-				// for the instance of the loader in use!
-				wchar_t fname[MAX_PATH] = {0};
-				RealWACUPPath(fname, ARRAYSIZE(fname));
+				__try
+				{
+					// due to how WACUP works, a wacup.exe or
+					// a winamp.exe might be being used (this
+					// is ignoring the winamp.original aspect
+					// that this code was dealing with). this
+					// call will get the appropriate filepath
+					// for the instance of the loader in use!
+					wchar_t fname[MAX_PATH] = { 0 };
+					RealWACUPPath(fname, ARRAYSIZE(fname));
 
-				if (mode == 1)
-				{
-					wchar_t shortfname[MAX_PATH] = {0};
-					GetShortPathName(fname, shortfname, MAX_PATH);
-					hr = psl->SetPath(shortfname);
+					if (mode == 1)
+					{
+						wchar_t shortfname[MAX_PATH] = {0};
+						GetShortPathName(fname, shortfname, MAX_PATH);
+						hr = psl->SetPath(shortfname);
+					}
+					else
+					{
+						hr = psl->SetPath(fname);
+					}
 				}
-				else
+				__except (EXCEPTION_EXECUTE_HANDLER)
 				{
-					hr = psl->SetPath(fname);
+					hr = S_FALSE;
 				}
 			}
 			else
 			{
-				hr = psl->SetPath(L"rundll32.exe");
+				__try
+				{
+					hr = psl->SetPath(L"rundll32.exe");
+				}
+				__except (EXCEPTION_EXECUTE_HANDLER)
+				{
+					hr = S_FALSE;
+				}
 			}
 
 			if (SUCCEEDED(hr))

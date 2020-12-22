@@ -110,9 +110,9 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	wcsncpy(Destination_struct.BGPath, GetString(L"BGPath", L"", MAX_PATH).c_str(),
 												  ARRAYSIZE(Destination_struct.BGPath));
 	Destination_struct.JLbms = GetBool(L"JLBookMarks", true);
-	Destination_struct.JLfrequent = GetBool(L"JLFrequent", true);
+	Destination_struct.JLfrequent = GetBool(L"Frequent", false);
 	Destination_struct.JLpl = GetBool(L"JLPlayList", true);
-	Destination_struct.JLrecent = GetBool(L"JLRecent", true);
+	Destination_struct.JLrecent = GetBool(L"Recent", false);
 	Destination_struct.JLtasks = GetBool(L"JLTasks", true);
 	Destination_struct.Overlay = GetBool(L"IconOverlay", true);
 	Destination_struct.Progressbar = GetBool(L"Progress", false);
@@ -224,9 +224,9 @@ void SettingsManager::WriteSettings(const sSettings &Source_struct)
 	WriteBool(L"AsIcon", Source_struct.AsIcon, true);
 	WriteString(L"BGPath", Source_struct.BGPath, L"");
 	WriteBool(L"JLBookMarks", Source_struct.JLbms, true);
-	WriteBool(L"JLFrequent", Source_struct.JLfrequent, true);
+	WriteBool(L"Frequent", Source_struct.JLfrequent, true);
 	WriteBool(L"JLPlayList", Source_struct.JLpl, true);
-	WriteBool(L"JLRecent", Source_struct.JLrecent, true);
+	WriteBool(L"Recent", Source_struct.JLrecent, true);
 	WriteBool(L"JLTasks", Source_struct.JLtasks, true);
 	WriteBool(L"IconOverlay", Source_struct.Overlay, true);
 	WriteBool(L"Progress", Source_struct.Progressbar, false);

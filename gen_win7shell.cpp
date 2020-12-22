@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"3.5.3"
+#define PLUGIN_VERSION L"3.6.2"
 
 #define NR_BUTTONS 15
 
@@ -509,12 +509,12 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 		{
 			case IPC_PLAYING_FILEW:
 			{
-				Settings.play_playlistpos = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETLISTPOS);
+				Settings.play_playlistpos = GetPlaylistPosition();
 
 				std::wstring filename((wchar_t*)wParam);
 				if (filename.empty())
 				{
-					LPCWSTR p = (LPCWSTR)SendMessage(plugin.hwndParent, WM_WA_IPC, 1, IPC_GET_PLAYING_FILENAME);
+					LPCWSTR p = GetPlayingFilename(1);
 					if (p != NULL)
 					{
 						filename = p;
@@ -538,30 +538,37 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 				if ((Settings.JLrecent || Settings.JLfrequent)/* && !tools::is_in_recent(filename)*/ &&
 					(Settings.play_state == PLAYSTATE_PLAYING) && Settings.Add2RecentDocs)
 				{
-					std::wstring title(metadata.getMetadata(L"title") + L" - " + metadata.getMetadata(L"artist"));
-
-					if (Settings.play_total > 0)
+					__try
 					{
-						title += L"  (" + tools::SecToTime(Settings.play_total / 1000) + L")";
+						const std::wstring title(metadata.getMetadata(L"title") +
+												 L" - " + metadata.getMetadata(L"artist") +
+												 ((Settings.play_total > 0) ? L"  (" +
+												 tools::SecToTime(Settings.play_total / 1000) + L")" : L""));
+
+						IShellLink *psl = NULL;
+						if ((tools::CreateShellLink(filename.c_str(), title.c_str(), &psl) == S_OK) && psl)
+						{
+							const SHARDAPPIDINFOLINK applink = { psl, AppID.c_str() };
+							time_t rawtime = NULL;
+							time(&rawtime);
+							psl->SetDescription(_wctime(&rawtime));
+							// based on testing, this & things in the
+							// CreateShellLink() sometimes fails :'(
+							// I can't find any reason for it. due to
+							// that it is necessary to try & catch it
+							// so we don't take down the entire thing
+							SHAddToRecentDocs(SHARD_APPIDINFOLINK, &applink);
+						}
+
+						// try to ensure we clean-up everything even if
+						// the CreateShellLink failed e.g. on SetPath()
+						if (psl)
+						{
+							psl->Release();
+						}
 					}
-
-					IShellLink *psl = NULL;
-					if ((tools::CreateShellLink(filename.c_str(), title.c_str(), &psl) == S_OK) && psl)
+					__except (EXCEPTION_EXECUTE_HANDLER)
 					{
-						SHARDAPPIDINFOLINK applink = { 0 };
-						time_t rawtime = NULL;
-						time (&rawtime);
-						psl->SetDescription(_wctime(&rawtime));
-						applink.psl = psl;
-						applink.pszAppID = AppID.c_str();
-						SHAddToRecentDocs(SHARD_LINK, psl);						
-					}
-
-					// try to ensure we clean-up everything even if
-					// the CreateShellLink failed e.g. on SetPath()
-					if (psl)
-					{
-						psl->Release();
 					}
 				}
 
@@ -695,9 +702,7 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 					(wParam == IPC_CB_MISC_AA_OPT_CHANGED) ||
 					(wParam == IPC_CB_MISC_TITLE_RATING)))
 				{
-					LPCWSTR p = (LPCWSTR)SendMessage(plugin.hwndParent, WM_WA_IPC,
-													 0, IPC_GET_PLAYING_FILENAME);
-
+					LPCWSTR p = GetPlayingFilename(0);
 					if (p != NULL)
 					{
 						metadata.reset(p);
@@ -714,11 +719,11 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 					// which helps to determine modern vs classic skin
 					dialogParent = (HWND)SendMessage(hWnd, WM_WA_IPC, 0, IPC_GETDIALOGBOXPARENT);
 
-					pladv = !!SendMessage(hWnd, WM_WA_IPC, 0, IPC_GET_MANUALPLADVANCE);
+					pladv = !!GetManualAdvance();
 
 					windowShade = !!SendMessage(hWnd, WM_WA_IPC, (WPARAM)-1, IPC_IS_WNDSHADE);
 
-					doubleSize = !!SendMessage(hWnd, WM_WA_IPC, (WPARAM)0, IPC_ISDOUBLESIZE);
+					doubleSize = !!GetDoubleSize(0);
 
 					// Accept messages even if Winamp was run as Administrator
 					ChangeWindowMessageFilter(WM_COMMAND, 1);
@@ -746,23 +751,23 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 					SetupJumpList();
 
 					// Timers, settings, icons
-					Settings.play_playlistpos = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETLISTPOS);
-					Settings.play_playlistlen = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETLISTLENGTH);
+					Settings.play_playlistpos = GetPlaylistPosition();
+					Settings.play_playlistlen = GetPlaylistLength();
 					Settings.play_total = GetCurrentTrackLengthMilliSeconds();
 					Settings.play_volume = IPC_GETVOLUME(plugin.hwndParent);
 
 					theicons = tools::prepareIcons();
 
-					LPCWSTR p = (LPCWSTR)SendMessage(plugin.hwndParent, WM_WA_IPC, 1, IPC_GET_PLAYING_FILENAME);
+					LPCWSTR p = GetPlayingFilename(1);
 					if (p != NULL)
 					{
 						metadata.reset(p);
 					}
 
 					// update shuffle and repeat
-					Settings.state_shuffle = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GET_SHUFFLE);
+					Settings.state_shuffle = GetShuffle();
 
-					Settings.state_repeat = repeat = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GET_REPEAT);
+					Settings.state_repeat = repeat = GetRepeat();
 					if (Settings.state_repeat == 1 && pladv == 1)
 					{
 						Settings.state_repeat = 2;
@@ -830,7 +835,8 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 LRESULT CALLBACK HookWinampWnd(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
 							   UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
 {
-	if (message == WM_DWMSENDICONICTHUMBNAIL)
+	if ((message == WM_DWMSENDICONICTHUMBNAIL) ||
+		(message == WM_DWMSENDICONICLIVEPREVIEWBITMAP))
 	{
 		if (CreateThumbnailDrawer())
 		{
@@ -840,6 +846,7 @@ LRESULT CALLBACK HookWinampWnd(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 			running = true;
 
 			SetThumbnailTimer();
+			DwmInvalidateIconicBitmaps(plugin.hwndParent);
 			return 0;
 		}
 	}
@@ -853,7 +860,7 @@ LRESULT CALLBACK HookWinampWnd(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 				case TB_NEXT:
 				{
 					SendMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(((LOWORD(wParam) == TB_PREVIOUS) ? 40044 : 40048), 0), 0);
-					Settings.play_playlistpos = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETLISTPOS);
+					Settings.play_playlistpos = GetPlaylistPosition();
 
 					if (Settings.Thumbnailbackground == BG_ALBUMART)
 					{
@@ -865,8 +872,7 @@ LRESULT CALLBACK HookWinampWnd(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 						}
 					}
 
-					LPCWSTR p = (LPCWSTR)SendMessage(plugin.hwndParent, WM_WA_IPC,
-													 0, IPC_GET_PLAYING_FILENAME); 
+					LPCWSTR p = GetPlayingFilename(0);
 					if (p != NULL)
 					{
 						metadata.reset(p);
@@ -1049,8 +1055,7 @@ LRESULT CALLBACK HookWinampWnd(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 
 					if (SHFileOperation(&fileop) == 0)
 					{
-						SendMessage(GetPlaylistWnd(), WM_WA_IPC, IPC_PE_DELETEINDEX,
-									SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETLISTPOS));
+						SendMessage(GetPlaylistWnd(), WM_WA_IPC, IPC_PE_DELETEINDEX, GetPlaylistPosition());
 					}
 
 					if (saved_play_state == PLAYSTATE_PLAYING)
@@ -1290,6 +1295,52 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 		}
 		case 6670:	//scroll redraw
 		{
+			// this is far from ideal as there's nothing obvious that windows
+			// provides to determine once we have done showing the preview so
+			// we'll try & see if the preview taskbar window is visible & the
+			// win+tab task view & the alt+tab overlay to avoid drawing mode.
+			static HWND previewlist = FindWindow(L"TaskListThumbnailWnd", L"");
+			if (IsWindow(previewlist))
+			{
+				running = (GetWindowLongPtr(previewlist, GWL_STYLE) & WS_VISIBLE);
+			}
+
+			if (!running)
+			{
+				const HWND taskview = FindWindow(L"Windows.UI.Core.CoreWindow", L"Task View");
+				if (IsWindow(taskview) && (GetForegroundWindow() == taskview))
+				{
+					running = true;
+				}
+			}
+
+			/*if (!running)
+			{
+				const HWND win7taskview = FindWindow(L"Flip3D", L"");
+				if (IsWindow(win7taskview) && (GetForegroundWindow() == win7taskview))
+				{
+					running = true;
+				}
+			}*/
+
+			if (!running)
+			{
+				// this is ok for Windows 10 afaict & then reverts to the older version
+				HWND alttab = FindWindow(L"MultitaskingViewFrame", L"Task Switching");
+				if (IsWindow(alttab) && (GetForegroundWindow() == alttab))
+				{
+					running = true;
+				}
+				else
+				{
+					alttab = FindWindow(L"TaskSwitcherWnd", L"Task Switching");
+					if (IsWindow(alttab) && (GetForegroundWindow() == alttab))
+					{
+						running = true;
+					}
+				}
+			}
+
 			if (CreateThumbnailDrawer() && running)
 			{
 				thumbnaildrawer->ClearBackground();
@@ -1304,6 +1355,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 					if (FAILED(hr))
 					{
 						KillTimer(plugin.hwndParent, 6670);
+						running = false;
 						break;
 					}
 
