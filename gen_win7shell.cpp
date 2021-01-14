@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"3.6.2"
+#define PLUGIN_VERSION L"3.7"
 
 #define NR_BUTTONS 15
 
@@ -77,8 +77,6 @@ HINSTANCE WASABI_API_LNG_HINST = 0, WASABI_API_ORIG_HINST = 0;
 
 // CALLBACKS
 VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime);
-LRESULT CALLBACK HookWinampWnd(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
-							   UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
 LRESULT CALLBACK rateWndProc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lParam);
 #ifdef USE_MOUSE
 LRESULT CALLBACK KeyboardEvent(int nCode, WPARAM wParam, LPARAM lParam);
@@ -223,9 +221,6 @@ int init(void)
 	StringCchPrintf(pluginTitleW, ARRAYSIZE(pluginTitleW), WASABI_API_LNGSTRINGW(IDS_PLUGIN_NAME), PLUGIN_VERSION);
 	plugin.description = (char*)_wcsdup(pluginTitleW);
 
-	// Override window procedure
-	Subclass(plugin.hwndParent, HookWinampWnd);
-
 	// Delay loading mst parts until later on to improve the overall load time
 	delay_ipc = RegisterIPC((WPARAM)&"7+_ipc");
 	PostMessage(plugin.hwndParent, WM_WA_IPC, 0, delay_ipc);
@@ -255,7 +250,7 @@ void config(void)
 		{
 			wchar_t text[512] = {0};
 			StringCchPrintf(text, ARRAYSIZE(text), WASABI_API_LNGSTRINGW(IDS_ABOUT_MESSAGE),
-							L"Darren Owen aka DrO (2018-2020)", TEXT(__DATE__));
+							L"Darren Owen aka DrO (2018-2021)", TEXT(__DATE__));
 			AboutMessageBox(list, text, (LPWSTR)plugin.description);
 			break;
 		}
@@ -297,8 +292,6 @@ void quit(void)
 	//ServiceRelease(plugin.service, WASABI_API_LNG, languageApiGUID);
 	//ServiceRelease(plugin.service, WASABI_API_EXPLORERFINDFILE, ExplorerFindFileApiGUID);
 	ServiceRelease(plugin.service, WASABI_API_SKIN, skinApiServiceGuid);
-
-	UnSubclass(plugin.hwndParent, HookWinampWnd);
 }
 
 HWND WINAPI TASKBAR_CreateDialogParam(HINSTANCE original, LPCWSTR id, HWND parent, DLGPROC proc, LPARAM param)
@@ -503,7 +496,21 @@ void UpdateOverlyStatus(void)
 
 void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM lParam)
 {
-	if (uMsg == WM_WA_IPC)
+	if ((uMsg == WM_DWMSENDICONICTHUMBNAIL) ||
+		(uMsg == WM_DWMSENDICONICLIVEPREVIEWBITMAP))
+	{
+		if (CreateThumbnailDrawer())
+		{
+			// just update the dimensions and let the timer
+			// process the rendering later on as is needed.
+			thumbnaildrawer->SetDimensions(HIWORD(lParam), LOWORD(lParam));
+			running = true;
+
+			SetThumbnailTimer();
+			DwmInvalidateIconicBitmaps(plugin.hwndParent);
+		}
+	}
+	else if (uMsg == WM_WA_IPC)
 	{
 		switch (lParam)
 		{
@@ -813,45 +820,6 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 	}
 	else if (uMsg == WM_COMMAND)
 	{
-		switch (LOWORD(wParam))
-		{
-			case WINAMP_OPTIONS_WINDOWSHADE_GLOBAL:
-			{
-				if (hWnd != GetForegroundWindow())
-				{
-					break;
-				}
-				// fall through
-			}
-			case WINAMP_OPTIONS_WINDOWSHADE:
-			{
-				windowShade = !windowShade;
-				break;
-			}
-		}
-	}
-}
-
-LRESULT CALLBACK HookWinampWnd(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
-							   UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
-{
-	if ((message == WM_DWMSENDICONICTHUMBNAIL) ||
-		(message == WM_DWMSENDICONICLIVEPREVIEWBITMAP))
-	{
-		if (CreateThumbnailDrawer())
-		{
-			// just update the dimensions and let the timer
-			// process the rendering later on as is needed.
-			thumbnaildrawer->SetDimensions(HIWORD(lParam), LOWORD(lParam));
-			running = true;
-
-			SetThumbnailTimer();
-			DwmInvalidateIconicBitmaps(plugin.hwndParent);
-			return 0;
-		}
-	}
-	else if (message == WM_COMMAND)
-	{
 		if (HIWORD(wParam) == THBN_CLICKED)
 		{
 			switch (LOWORD(wParam))
@@ -882,7 +850,7 @@ LRESULT CALLBACK HookWinampWnd(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 					{
 						thumbnaildrawer->ThumbnailPopup();
 					}
-					return 0;
+					break;
 				}
 				case TB_PLAYPAUSE:
 				{
@@ -891,14 +859,14 @@ LRESULT CALLBACK HookWinampWnd(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 								MAKEWPARAM(((res == 1) ?
 								40046 : 40045), 0), 0);
 					Settings.play_state = res;
-					return 0;
+					break;
 				}
 				case TB_STOP:
 				{
 					PostMessage(plugin.hwndParent, WM_COMMAND,
 								MAKEWPARAM(40047, 0), 0);
 					Settings.play_state = PLAYSTATE_NOTPLAYING; 
-					return 0;
+					break;
 				}
 				case TB_RATE:
 				{
@@ -912,7 +880,7 @@ LRESULT CALLBACK HookWinampWnd(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 					KillTimer(plugin.hwndParent, 6669);
 					SetTimer(plugin.hwndParent, 6669, 5000, TimerProc);
 					ShowWindow(ratewnd, SW_SHOWNA);
-					return 0;
+					break;
 				}
 				case TB_VOLDOWN:
 				{
@@ -922,7 +890,7 @@ LRESULT CALLBACK HookWinampWnd(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 						Settings.play_volume = 0;
 					}
 					PostMessage(plugin.hwndParent, WM_WA_IPC, Settings.play_volume, IPC_SETVOLUME);
-					return 0;
+					break;
 				}
 				case TB_VOLUP:
 				{
@@ -932,12 +900,12 @@ LRESULT CALLBACK HookWinampWnd(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 						Settings.play_volume = 255;
 					}
 					PostMessage(plugin.hwndParent, WM_WA_IPC, Settings.play_volume, IPC_SETVOLUME);
-					return 0;
+					break;
 				}
 				case TB_OPENFILE:
 				{
 					PostMessage(plugin.hwndParent, WM_WA_IPC, (WPARAM)(HWND)0, IPC_OPENFILEBOX);
-					return 0;
+					break;
 				}
 				case TB_MUTE:
 				{
@@ -952,12 +920,12 @@ LRESULT CALLBACK HookWinampWnd(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 						lastvolume = Settings.play_volume;
 						PostMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_SETVOLUME);
 					}
-					return 0;
+					break;
 				}
 				case TB_STOPAFTER:
 				{
 					PostMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(40157, 0), 0);
-					return 0;
+					break;
 				}
 				case TB_REPEAT:
 				{
@@ -978,21 +946,21 @@ LRESULT CALLBACK HookWinampWnd(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 					SendMessage(plugin.hwndParent, WM_WA_IPC, Settings.state_repeat >= 1 ? 1 : 0, IPC_SET_REPEAT);
 					SendMessage(plugin.hwndParent, WM_WA_IPC, Settings.state_repeat == 2 ? 1 : 0, IPC_SET_MANUALPLADVANCE);            
 					updateToolbar();
-					return 0;
+					break;
 				}
 				case TB_SHUFFLE:
 				{
 					Settings.state_shuffle = !Settings.state_shuffle;
 					SendMessage(plugin.hwndParent, WM_WA_IPC, Settings.state_shuffle, IPC_SET_SHUFFLE);
 					updateToolbar();
-					return 0;
+					break;
 				}
 				case TB_JTFE:
 				{
 					ShowWindow(plugin.hwndParent, SW_SHOWNORMAL);
 					SetForegroundWindow(plugin.hwndParent);
 					PostMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(WINAMP_JUMPFILE, 0), 0);
-					return 0;
+					break;
 				}
 				case TB_OPENEXPLORER:
 				{
@@ -1035,7 +1003,7 @@ LRESULT CALLBACK HookWinampWnd(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 							}
 						}
 					}
-					return 0;
+					break;
 				}
 				case TB_DELETE:
 				{
@@ -1062,22 +1030,31 @@ LRESULT CALLBACK HookWinampWnd(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 					{
 						PostMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(40045, 0), 0);
 					}
-					return 0;
+					break;
+				}
+			}
+		}
+		else
+		{
+			switch (LOWORD(wParam))
+			{
+				case WINAMP_OPTIONS_WINDOWSHADE_GLOBAL:
+				{
+					if (hWnd != GetForegroundWindow())
+					{
+						break;
+					}
+					// fall through
+				}
+				case WINAMP_OPTIONS_WINDOWSHADE:
+				{
+					windowShade = !windowShade;
+					break;
 				}
 			}
 		}
 	}
-
-	LRESULT ret = DefSubclass(hwnd, message, wParam, lParam);	 
-
-	if (message == WM_SIZE)
-	{
-		// look at things that could need us to
-		// force a refresh of the iconic bitmap
-		// this is mainly for classic skins...
-		SetThumbnailTimer();
-	}
-	else if (message == WM_TASKBARBUTTONCREATED)
+	else if (uMsg == WM_TASKBARBUTTONCREATED)
 	{
 		if ((itaskbar != NULL) && itaskbar->Reset())
 		{
@@ -1086,8 +1063,6 @@ LRESULT CALLBACK HookWinampWnd(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 
 		SetupJumpList();
 	}
-
-	return ret;
 }
 
 #if 0
@@ -2357,9 +2332,20 @@ void SetupJumpList(void)
 			WASABI_API_LNGSTRINGW_BUF(IDS_PLAYLISTS, tmp4, 128);
 		}
 
-		jl->CreateJumpList(pluginPath, tmp1, tmp2, tmp3, tmp4, Settings.JLrecent,
-						   Settings.JLfrequent, Settings.JLtasks, Settings.JLbms,
-						   Settings.JLpl, tools::getBookmarks());
+		__try
+		{
+			// based on testing, this & things in the
+			// CreateShellLink() sometimes fails :'(
+			// I can't find any reason for it. due to
+			// that it is necessary to try & catch it
+			// so we don't take down the entire thing
+			jl->CreateJumpList(pluginPath, tmp1, tmp2, tmp3, tmp4, Settings.JLrecent,
+							   Settings.JLfrequent, Settings.JLtasks, Settings.JLbms,
+							   Settings.JLpl, tools::getBookmarks());
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+		}
 		delete jl;
 	}
 }
