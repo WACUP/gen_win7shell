@@ -398,7 +398,7 @@ namespace tools
 
 	std::wstring getBookmarks(void)
 	{
-		std::wifstream is((wchar_t*)SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_ADDBOOKMARKW));
+		std::wifstream is(GetPaths()->winamp_bm_path/*(wchar_t*)SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_ADDBOOKMARKW)/**/);
 		if (is.fail())
 		{
 			return L"";

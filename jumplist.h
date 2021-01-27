@@ -13,7 +13,7 @@
 class JumpList
 {
 public:
-	explicit JumpList(std::wstring AppID, const bool delete_now = false);
+	explicit JumpList(LPCWSTR AppID, const bool delete_now = false);
 	~JumpList();
 
 	void CreateJumpList(const std::wstring &pluginpath, const std::wstring &pref,
@@ -32,7 +32,7 @@ private:
 	HRESULT _AddCategoryToList(IObjectCollection *poc, const std::wstring &bookmarks);
 	HRESULT _AddCategoryToList2(const std::wstring &pluginpath, const std::wstring &pltext);
 
-	bool CleanJL(const std::wstring AppID, IApplicationDocumentLists *padl, APPDOCLISTTYPE type);
+	bool CleanJL(LPCWSTR AppID, IApplicationDocumentLists *padl, APPDOCLISTTYPE type);
 
 	ICustomDestinationList *pcdl;
 };

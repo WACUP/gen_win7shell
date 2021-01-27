@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"3.7"
+#define PLUGIN_VERSION L"3.7.2"
 
 #define NR_BUTTONS 15
 
@@ -33,6 +33,7 @@
 #include <loader/loader/utils.h>
 #include <loader/loader/paths.h>
 #include <loader/hook/squash.h>
+#include <loader/hook/plugins.h>
 
 // TODO add to lang.h
 // Taskbar Integration plugin (gen_win7shell.dll)
@@ -41,10 +42,10 @@ static const GUID GenWin7PlusShellLangGUID =
 { 0xb1e9802, 0xca15, 0x4939, { 0x84, 0x45, 0xfd, 0x80, 0xe, 0x8b, 0xff, 0x9a } };
 
 UINT WM_TASKBARBUTTONCREATED = (UINT)-1;
-std::wstring AppID(L"Winamp"),	// this is updated on loading to what the
-								// running WACUP install has generated as
-								// it otherwise makes multiple instances
-								// tricky to work with independently
+std::wstring AppID,	// this is updated on loading to what the
+					// running WACUP install has generated as
+					// it otherwise makes multiple instances
+					// tricky to work with independently
 			 SettingsFile;
 
 bool thumbshowing = false, no_uninstall = true,
@@ -161,45 +162,54 @@ const bool GenerateAppIDFromFolder(const wchar_t *search_path, wchar_t *app_id)
 	return false;
 }
 
-void SetupAppID(void)
+LPCWSTR GetAppID(void)
 {
 	// we do this to make sure we can group things correctly
-	// especially if used in a plug-in in Winamp so that the
+	// especially if used in a plug-in in WACUP so that the
 	// taskbar handling will be correct vs existing pinnings
-	// under wacup, we do a few things so winamp.original is
-	// instead re-mapped to winamp.exe so the load is called
-	LPWSTR id = NULL;
-	GetCurrentProcessExplicitAppUserModelID(&id);
-	if (!id)
+	// under WACUP, we do a few things so winamp.original is
+	// instead re-mapped to wacup.exe so the load is called
+	if (AppID.empty())
 	{
-		wchar_t self_path[MAX_PATH] = {0};
-		if (GetModuleFileName(NULL, self_path, MAX_PATH))
+		LPWSTR id = NULL;
+		GetCurrentProcessExplicitAppUserModelID(&id);
+		if (!id)
 		{
-			wchar_t app_id[MAX_PATH] = {0};
-			if (!GenerateAppIDFromFolder(self_path, app_id))
+			wchar_t self_path[MAX_PATH] = {0};
+			if (GetModuleFileName(NULL, self_path, MAX_PATH))
 			{
-				wcsncpy(app_id, self_path, MAX_PATH);
-			}
+				wchar_t app_id[MAX_PATH] = {0};
+				if (!GenerateAppIDFromFolder(self_path, app_id))
+				{
+					wcsncpy(app_id, self_path, MAX_PATH);
+				}
 
-			PathRenameExtension(app_id, L".exe");
+				PathRenameExtension(app_id, L".exe");
 
-			// TODO: auto-pin icon (?)
-			if (SetCurrentProcessExplicitAppUserModelID(app_id) != S_OK)
-			{
-				MessageBoxEx(plugin.hwndParent,
-							 WASABI_API_LNGSTRINGW(IDS_ERROR_SETTING_APPID),
-							 (LPWSTR)plugin.description, MB_ICONWARNING | MB_OK, 0);
-			}
-			else
-			{
-				AppID = app_id;
+				// TODO: auto-pin icon (?)
+				if (SetCurrentProcessExplicitAppUserModelID(app_id) != S_OK)
+				{
+					MessageBoxEx(plugin.hwndParent,
+								 WASABI_API_LNGSTRINGW(IDS_ERROR_SETTING_APPID),
+								 (LPWSTR)plugin.description, MB_ICONWARNING | MB_OK, 0);
+				}
+				else
+				{
+					AppID = app_id;
+				}
 			}
 		}
+		else
+		{
+			AppID = id;
+		}
+
+		if (AppID.empty())
+		{
+			AppID = L"WACUP";
+		}
 	}
-	else
-	{
-		AppID = id;
-	}
+	return AppID.c_str();
 }
 
 // event functions follow
@@ -531,7 +541,7 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 				metadata.reset(filename);
 				if (metadata.CheckPlayCount())
 				{
-					JumpList *JL = new JumpList(AppID);
+					JumpList *JL = new JumpList(GetAppID());
 					if (JL != NULL)
 					{
 						delete JL;
@@ -555,7 +565,7 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 						IShellLink *psl = NULL;
 						if ((tools::CreateShellLink(filename.c_str(), title.c_str(), &psl) == S_OK) && psl)
 						{
-							const SHARDAPPIDINFOLINK applink = { psl, AppID.c_str() };
+							const SHARDAPPIDINFOLINK applink = { psl, GetAppID() };
 							time_t rawtime = NULL;
 							time(&rawtime);
 							psl->SetDescription(_wctime(&rawtime));
@@ -594,7 +604,7 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 					}
 					case IPC_CB_MISC_VOLUME:
 					{
-						Settings.play_volume = IPC_GETVOLUME(plugin.hwndParent);
+						Settings.play_volume = GetSetVolume((WPARAM)-666);
 						break;
 					}
 				}
@@ -657,8 +667,7 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 			{
 				// this is needed when the vu mode is enabled to allow the
 				// data to be obtained if the main wnidow mode is disabled
-				static void(*export_sa_setreq)(int) =
-					(void(__cdecl *)(int))SendMessage(plugin.hwndParent, WM_WA_IPC, 1, IPC_GETSADATAFUNC);
+				static void(*export_sa_setreq)(int) = (void(__cdecl *)(int))GetSADataFunc(1);
 				if (export_sa_setreq)
 				{
 					export_sa_setreq(Settings.VuMeter);
@@ -724,11 +733,11 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 					// we track this instead of re-querying all of the
 					// time so as to minimise blocking of the main wnd
 					// which helps to determine modern vs classic skin
-					dialogParent = (HWND)SendMessage(hWnd, WM_WA_IPC, 0, IPC_GETDIALOGBOXPARENT);
+					dialogParent = GetDialogBoxParent()/*/(HWND)SendMessage(hWnd, WM_WA_IPC, 0, IPC_GETDIALOGBOXPARENT)/*/;
 
 					pladv = !!GetManualAdvance();
 
-					windowShade = !!SendMessage(hWnd, WM_WA_IPC, (WPARAM)-1, IPC_IS_WNDSHADE);
+					windowShade = !!IsHWNDWndshade((WPARAM)-1)/*/SendMessage(hWnd, WM_WA_IPC, (WPARAM)-1, IPC_IS_WNDSHADE)/**/;
 
 					doubleSize = !!GetDoubleSize(0);
 
@@ -740,11 +749,6 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 					// Register taskbarcreated message
 					WM_TASKBARBUTTONCREATED = RegisterWindowMessage(L"TaskbarButtonCreated");
 
-					// we do this to make sure we can group things correctly
-					// especially if used in a plug-in in Winamp so that the
-					// taskbar handling will be correct vs existing pinnings
-					SetupAppID();
-
 					wchar_t ini_path[MAX_PATH] = {0};
 					PathCombine(ini_path, GetPaths()->settings_dir,
 								L"Plugins\\win7shell.ini");
@@ -754,14 +758,11 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 					SettingsManager SManager;
 					SManager.ReadSettings(Settings, TButtons);
 
-					// Create jumplist
-					SetupJumpList();
-
 					// Timers, settings, icons
 					Settings.play_playlistpos = GetPlaylistPosition();
 					Settings.play_playlistlen = GetPlaylistLength();
 					Settings.play_total = GetCurrentTrackLengthMilliSeconds();
-					Settings.play_volume = IPC_GETVOLUME(plugin.hwndParent);
+					Settings.play_volume = GetSetVolume((WPARAM)-666);
 
 					theicons = tools::prepareIcons();
 
@@ -780,13 +781,6 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 						Settings.state_repeat = 2;
 					}
 
-					// Create the taskbar interface
-					itaskbar = new iTaskBar(Settings);
-					if ((itaskbar != NULL) && itaskbar->Reset())
-					{
-						updateToolbar(theicons);
-					}
-
 #ifdef USE_MOUSE
 					// Set up hook for mouse scroll volume control
 					if (Settings.VolumeControl)
@@ -800,14 +794,6 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 						}
 					}
 #endif
-
-					CreateThumbnailDrawer();
-
-					if (Settings.VuMeter)
-					{
-						SetTimer(plugin.hwndParent, 6668, 66, TimerProc);
-					}
-
 					SetTimer(plugin.hwndParent, 6667, Settings.LowFrameRate ? 400 : 100, TimerProc);
 				}
 				break;
@@ -1095,6 +1081,26 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 	{
 		case 6667:	// main timer
 		{
+			// Create jumplist
+			static bool setup;
+			if (!setup)
+			{
+				setup = true;
+				SetupJumpList();
+
+				// Create the taskbar interface
+				itaskbar = new iTaskBar(Settings);
+				if ((itaskbar != NULL) && itaskbar->Reset())
+				{
+					updateToolbar(theicons);
+				}
+
+				if (Settings.VuMeter)
+				{
+					SetTimer(hwnd, 6668, 66, TimerProc);
+				}
+			}
+
 #if 0
 			CheckThumbShowing();
 #endif
@@ -1111,8 +1117,8 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 
 			if (Settings.play_state != PLAYSTATE_NOTPLAYING)
 			{
-				Settings.play_kbps = SendMessage(plugin.hwndParent, WM_WA_IPC, 1, IPC_GETINFO);
-				Settings.play_khz = SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETINFO);
+				Settings.play_kbps = GetInfoIPC(1);
+				Settings.play_khz = GetInfoIPC(0);
 			}
 			else
 			{
@@ -1210,9 +1216,9 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 				// when using a classic skin & sa/vu is
 				// disabled like gen_ff has to work ok.
 				static int (*export_vu_get)(int channel) =
-					   (int(__cdecl *)(int))SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETVUDATAFUNC);
+					   (int(__cdecl *)(int))GetVUDataFunc();
 				static char * (*export_sa_get)(char data[75*2+8]) =
-					   (char * (__cdecl *)(char data[75*2+8]))SendMessage(plugin.hwndParent, WM_WA_IPC, 2, IPC_GETSADATAFUNC);
+					   (char * (__cdecl *)(char data[75*2+8]))GetSADataFunc(2);
 				int audiodata = (export_vu_get ? export_vu_get(0) : -1);
 
 				if (Settings.play_state != PLAYSTATE_PLAYING)
@@ -2297,7 +2303,7 @@ void AddStringtoList(HWND window, const int control_ID)
 
 void SetupJumpList(void)
 {
-	JumpList *jl = new JumpList(AppID, true);
+	JumpList *jl = new JumpList(GetAppID(), true);
 	if ((jl != NULL) && (Settings.JLbms || Settings.JLfrequent ||
 		Settings.JLpl || Settings.JLrecent || Settings.JLtasks))
 	{
@@ -2403,7 +2409,7 @@ extern "C" __declspec(dllexport) int winampUninstallPlugin(HINSTANCE hDllInst, H
 			DeleteFile(ini_path);
 		}
 
-		JumpList *jl = new JumpList(AppID, true);
+		JumpList *jl = new JumpList(GetAppID(), true);
 		if (jl != NULL)
 		{
 			delete jl;

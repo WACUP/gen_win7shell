@@ -12,12 +12,12 @@
 #include "api.h"
 #include <loader/loader/utils.h>
 
-JumpList::JumpList(const std::wstring AppID, const bool delete_now) : pcdl(NULL)
+JumpList::JumpList(LPCWSTR AppID, const bool delete_now) : pcdl(NULL)
 {
 	HRESULT hr = CoCreateInstance(CLSID_DestinationList, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pcdl));
 	if (SUCCEEDED(hr) && (pcdl != NULL))
 	{
-		pcdl->SetAppID(AppID.c_str());
+		pcdl->SetAppID(AppID);
 
 		IApplicationDocumentLists *padl = NULL;
 		hr = CoCreateInstance(CLSID_ApplicationDocumentLists, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&padl));
@@ -370,10 +370,10 @@ HRESULT JumpList::_AddCategoryToList2(const std::wstring &pluginpath, const std:
 	return S_FALSE;
 }
 
-bool JumpList::CleanJL(const std::wstring AppID, IApplicationDocumentLists *padl, APPDOCLISTTYPE type)
+bool JumpList::CleanJL(LPCWSTR AppID, IApplicationDocumentLists *padl, APPDOCLISTTYPE type)
 {
 	IObjectArray *poa = NULL;
-	padl->SetAppID(AppID.c_str());
+	padl->SetAppID(AppID);
 	HRESULT hr = padl->GetList(type, 0, IID_PPV_ARGS(&poa));
 
 	if (SUCCEEDED(hr))
@@ -384,7 +384,7 @@ bool JumpList::CleanJL(const std::wstring AppID, IApplicationDocumentLists *padl
 		{
 			IApplicationDestinations *pad = NULL;
 			hr = CoCreateInstance(CLSID_ApplicationDestinations, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pad));
-			pad->SetAppID(AppID.c_str());
+			pad->SetAppID(AppID);
 
 			if (SUCCEEDED(hr))
 			{
