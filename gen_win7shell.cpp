@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"3.7.2"
+#define PLUGIN_VERSION L"3.7.3"
 
 #define NR_BUTTONS 15
 
@@ -593,23 +593,6 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 				ResetThumbnail();
 				break;
 			}
-			case IPC_CB_MISC:
-			{
-				switch (wParam)
-				{
-					case IPC_CB_MISC_STATUS:
-					{
-						UpdateOverlyStatus();
-						break;
-					}
-					case IPC_CB_MISC_VOLUME:
-					{
-						Settings.play_volume = GetSetVolume((WPARAM)-666);
-						break;
-					}
-				}
-				break;
-			}
 			case IPC_SETDIALOGBOXPARENT:
 			case IPC_UPDATEDIALOGBOXPARENT:
 			{
@@ -714,9 +697,12 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 				// that we update the thumbnail for the current one
 				if ((lParam == IPC_FILE_TAG_MAY_HAVE_UPDATEDW) ||
 					(lParam == IPC_FILE_TAG_MAY_HAVE_UPDATED) ||
-					(lParam == IPC_CB_MISC) && ((wParam == IPC_CB_MISC_TITLE) ||
+					(lParam == IPC_CB_MISC) &&
+					((wParam == IPC_CB_MISC_TITLE) ||
 					(wParam == IPC_CB_MISC_AA_OPT_CHANGED) ||
-					(wParam == IPC_CB_MISC_TITLE_RATING)))
+					(wParam == IPC_CB_MISC_TITLE_RATING) ||
+					(wParam == IPC_CB_MISC_ON_STOP) ||
+					(wParam == IPC_CB_MISC_ADVANCED_ON_STOP)))
 				{
 					LPCWSTR p = GetPlayingFilename(0);
 					if (p != NULL)
@@ -726,7 +712,14 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 
 					DwmInvalidateIconicBitmaps(hWnd);
 					ResetThumbnail();
-					break;
+				}
+				else if ((lParam == IPC_CB_MISC) && (wParam == IPC_CB_MISC_STATUS))
+				{
+					UpdateOverlyStatus();
+				}
+				else if ((lParam == IPC_CB_MISC) && (wParam == IPC_CB_MISC_VOLUME))
+				{
+					Settings.play_volume = GetSetVolume((WPARAM)-666);
 				}
 				else if (lParam == delay_ipc)
 				{
@@ -2057,24 +2050,21 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 		}
 		case WM_HSCROLL:
 		{
+			wchar_t text[64] = { 0 };
 			DWORD slider = GetDlgCtrlID((HWND)lParam);
 			if (slider == IDC_SLIDER1)
 			{
-				wchar_t text[64] = {0};
 				Settings.IconSize = SendMessage((HWND)lParam, TBM_GETPOS, NULL, NULL);
 				StringCchPrintf(text, ARRAYSIZE(text), WASABI_API_LNGSTRINGW(IDS_ICON_SIZE), Settings.IconSize);
 				SetWindowTextW(GetDlgItem(hwnd, IDC_ICONSIZE), text);
-				ResetThumbnail();
 			}
 			else if (slider == IDC_SLIDER_TRANSPARENCY)
 			{
-				wchar_t text[64] = {0};
 				Settings.BG_Transparency = SendMessage((HWND)lParam, TBM_GETPOS, NULL, NULL);
 				StringCchPrintf(text, ARRAYSIZE(text), L"%d%%", Settings.BG_Transparency);
 				SetWindowTextW(GetDlgItem(hwnd, IDC_TRANSPARENCY_PERCENT), text);
-				ResetThumbnail();
 			}
-
+			ResetThumbnail();
 			break;
 		}
 		case WM_COMMAND:
