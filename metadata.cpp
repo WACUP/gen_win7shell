@@ -24,19 +24,14 @@ std::wstring MetaData::getMetadata(const std::wstring &tag)
 		return cache.find(tag)->second;
 	}
 
-	wchar_t buffer[2048] = {0};
-	extendedFileInfoStructW exFIS = {0};
-	exFIS.filename = _wcsdup(mfilename.c_str());
-	exFIS.metadata = _wcsdup(tag.c_str());
-	exFIS.ret = buffer;
-	exFIS.retlen = ARRAYSIZE(buffer);
+	wchar_t buffer[2048] = { 0 };
+	extendedFileInfoStructW efis = { _wcsdup(mfilename.c_str()), _wcsdup(tag.c_str()), buffer, ARRAYSIZE(buffer) };
 
 	// cache the response as long as we got a valid result
-	const int efiWret = !!SendMessage(plugin.hwndParent, WM_WA_IPC, (WPARAM)&exFIS,
-									  IPC_GET_EXTENDED_FILE_INFOW_HOOKABLE);
+	const int efiWret = !!GetExtendedFileInfoHookable((WPARAM)&efis, TRUE);
 
-	free((void *)exFIS.filename);
-	free((void *)exFIS.metadata);
+	free((void *)efis.filename);
+	free((void *)efis.metadata);
 
 	if (efiWret && buffer[0])
 	{

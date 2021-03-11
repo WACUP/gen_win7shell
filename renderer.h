@@ -15,7 +15,10 @@ public:
 	renderer(sSettings& settings, MetaData &metadata);
 	~renderer();
 
-	bool getAlbumArt(const std::wstring &fname, int& iconheight, int& iconwidth);
+	bool getAlbumArt(const std::wstring &fname/*, int& iconheight, int& iconwidth*/);
+	typedef unsigned long ARGB32;
+	void createArtwork(const int cur_w, const int cur_h, ARGB32 *cur_image);
+
 	HBITMAP GetThumbnail(const bool get_bmp = true);
 	void ClearAlbumart();
 	void ClearBackground();
@@ -23,8 +26,14 @@ public:
 	void ThumbnailPopup();
 	void SetDimensions(const int new_w, const int new_h);
 
+	MetaData GetMetadata(void) { return m_metadata; }
+
 private:
-	ULONG_PTR gdiplusToken;
+	ULONG_PTR gdiplusToken, gdiplusBgThreadToken;
+
+	Gdiplus::GdiplusStartupInput gdiplusStartupInput;
+	Gdiplus::GdiplusStartupOutput gdiplusStartupOutput;
+
 	Gdiplus::Image *custom_img;
 	Gdiplus::Bitmap *background;
 	Gdiplus::Bitmap *albumart;
@@ -32,7 +41,8 @@ private:
 	sSettings &m_settings;
 	MetaData &m_metadata;
 
-	int m_width, m_height, m_iconwidth, m_iconheight, m_textpause;
+	int m_width, m_height, m_iconwidth, m_iconheight,
+		m_textpause, _iconwidth, _iconheight;
 	std::vector<int> m_textpositions;
 	bool no_icon, fail, scroll_block, no_text;
 

@@ -39,7 +39,108 @@ Gdiplus::Bitmap* ResizeAncCloneBitmap(Gdiplus::Bitmap *bmp, const float width, c
 	return newBitmap;
 }
 
-bool renderer::getAlbumArt(const std::wstring &fname, int& iconheight, int& iconwidth)
+void renderer::createArtwork(const int cur_w, const int cur_h, ARGB32 *cur_image)
+{
+	BITMAPINFO bmi = { 0 };
+	bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+	bmi.bmiHeader.biWidth = cur_w;
+	bmi.bmiHeader.biHeight = -cur_h;
+	bmi.bmiHeader.biPlanes = 1;
+	bmi.bmiHeader.biBitCount = 32;
+	bmi.bmiHeader.biCompression = BI_RGB;
+
+	Gdiplus::Bitmap tmpbmp(&bmi, cur_image);
+
+	int iconleft = 0, icontop = 0;
+
+	switch (m_settings.IconPosition)
+	{
+		case IP_LOWERLEFT:
+		{
+			icontop = m_height - _iconheight - 2;
+			break;
+		}
+		case IP_UPPERRIGHT:
+		{
+			iconleft = m_width - _iconheight - 2;
+			break;
+		}
+		case IP_LOWERRIGHT:
+		{
+			iconleft = m_width - _iconheight - 2;
+			icontop = m_height - _iconheight - 2;
+			break;
+		}
+	}
+
+	float new_height = 0.f, new_width = 0.f, anchor = (m_height * 1.f);
+
+	if (!m_settings.AsIcon)
+	{
+		if (m_width < m_height)
+		{
+			anchor = (m_width * 1.f);
+		}
+	}
+	else
+	{
+		anchor = (_iconheight * 1.f);
+	}
+
+	if (cur_w > cur_h)
+	{
+		new_height = (float)cur_h / (float)cur_w * (float)anchor;
+		new_height -= 2;
+		new_width = anchor;
+
+		if (new_height > m_height)
+		{
+			new_width = (float)cur_w / (float)cur_h * (float)anchor;
+			new_width -= 2;
+			new_height = anchor;
+		}
+	}
+	else
+	{
+		new_width = (float)cur_w / (float)cur_h * (float)anchor;
+		new_width -= 2;
+		new_height = anchor;
+
+		if (new_width > m_width)
+		{
+			new_height = (float)cur_h / (float)cur_w * (float)anchor;
+			new_height -= 2;
+			new_width = anchor;
+		}
+	}
+
+	m_iconheight = _iconheight = (int)new_height;
+	m_iconwidth = _iconwidth = (int)new_width;
+
+	// we don't want to keep doing this as it is going
+	// to be very slow especially with >600x600 images
+	// so we cache a re-sized image and then draw that
+	albumart = ResizeAncCloneBitmap(&tmpbmp, new_width, new_height);
+
+	if (cur_image)
+	{
+		plugin.memmgr->sysFree(cur_image);
+	}
+}
+
+int __cdecl preview_sync_callback(const wchar_t *filename, const int w, const int h,
+								  ARGB32 *callback_bits, void *user_data)
+{
+	LPCWSTR fn = ((renderer*)user_data)->GetMetadata().getFileName().c_str();
+	if (fn && *fn && !_wcsicmp(filename, fn))
+	{
+		((renderer*)user_data)->createArtwork(w, h, callback_bits);
+		return TRUE;
+	}
+	return FALSE;
+}
+
+bool renderer::getAlbumArt(const std::wstring &fname)
 {
 	if (!albumart && (AGAVE_API_ALBUMART != NULL))
 	{
@@ -47,99 +148,27 @@ bool renderer::getAlbumArt(const std::wstring &fname, int& iconheight, int& icon
 		int cur_w = 0, cur_h = 0;
 		// when running under WACUP this request is cached for us
 		// so we don't have to worry too much about it being slow
-		const int ret = AGAVE_API_ALBUMART->GetAlbumArtResize(fname.c_str(), L"cover", &cur_w,
-															  &cur_h, &cur_image, 600, 600, FALSE);
-		if ((ret == ALBUMART_SUCCESS) || (ret == ALBUMART_GOTCACHE))
+		int ret = AGAVE_API_ALBUMART->GetAlbumArtAsyncResize(fname.c_str(), L"cover", this, 600,
+															 600, FALSE, preview_sync_callback);
+		if ((ret != ALBUMART_SUCCESS) && (ret != ALBUMART_GOTCACHE))
 		{
-			BITMAPINFO bmi = {0};
-			bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-			bmi.bmiHeader.biWidth = cur_w;
-			bmi.bmiHeader.biHeight = -cur_h;
-			bmi.bmiHeader.biPlanes = 1;
-			bmi.bmiHeader.biBitCount = 32;
-			bmi.bmiHeader.biCompression = BI_RGB;
-
-			Gdiplus::Bitmap tmpbmp(&bmi, cur_image);
-
-			int iconleft = 0, icontop = 0;
-
-			switch (m_settings.IconPosition)
+			ret = AGAVE_API_ALBUMART->GetAlbumArtResize(fname.c_str(), L"cover", &cur_w,
+														&cur_h, &cur_image, 600, 600, 0);
+			if ((ret == ALBUMART_SUCCESS) || (ret == ALBUMART_GOTCACHE))
 			{
-				case IP_LOWERLEFT:
-				{
-					icontop = m_height - iconheight - 2;
-					break;
-				}
-				case IP_UPPERRIGHT:
-				{
-					iconleft = m_width - iconheight - 2;
-					break;
-				}
-				case IP_LOWERRIGHT:
-				{
-					iconleft = m_width - iconheight - 2;
-					icontop = m_height - iconheight - 2;
-					break;
-				}
-			}
-
-			float new_height = 0.f, new_width = 0.f, anchor = (m_height * 1.f);
-
-			if (!m_settings.AsIcon)
-			{
-				if (m_width < m_height)
-				{
-					anchor = (m_width * 1.f);
-				}
+				createArtwork(cur_w, cur_h, cur_image);
 			}
 			else
 			{
-				anchor = (iconheight * 1.f);
+				return false;
 			}
-
-			if (cur_w > cur_h)
-			{
-				new_height = (float)cur_h / (float)cur_w * (float)anchor;
-				new_height -= 2;
-				new_width = anchor;
-
-				if (new_height > m_height)
-				{
-					new_width = (float)cur_w / (float)cur_h * (float)anchor;
-					new_width -= 2;
-					new_height = anchor;
-				}
-			}
-			else
-			{
-				new_width = (float)cur_w / (float)cur_h * (float)anchor;
-				new_width -= 2;
-				new_height = anchor;
-
-				if (new_width > m_width)
-				{
-					new_height = (float)cur_h / (float)cur_w * (float)anchor;
-					new_height -= 2;
-					new_width = anchor;
-				}
-			}
-
-			m_iconheight = iconheight = (int)new_height;
-			m_iconwidth = iconwidth = (int)new_width;
-
-			// we don't want to keep doing this as it is going
-			// to be very slow especially with >600x600 images
-			// so we cache a re-sized image and then draw that
-			albumart = ResizeAncCloneBitmap(&tmpbmp, new_width, new_height);
-
-			if (cur_image)
-			{
-				plugin.memmgr->sysFree(cur_image);
-			}
-
-			return render();
 		}
-		return false;
+		else
+		{
+			// let the async callback do the render
+			// call instead of returning a failure.
+			return true;
+		}
 	}
 	return render();
 }
@@ -229,21 +258,23 @@ HBITMAP renderer::GetThumbnail(const bool get_bmp)
 	// a relatively slow to close down on exit
 	if (!gdiplusToken)
 	{
-		Gdiplus::GdiplusStartupInput gdiplusStartupInput;   
-		Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+		gdiplusStartupInput.SuppressBackgroundThread = TRUE;
+		Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput,
+								&gdiplusStartupOutput);
+		gdiplusStartupOutput.NotificationHook(&gdiplusBgThreadToken);
 	}
 
 	//Calculate icon size
-	int iconheight, iconwidth = m_iconwidth;
+	_iconwidth = m_iconwidth;
 
 	if (m_settings.AsIcon)
 	{
-		iconheight = (m_settings.IconSize * m_height) / 100;
-		iconheight -= 2;
+		_iconheight = (m_settings.IconSize * m_height) / 100;
+		_iconheight -= 2;
 	}
 	else
 	{
-		iconheight = m_iconheight;
+		_iconheight = m_iconheight;
 	}
 
 	//Calculate Alpha blend based on Transparency
@@ -371,7 +402,7 @@ HBITMAP renderer::GetThumbnail(const bool get_bmp)
 			case BG_ALBUMART:
 			{
 				// get album art
-				if (!getAlbumArt(m_metadata.getFileName(), iconheight, iconwidth) &&
+				if (!getAlbumArt(m_metadata.getFileName()) &&
 					(m_settings.Revertto != BG_ALBUMART))
 				{
 					// fallback
@@ -404,15 +435,15 @@ HBITMAP renderer::GetThumbnail(const bool get_bmp)
 
 								if (img_width > img_height)
 								{
-									new_height = img_height / img_width * (float)iconheight;
+									new_height = img_height / img_width * (float)_iconheight;
 									new_height -= 2.f;
-									new_width = iconwidth * 1.f;
+									new_width = _iconwidth * 1.f;
 								}
 								else
 								{
-									new_width = img_width / img_height * (float)iconwidth;
+									new_width = img_width / img_height * (float)_iconwidth;
 									new_width -= 2.f;
-									new_height = iconheight * 1.f;
+									new_height = _iconheight * 1.f;
 								}
 
 								int iconleft = 0, icontop = 0;
@@ -421,18 +452,18 @@ HBITMAP renderer::GetThumbnail(const bool get_bmp)
 								{
 									case IP_LOWERLEFT:
 									{
-										icontop = m_height - iconheight - 2;
+										icontop = m_height - _iconheight - 2;
 										break;
 									}
 									case IP_UPPERRIGHT:
 									{
-										iconleft = m_width - iconheight - 2;
+										iconleft = m_width - _iconheight - 2;
 										break;
 									}
 									case IP_LOWERRIGHT:
 									{
-										iconleft = m_width - iconheight - 2;
-										icontop = m_height - iconheight - 2;
+										iconleft = m_width - _iconheight - 2;
+										icontop = m_height - _iconheight - 2;
 										break;
 									}
 								}
@@ -720,12 +751,12 @@ HBITMAP renderer::GetThumbnail(const bool get_bmp)
 
 					if (m_iconwidth == 0)
 					{
-						m_iconwidth = iconwidth;
+						m_iconwidth = _iconwidth;
 					}
 
 					if (m_iconheight == 0)
 					{
-						m_iconheight = iconheight;
+						m_iconheight = _iconheight;
 					}
 
 					if (m_settings.AsIcon && !no_icon && !current_settings.forceleft)
@@ -894,9 +925,11 @@ HBITMAP renderer::GetThumbnail(const bool get_bmp)
 }
 
 renderer::renderer(sSettings& settings, MetaData &metadata) : 
-	gdiplusToken(0), custom_img(NULL), background(NULL), albumart(NULL),
-	m_settings(settings), m_metadata(metadata), m_width(-1), m_height(-1),
-	m_iconwidth(0), m_iconheight(0), m_textpause(30), no_icon(false),
+	gdiplusToken(0), gdiplusBgThreadToken(0), custom_img(NULL),
+	background(NULL), albumart(NULL), m_settings(settings),
+	m_metadata(metadata), m_width(-1), m_height(-1),
+	m_iconwidth(0), m_iconheight(0), m_textpause(30),
+	_iconwidth(0), _iconheight(0), no_icon(false),
 	fail(false), scroll_block(false), no_text(false) { }
 
 renderer::~renderer()
@@ -907,8 +940,9 @@ renderer::~renderer()
 
 	if (gdiplusToken != 0)
 	{
+		gdiplusStartupOutput.NotificationUnhook(gdiplusToken);
 		Gdiplus::GdiplusShutdown(gdiplusToken);
-		gdiplusToken = 0;
+		gdiplusToken = gdiplusBgThreadToken = 0;
 	}
 }
 

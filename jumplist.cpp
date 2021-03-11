@@ -30,7 +30,13 @@ JumpList::JumpList(LPCWSTR AppID, const bool delete_now) : pcdl(NULL)
 
 		if (delete_now)
 		{
-			pcdl->DeleteList(NULL);
+			__try
+			{
+				pcdl->DeleteList(AppID);
+			}
+			__except (EXCEPTION_EXECUTE_HANDLER)
+			{
+			}
 		}
 	}
 }

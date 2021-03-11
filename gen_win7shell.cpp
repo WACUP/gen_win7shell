@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"3.7.3"
+#define PLUGIN_VERSION L"3.7.7"
 
 #define NR_BUTTONS 15
 
@@ -266,8 +266,9 @@ void config(void)
 		}
 		case 2:
 		{
-			// leave the WACUP core to handle opening to the 'taskbar' preferences node
-			PostMessage(plugin.hwndParent, WM_WA_IPC, (WPARAM)-667, IPC_OPENPREFSTOPAGE);
+			// leave the WACUP core to handle opening
+			// to the 'taskbar' preferences node
+			OpenPrefsPage((WPARAM)-667);
 			break;
 		}
 	}
@@ -1485,17 +1486,13 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 					Settings.JLfrequent = (Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK31)) == BST_CHECKED);
 					Settings.JLrecent = (Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK30)) == BST_CHECKED);
 
-					if (Settings.JLbms || Settings.JLpl || Settings.JLtasks ||
-						Settings.JLfrequent || Settings.JLrecent)
-					{
-						SetupJumpList();
-					}
-					else
+					if (!(Settings.JLbms || Settings.JLpl || Settings.JLtasks ||
+						  Settings.JLfrequent || Settings.JLrecent))
 					{
 						Settings.JLrecent = true;
 						Button_SetCheck(GetDlgItem(hwnd, IDC_CHECK30), BST_CHECKED);
-						SetupJumpList();
 					}
+					SetupJumpList();
 					break;
 				}
 				case IDC_CHECK3:
@@ -2294,53 +2291,56 @@ void AddStringtoList(HWND window, const int control_ID)
 void SetupJumpList(void)
 {
 	JumpList *jl = new JumpList(GetAppID(), true);
-	if ((jl != NULL) && (Settings.JLbms || Settings.JLfrequent ||
-		Settings.JLpl || Settings.JLrecent || Settings.JLtasks))
+	if (jl != NULL)
 	{
-		static wchar_t pluginPath[MAX_PATH] = {0}, tmp1[128],
-					   tmp2[128], tmp3[128], tmp4[128];
+		if (Settings.JLbms || Settings.JLfrequent ||
+			Settings.JLpl || Settings.JLrecent || Settings.JLtasks)
+		{
+			static wchar_t pluginPath[MAX_PATH], tmp1[128],
+						   tmp2[128], tmp3[128], tmp4[128];
 
-		// to ensure things work reliably we
-		// need an 8.3 style filepath for us
-		if (!pluginPath[0])
-		{
-			GetModuleFileName(plugin.hDllInstance, pluginPath, MAX_PATH);
-			GetShortPathName(pluginPath, pluginPath, MAX_PATH);
-		}
+			// to ensure things work reliably we
+			// need an 8.3 style filepath for us
+			if (!pluginPath[0])
+			{
+				GetModuleFileName(plugin.hDllInstance, pluginPath, MAX_PATH);
+				GetShortPathName(pluginPath, pluginPath, MAX_PATH);
+			}
 
-		if (!tmp1[0])
-		{
-			WASABI_API_LNGSTRINGW_BUF(IDS_WINAMP_PREFERENCES, tmp1, 128);
-		}
+			if (!tmp1[0])
+			{
+				WASABI_API_LNGSTRINGW_BUF(IDS_WINAMP_PREFERENCES, tmp1, 128);
+			}
 
-		if (!tmp2[0])
-		{
-			WASABI_API_LNGSTRINGW_BUF(IDS_OPEN_FILE, tmp2, 128);
-		}
+			if (!tmp2[0])
+			{
+				WASABI_API_LNGSTRINGW_BUF(IDS_OPEN_FILE, tmp2, 128);
+			}
 
-		if (!tmp3[0])
-		{
-			WASABI_API_LNGSTRINGW_BUF(IDS_BOOKMARKS, tmp3, 128);
-		}
+			if (!tmp3[0])
+			{
+				WASABI_API_LNGSTRINGW_BUF(IDS_BOOKMARKS, tmp3, 128);
+			}
 
-		if (!tmp4[0])
-		{
-			WASABI_API_LNGSTRINGW_BUF(IDS_PLAYLISTS, tmp4, 128);
-		}
+			if (!tmp4[0])
+			{
+				WASABI_API_LNGSTRINGW_BUF(IDS_PLAYLISTS, tmp4, 128);
+			}
 
-		__try
-		{
-			// based on testing, this & things in the
-			// CreateShellLink() sometimes fails :'(
-			// I can't find any reason for it. due to
-			// that it is necessary to try & catch it
-			// so we don't take down the entire thing
-			jl->CreateJumpList(pluginPath, tmp1, tmp2, tmp3, tmp4, Settings.JLrecent,
-							   Settings.JLfrequent, Settings.JLtasks, Settings.JLbms,
-							   Settings.JLpl, tools::getBookmarks());
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
+			__try
+			{
+				// based on testing, this & things in the
+				// CreateShellLink() sometimes fails :'(
+				// I can't find any reason for it. due to
+				// that it is necessary to try & catch it
+				// so we don't take down the entire thing
+				jl->CreateJumpList(pluginPath, tmp1, tmp2, tmp3, tmp4, Settings.JLrecent,
+								   Settings.JLfrequent, Settings.JLtasks, Settings.JLbms,
+								   Settings.JLpl, tools::getBookmarks());
+			}
+			__except (EXCEPTION_EXECUTE_HANDLER)
+			{
+			}
 		}
 		delete jl;
 	}
