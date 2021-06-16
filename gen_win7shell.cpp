@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"3.7.10"
+#define PLUGIN_VERSION L"3.8"
 
 #define NR_BUTTONS 15
 
@@ -66,6 +66,7 @@ std::vector<int> TButtons;
 iTaskBar *itaskbar = NULL;
 MetaData metadata;
 renderer *thumbnaildrawer = NULL;
+HANDLE updatethread = NULL;
 
 api_albumart *AGAVE_API_ALBUMART = 0;
 api_playlists *AGAVE_API_PLAYLISTS = 0;
@@ -278,6 +279,18 @@ void config(void)
 
 void quit(void)
 {
+	KillTimer(plugin.hwndParent, 6668);
+	KillTimer(plugin.hwndParent, 6670);
+
+	if (updatethread != NULL)
+	{
+		running = false;
+
+		WaitForSingleObject(updatethread, INFINITE);
+		CloseHandle(updatethread);
+		updatethread = NULL;
+	}
+
 #ifdef USE_MOUSE
 	if (hMouseHook != NULL)
 	{
@@ -438,12 +451,50 @@ void updateRepeatButton(void)
 	}
 }
 
+DWORD WINAPI UpdateThread(LPVOID lp)
+{
+	while (CreateThumbnailDrawer() && running)
+	{
+		HBITMAP thumbnail = thumbnaildrawer->GetThumbnail();
+		if (thumbnail != NULL)
+		{
+			const HRESULT hr = DwmSetIconicThumbnail(plugin.hwndParent, thumbnail, 0);
+
+			DeleteObject(thumbnail);
+			thumbnail = NULL;
+
+			if (FAILED(hr))
+			{
+				KillTimer(plugin.hwndParent, 6670);
+				running = false;
+				break;
+			}
+		}
+
+		Sleep((Settings.Thumbnailbackground == BG_WINAMP) ?
+			  (!Settings.LowFrameRate ? Settings.MFT : Settings.MST) :
+			  (!Settings.LowFrameRate ? Settings.TFT : Settings.TST));
+	}
+
+	if (updatethread != NULL)
+	{
+		CloseHandle(updatethread);
+		updatethread = NULL;
+	}
+	return 0;
+}
+
 void SetThumbnailTimer(void)
 {
 	KillTimer(plugin.hwndParent, 6670);
 	SetTimer(plugin.hwndParent, 6670, (Settings.Thumbnailbackground == BG_WINAMP) ?
 			 (!Settings.LowFrameRate ? Settings.MFT : Settings.MST) :
 			 (!Settings.LowFrameRate ? Settings.TFT : Settings.TST), TimerProc);
+
+	if (updatethread == NULL)
+	{
+		updatethread = CreateThread(0, 0, UpdateThread, 0, 0, NULL);
+	}
 }
 
 void ResetThumbnail(void)
@@ -1046,30 +1097,6 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 	}
 }
 
-#if 0
-void CheckThumbShowing(void)
-{
-	if (thumbshowing)
-	{
-		POINT pt = {0};
-		GetCursorPos(&pt);
-		wchar_t class_name[24] = {0};
-		GetClassName(WindowFromPoint(pt), class_name, ARRAYSIZE(class_name));
-
-		if (_wcsicmp(class_name, L"MultitaskingViewFrame") &&
-			_wcsicmp(class_name, L"TaskListThumbnailWnd") &&
-			_wcsicmp(class_name, L"MSTaskListWClass") &&
-			_wcsicmp(class_name, L"ToolbarWindow32"))
-		{
-			thumbshowing = false;
-			//KillTimer(plugin.hwndParent, 6670);
-		}
-
-		//DwmInvalidateIconicBitmaps(hWnd);
-	}
-}
-#endif
-
 VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 {
 	switch (idEvent)
@@ -1095,10 +1122,6 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 					SetTimer(hwnd, 6668, 66, TimerProc);
 				}
 			}
-
-#if 0
-			CheckThumbShowing();
-#endif
 
 			if (!(Settings.Progressbar || Settings.VuMeter) && (itaskbar != NULL))
 			{
@@ -1316,29 +1339,6 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 					}
 				}
 			}
-
-			if (CreateThumbnailDrawer() && running)
-			{
-				HBITMAP thumbnail = thumbnaildrawer->GetThumbnail();
-				if (thumbnail != NULL)
-				{
-					const HRESULT hr = DwmSetIconicThumbnail(plugin.hwndParent, thumbnail, 0);
-
-					DeleteObject(thumbnail);
-					thumbnail = NULL;
-
-					if (FAILED(hr))
-					{
-						KillTimer(plugin.hwndParent, 6670);
-						running = false;
-						break;
-					}
-				}
-			}
-
-#if 0
-			CheckThumbShowing();
-#endif
 			break;
 		}
 	}
