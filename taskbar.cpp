@@ -7,7 +7,7 @@
 
 iTaskBar::iTaskBar(sSettings& settings) : pTBL(NULL), progressbarstate(TBPF_NOPROGRESS), m_settings(settings)
 {
-	CoInitialize(0);
+	CoInitializeEx(0, COINIT_APARTMENTTHREADED);
 	SetWindowAttr();
 }
 

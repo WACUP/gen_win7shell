@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"3.7.7"
+#define PLUGIN_VERSION L"3.7.10"
 
 #define NR_BUTTONS 15
 
@@ -96,7 +96,7 @@ int init(void);
 void config(void);
 void quit(void);
 
-void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM lParam);
+void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM lParam);
 
 // this structure contains plugin information, version, name...
 winampGeneralPurposePlugin plugin =
@@ -107,9 +107,9 @@ winampGeneralPurposePlugin plugin =
 	GEN_INIT_WACUP_HAS_MESSAGES
 };
 
-bool CreateThumbnailDrawer(void)
+bool CreateThumbnailDrawer(const bool always_create = true)
 {
-	if (thumbnaildrawer == NULL)
+	if ((thumbnaildrawer == NULL) && always_create)
 	{
 		// Create thumbnail renderer
 		thumbnaildrawer = new renderer(Settings, metadata);
@@ -175,13 +175,13 @@ LPCWSTR GetAppID(void)
 		GetCurrentProcessExplicitAppUserModelID(&id);
 		if (!id)
 		{
-			wchar_t self_path[MAX_PATH] = {0};
-			if (GetModuleFileName(NULL, self_path, MAX_PATH))
+			wchar_t self_path[MAX_PATH] = { 0 };
+			if (GetModuleFileName(NULL, self_path, ARRAYSIZE(self_path)))
 			{
-				wchar_t app_id[MAX_PATH] = {0};
+				wchar_t app_id[MAX_PATH] = { 0 };
 				if (!GenerateAppIDFromFolder(self_path, app_id))
 				{
-					wcsncpy(app_id, self_path, MAX_PATH);
+					(void)StringCchCopy(app_id, ARRAYSIZE(app_id), self_path);
 				}
 
 				PathRenameExtension(app_id, L".exe");
@@ -363,17 +363,17 @@ void updateToolbar(HIMAGELIST ImageList)
 			else if (button.iId == TB_PLAYPAUSE)
 			{
 				button.iBitmap = tools::getBitmap(button.iId, (Settings.play_state == PLAYSTATE_PLAYING ? 1 : 0));
-				wcsncpy(button.szTip, tools::getToolTip(TB_PLAYPAUSE, Settings.play_state), ARRAYSIZE(button.szTip));
+				(void)StringCchCopy(button.szTip, ARRAYSIZE(button.szTip), tools::getToolTip(TB_PLAYPAUSE, Settings.play_state));
 			} 
 			else if (button.iId == TB_REPEAT)
 			{
 				button.iBitmap = tools::getBitmap(button.iId, Settings.state_repeat);
-				wcsncpy(button.szTip, tools::getToolTip(TB_REPEAT, Settings.state_repeat), ARRAYSIZE(button.szTip));
+				(void)StringCchCopy(button.szTip, ARRAYSIZE(button.szTip), tools::getToolTip(TB_REPEAT, Settings.state_repeat));
 			} 
 			else if (button.iId == TB_SHUFFLE)
 			{
 				button.iBitmap = tools::getBitmap(button.iId, Settings.play_state == Settings.state_shuffle);
-				wcsncpy(button.szTip, tools::getToolTip(TB_SHUFFLE, Settings.state_shuffle), ARRAYSIZE(button.szTip));
+				(void)StringCchCopy(button.szTip, ARRAYSIZE(button.szTip), tools::getToolTip(TB_SHUFFLE, Settings.state_shuffle));
 			}
 
 			if (!button.iBitmap)
@@ -383,7 +383,7 @@ void updateToolbar(HIMAGELIST ImageList)
 
 			if (!button.szTip[0])
 			{
-				wcsncpy(button.szTip, tools::getToolTip(button.iId, 0), ARRAYSIZE(button.szTip));
+				(void)StringCchCopy(button.szTip, ARRAYSIZE(button.szTip), tools::getToolTip(button.iId, 0));
 			}
 
 			thbButtons.push_back(button);
@@ -448,11 +448,12 @@ void SetThumbnailTimer(void)
 
 void ResetThumbnail(void)
 {
-	if (CreateThumbnailDrawer())
+	if (CreateThumbnailDrawer(false))
 	{
 		thumbnaildrawer->ClearAlbumart();
 		thumbnaildrawer->ClearBackground();
 		thumbnaildrawer->ClearCustomBackground();
+		thumbnaildrawer->ClearFonts();
 		thumbnaildrawer->ThumbnailPopup();
 	}
 }
@@ -505,7 +506,7 @@ void UpdateOverlyStatus(void)
 	}
 }
 
-void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM lParam)
+void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM lParam)
 {
 	if ((uMsg == WM_DWMSENDICONICTHUMBNAIL) ||
 		(uMsg == WM_DWMSENDICONICLIVEPREVIEWBITMAP))
@@ -987,9 +988,9 @@ void MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM l
 				}
 				case TB_DELETE:
 				{
-					SHFILEOPSTRUCTW fileop = {0};
-					wchar_t path[MAX_PATH] = {0};
-					wcsncpy(path, metadata.getFileName().c_str(), ARRAYSIZE(path));
+					SHFILEOPSTRUCTW fileop = { 0 };
+					wchar_t path[MAX_PATH] = { 0 };
+					(void)StringCchCopy(path, ARRAYSIZE(path), metadata.getFileName().c_str());
 
 					fileop.wFunc = FO_DELETE;
 					fileop.pFrom = path;
@@ -1318,7 +1319,6 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 
 			if (CreateThumbnailDrawer() && running)
 			{
-				thumbnaildrawer->ClearBackground();
 				HBITMAP thumbnail = thumbnaildrawer->GetThumbnail();
 				if (thumbnail != NULL)
 				{
@@ -1333,27 +1333,6 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 						running = false;
 						break;
 					}
-
-					/*if (classicSkin)
-					{
-						RECT r = {0};
-						GetClientRect(plugin.hwndParent, &r);
-
-						Gdiplus::Bitmap bmp((r.right - r.left), (r.bottom - r.top), PixelFormat32bppPARGB);
-						Gdiplus::Graphics gfx(&bmp);
-
-						HDC hdc = gfx.GetHDC();
-						SendMessage(plugin.hwndParent, WM_PRINTCLIENT, (WPARAM)hdc,
-									PRF_CHILDREN | PRF_CLIENT | PRF_NONCLIENT);
-						gfx.ReleaseHDC(hdc);
-
-						bmp.GetHBITMAP(NULL, &thumbnail);
-						if (thumbnail)
-						{
-							DwmSetIconicLivePreviewBitmap(plugin.hwndParent, thumbnail, NULL, 0);
-							DeleteObject(thumbnail);
-						}
-					}*/
 				}
 			}
 
@@ -1415,11 +1394,6 @@ LRESULT CALLBACK rateWndProc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lPara
 	}
 
 	return 0;
-}
-
-HWND PrefsHWND(void)
-{
-	return (HWND)SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_GETPREFSWND);
 }
 
 LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
@@ -1731,7 +1705,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 		{
 			if (Settings.Thumbnailbuttons)
 			{
-				SetWindowText(GetDlgItem(hwnd, IDC_STATIC29), WASABI_API_LNGSTRINGW(IDS_MAX_BUTTONS));
+				SetDlgItemText(hwnd, IDC_STATIC29, WASABI_API_LNGSTRINGW(IDS_MAX_BUTTONS));
 			}
 			break;
 		}
@@ -1759,7 +1733,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 					{
 						if (Settings.Thumbnailbuttons)
 						{
-							SetWindowText(GetDlgItem(hwnd, IDC_STATIC29), tools::getToolTip(wParam));
+							SetDlgItemText(hwnd, IDC_STATIC29, tools::getToolTip(wParam));
 						}
 					}
 					break;
@@ -1884,7 +1858,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 							}
 						}
 						while (pos != std::wstring::npos);
-						wcsncpy(Settings.Text, text.c_str(), ARRAYSIZE(Settings.Text));
+						(void)StringCchCopy(Settings.Text, ARRAYSIZE(Settings.Text), text.c_str());
 
 						ResetThumbnail();
 					}
@@ -1897,14 +1871,14 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 								  *output = NULL;
 
 					DecompressResource(data, data_size, &output, 0);
-					MessageBoxEx(PrefsHWND(), AutoWide((LPCSTR)output, CP_UTF8),
+					MessageBoxEx(GetPrefsHWND(), AutoWide((LPCSTR)output, CP_UTF8),
 								 WASABI_API_LNGSTRINGW(IDS_INFORMATION), MB_ICONINFORMATION, 0);
 					DecompressResourceFree(output);
 					break;
 				}
 				case IDC_DEFAULT:
 				{
-					SetWindowText(GetDlgItem(hwnd, IDC_EDIT3), L"%c%%s%%curpl% of %totalpl%.\r\n"
+					SetDlgItemText(hwnd, IDC_EDIT3, L"%c%%s%%curpl% of %totalpl%.\r\n"
 								  L"%c%%s%%title%\r\n%c%%s%%artist%\r\n\r\n%c%%s%%curtime%/"
 								  L"%totaltime%\r\n%c%%s%Track #: %track%        Volume: %volume%%");
 					PostMessage(hwnd, WM_COMMAND, MAKEWPARAM(IDC_EDIT3, EN_CHANGE), NULL);
@@ -1914,7 +1888,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 				{
 					CHOOSEFONT cf = {0};
 					cf.lStructSize = sizeof(cf);
-					cf.hwndOwner = PrefsHWND();
+					cf.hwndOwner = GetPrefsHWND();
 					cf.rgbColors = Settings.text_color;
 					cf.lpLogFont = &Settings.font;
 					cf.Flags = CF_SCREENFONTS | CF_INITTOLOGFONTSTRUCT |
@@ -1927,6 +1901,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 					if (ChooseFont(&cf))
 					{
 						Settings.font = *cf.lpLogFont;
+						thumbnaildrawer->ClearFonts();
 					}
 					break;
 				}
@@ -1936,7 +1911,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 					const bool text = (LOWORD(wParam) == IDC_BUTTON9);
 					CHOOSECOLOR cc = {0};			// common dialog box structure
 					cc.lStructSize = sizeof(cc);
-					cc.hwndOwner = PrefsHWND();
+					cc.hwndOwner = GetPrefsHWND();
 					cc.lpCustColors = (LPDWORD)acrCustClr;
 					cc.rgbResult = (!text ? Settings.bgcolor : Settings.text_color);
 					cc.Flags = CC_FULLOPEN | CC_RGBINIT;
@@ -2020,22 +1995,22 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 			{
 				case IP_UPPERLEFT:
 				{
-					SetWindowText(GetDlgItem(hwnd, IDC_ICONPOS), WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_TL));
+					SetDlgItemText(hwnd, IDC_ICONPOS, WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_TL));
 					break;
 				}
 				case IP_UPPERRIGHT:
 				{
-					SetWindowText(GetDlgItem(hwnd, IDC_ICONPOS), WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_TR));
+					SetDlgItemText(hwnd, IDC_ICONPOS, WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_TR));
 					break;
 				}
 				case IP_LOWERLEFT:
 				{
-					SetWindowText(GetDlgItem(hwnd, IDC_ICONPOS), WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_BL));
+					SetDlgItemText(hwnd, IDC_ICONPOS, WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_BL));
 					break;
 				}
 				case IP_LOWERRIGHT:
 				{
-					SetWindowText(GetDlgItem(hwnd, IDC_ICONPOS), WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_BR));
+					SetDlgItemText(hwnd, IDC_ICONPOS, WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_BR));
 					break;
 				}
 			}
@@ -2053,13 +2028,13 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 			{
 				Settings.IconSize = SendMessage((HWND)lParam, TBM_GETPOS, NULL, NULL);
 				StringCchPrintf(text, ARRAYSIZE(text), WASABI_API_LNGSTRINGW(IDS_ICON_SIZE), Settings.IconSize);
-				SetWindowTextW(GetDlgItem(hwnd, IDC_ICONSIZE), text);
+				SetDlgItemText(hwnd, IDC_ICONSIZE, text);
 			}
 			else if (slider == IDC_SLIDER_TRANSPARENCY)
 			{
 				Settings.BG_Transparency = SendMessage((HWND)lParam, TBM_GETPOS, NULL, NULL);
 				StringCchPrintf(text, ARRAYSIZE(text), L"%d%%", Settings.BG_Transparency);
-				SetWindowTextW(GetDlgItem(hwnd, IDC_TRANSPARENCY_PERCENT), text);
+				SetDlgItemText(hwnd, IDC_TRANSPARENCY_PERCENT, text);
 			}
 			ResetThumbnail();
 			break;
@@ -2137,7 +2112,7 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 						pfd->SetFileTypes(1, rgSpec);
 						pfd->SetOkButtonLabel(WASABI_API_LNGSTRINGW_BUF(IDS_USE_AS_THUMB_BKGND, tmp2, 128));
 						pfd->SetTitle(WASABI_API_LNGSTRINGW_BUF(IDS_SELECT_IMAGE_FILE, tmp3, 128));
-						hr = pfd->Show(PrefsHWND());
+						hr = pfd->Show(GetPrefsHWND());
 
 						if (SUCCEEDED(hr))
 						{
@@ -2150,7 +2125,7 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 								wchar_t *w = NULL;
 								psiResult->GetDisplayName(SIGDN_FILESYSPATH, &w);
 								psiResult->Release();
-								wcsncpy(filename, w, ARRAYSIZE(filename));
+								(void)StringCchCopy(filename, ARRAYSIZE(filename), w);
 								CoTaskMemFree(w);
 							}
 						} 
@@ -2159,7 +2134,7 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 
 					if (filename[0])
 					{
-						SetWindowText(GetDlgItem(hwnd, IDC_EDIT2), filename);
+						SetDlgItemText(hwnd, IDC_EDIT2, filename);
 						ResetThumbnail();
 					}
 					else if (!Settings.BGPath[0])
@@ -2189,22 +2164,22 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 				{
 					if (SendDlgItemMessage(hwnd, IDC_RADIO4, (UINT)BM_GETCHECK, 0 , 0))
 					{
-						SetWindowText(GetDlgItem(hwnd, IDC_ICONPOS), WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_TL));
+						SetDlgItemText(hwnd, IDC_ICONPOS, WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_TL));
 						Settings.IconPosition = IP_UPPERLEFT;
 					}
 					else if (SendDlgItemMessage(hwnd, IDC_RADIO7, (UINT)BM_GETCHECK, 0 , 0))
 					{
-						SetWindowText(GetDlgItem(hwnd, IDC_ICONPOS), WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_BL));
+						SetDlgItemText(hwnd, IDC_ICONPOS, WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_BL));
 						Settings.IconPosition = IP_LOWERLEFT;
 					}
 					else if (SendDlgItemMessage(hwnd, IDC_RADIO6, (UINT)BM_GETCHECK, 0 , 0))
 					{
-						SetWindowText(GetDlgItem(hwnd, IDC_ICONPOS), WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_TR));
+						SetDlgItemText(hwnd, IDC_ICONPOS, WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_TR));
 						Settings.IconPosition = IP_UPPERRIGHT;
 					}
 					else if (SendDlgItemMessage(hwnd, IDC_RADIO8, (UINT)BM_GETCHECK, 0 , 0))
 					{
-						SetWindowText(GetDlgItem(hwnd, IDC_ICONPOS), WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_BR));
+						SetDlgItemText(hwnd, IDC_ICONPOS, WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_BR));
 						Settings.IconPosition = IP_LOWERRIGHT;
 					}
 
@@ -2263,7 +2238,7 @@ void AddStringtoList(HWND window, const int control_ID)
 			if (ListBox_GetCount(list) >= 7)
 			{
 				Button_SetCheck(button, BST_UNCHECKED);
-				SetWindowText(GetDlgItem(window, IDC_STATIC29), WASABI_API_LNGSTRINGW(IDS_MAX_BUTTONS));
+				SetDlgItemText(window, IDC_STATIC29, WASABI_API_LNGSTRINGW(IDS_MAX_BUTTONS));
 			}
 			else
 			{

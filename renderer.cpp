@@ -250,8 +250,10 @@ bool renderer::render()
 	return false;
 }
 
-HBITMAP renderer::GetThumbnail(const bool get_bmp)
+HBITMAP renderer::GetThumbnail()
 {
+	ClearBackground();
+
 	// not everyone is going to even cause the
 	// preview to be generated so we will wait
 	// until its needed to load gdiplus as its
@@ -407,8 +409,7 @@ HBITMAP renderer::GetThumbnail(const bool get_bmp)
 				{
 					// fallback
 					fail = true;
-					ClearBackground();
-					GetThumbnail(true);
+					GetThumbnail();
 				}
 				break;
 			}
@@ -563,8 +564,7 @@ HBITMAP renderer::GetThumbnail(const bool get_bmp)
 						else if (m_settings.Revertto != BG_CUSTOM)
 						{
 							fail = true;
-							ClearBackground();
-							GetThumbnail(true);
+							GetThumbnail();
 						}
 					}
 
@@ -574,16 +574,14 @@ HBITMAP renderer::GetThumbnail(const bool get_bmp)
 				else if (m_settings.Revertto != BG_CUSTOM)
 				{
 					fail = true;
-					ClearBackground();
-					GetThumbnail(true);
+					GetThumbnail();
 				}
 				break;
 			}
 			default:
 			{
 				fail = true;
-				ClearBackground();
-				GetThumbnail(true);
+				GetThumbnail();
 				break;
 			}
 		}
@@ -651,16 +649,26 @@ HBITMAP renderer::GetThumbnail(const bool get_bmp)
 				}
 
 				// Setup fonts
-				HDC h_gfx = gfx.GetHDC();
-				Gdiplus::Font font(h_gfx, &m_settings.font);
+				if (!normal_font || !large_font)
+				{
+					HDC h_gfx = gfx.GetHDC();
 
-				LOGFONT large_font = m_settings.font;
-				LONG large_size = -((m_settings.font.lfHeight * 72) / GetDeviceCaps(h_gfx, LOGPIXELSY));
-				large_size += 4;
-				large_font.lfHeight = -MulDiv(large_size, GetDeviceCaps(h_gfx, LOGPIXELSY), 72);
-				Gdiplus::Font largefont(h_gfx, &large_font);
+					if (!normal_font)
+					{
+						normal_font = new Gdiplus::Font(h_gfx, &m_settings.font);
+					}
 
-				gfx.ReleaseHDC(h_gfx);
+					if (!large_font)
+					{
+						LOGFONT _large_font = m_settings.font;
+						LONG large_size = -((m_settings.font.lfHeight * 72) / GetDeviceCaps(h_gfx, LOGPIXELSY));
+						large_size += 4;
+						_large_font.lfHeight = -MulDiv(large_size, GetDeviceCaps(h_gfx, LOGPIXELSY), 72);
+						large_font = new Gdiplus::Font(h_gfx, &_large_font);
+					}
+
+					gfx.ReleaseHDC(h_gfx);
+				}
 
 				Gdiplus::SolidBrush bgcolor(Gdiplus::Color(GetRValue(m_settings.bgcolor),
 														   GetGValue(m_settings.bgcolor),
@@ -682,18 +690,20 @@ HBITMAP renderer::GetThumbnail(const bool get_bmp)
 					gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
 					if (current_settings.largefont)
 					{
-						gfx.MeasureString(current_text.c_str(), -1, &largefont, Gdiplus::RectF(0, 0, 2000, 1000), &sf, &ret_rect);
+						gfx.MeasureString(current_text.c_str(), -1, large_font,
+										  Gdiplus::RectF(0, 0, 2000, 1000), &sf, &ret_rect);
 					}
 					else
 					{
-						gfx.MeasureString(current_text.c_str(), -1, &font, Gdiplus::RectF(0, 0, 2000, 1000), &sf, &ret_rect);
+						gfx.MeasureString(current_text.c_str(), -1, normal_font,
+										  Gdiplus::RectF(0, 0, 2000, 1000), &sf, &ret_rect);
 					}
 
 					if (ret_rect.GetBottom() == 0)
 					{
 						if (current_text.empty())
 						{
-							gfx.MeasureString(L"QWEXCyjM", -1, &font, Gdiplus::RectF(0, 0,
+							gfx.MeasureString(L"QWEXCyjM", -1, normal_font, Gdiplus::RectF(0, 0,
 											  static_cast<Gdiplus::REAL>(m_width),
 											  static_cast<Gdiplus::REAL>(m_height)), &sf, &ret_rect);
 						}
@@ -737,13 +747,15 @@ HBITMAP renderer::GetThumbnail(const bool get_bmp)
 					if (current_settings.shadow)
 					{
 						text_gfx.DrawString(current_text.c_str(), -1, 
-											current_settings.largefont ? &largefont : &font, 
+											current_settings.largefont ?
+											large_font : normal_font,
 											Gdiplus::PointF(1, -1), &bgcolor);
 					}
 
 					//text
 					text_gfx.DrawString(current_text.c_str(), -1, 
-										current_settings.largefont ? &largefont : &font, 
+										current_settings.largefont ?
+										large_font : normal_font,
 										Gdiplus::PointF(0, -2), &fgcolor);
 
 					// Calculate text position
@@ -902,20 +914,17 @@ HBITMAP renderer::GetThumbnail(const bool get_bmp)
 		}
 
 		// finalize / garbage
-		if (get_bmp)
+		if (no_text || !m_settings.Shrinkframe)
 		{
-			if (no_text || !m_settings.Shrinkframe)
-			{
-				canvas->GetHBITMAP(NULL, &retbmp);        
-			}
-			else
-			{
-				Gdiplus::Bitmap *shrink = canvas->Clone(0, 0, m_width, textheight > m_iconheight ?
-														(int)textheight : (int)m_iconheight,
-														PixelFormat32bppPARGB);
-				shrink->GetHBITMAP(NULL, &retbmp);
-				delete shrink;
-			}
+			canvas->GetHBITMAP(NULL, &retbmp);        
+		}
+		else
+		{
+			Gdiplus::Bitmap *shrink = canvas->Clone(0, 0, m_width, textheight > m_iconheight ?
+													(int)textheight : (int)m_iconheight,
+													PixelFormat32bppPARGB);
+			shrink->GetHBITMAP(NULL, &retbmp);
+			delete shrink;
 		}
 
 		delete canvas;
@@ -926,10 +935,10 @@ HBITMAP renderer::GetThumbnail(const bool get_bmp)
 
 renderer::renderer(sSettings& settings, MetaData &metadata) : 
 	gdiplusToken(0), gdiplusBgThreadToken(0), custom_img(NULL),
-	background(NULL), albumart(NULL), m_settings(settings),
-	m_metadata(metadata), m_width(-1), m_height(-1),
-	m_iconwidth(0), m_iconheight(0), m_textpause(30),
-	_iconwidth(0), _iconheight(0), no_icon(false),
+	background(NULL), albumart(NULL), normal_font(NULL),
+	large_font(NULL), m_settings(settings), m_metadata(metadata),
+	m_width(-1), m_height(-1), m_iconwidth(0), m_iconheight(0),
+	m_textpause(30), _iconwidth(0), _iconheight(0), no_icon(false),
 	fail(false), scroll_block(false), no_text(false) { }
 
 renderer::~renderer()
@@ -937,6 +946,7 @@ renderer::~renderer()
 	ClearAlbumart();
 	ClearBackground();
 	ClearCustomBackground();
+	ClearFonts();
 
 	if (gdiplusToken != 0)
 	{
@@ -967,6 +977,21 @@ void renderer::ClearBackground()
 	{
 		delete background;
 		background = NULL;
+	}
+}
+
+void renderer::ClearFonts()
+{
+	if (normal_font)
+	{
+		delete normal_font;
+		normal_font = NULL;
+	}
+
+	if (large_font)
+	{
+		delete large_font;
+		large_font = NULL;
 	}
 }
 

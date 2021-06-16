@@ -1,4 +1,5 @@
 #include "gen_win7shell.h"
+#include <strsafe.h>
 #include "resource.h"
 #include "tools.h"
 #include "api.h"
@@ -209,7 +210,7 @@ namespace tools
 				fname[0] = 0;
 				if (GetShortPathName(filename, fname, ARRAYSIZE(fname)) == 0)
 				{
-					wcsncpy(fname, filename, ARRAYSIZE(fname) - 1);
+					(void)StringCchCopy(fname, ARRAYSIZE(fname), filename);
 				}
 				psl->SetIconLocation(shortfname, 0);
 

@@ -72,8 +72,11 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 					// that this code was dealing with). this
 					// call will get the appropriate filepath
 					// for the instance of the loader in use!
-					wchar_t fname[MAX_PATH] = { 0 };
-					RealWACUPPath(fname, ARRAYSIZE(fname));
+					static wchar_t fname[MAX_PATH] = { 0 };
+					if (!fname[0])
+					{
+						RealWACUPPath(fname, ARRAYSIZE(fname));
+					}
 
 					if (mode == 1)
 					{

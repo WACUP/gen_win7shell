@@ -19,10 +19,11 @@ public:
 	typedef unsigned long ARGB32;
 	void createArtwork(const int cur_w, const int cur_h, ARGB32 *cur_image);
 
-	HBITMAP GetThumbnail(const bool get_bmp = true);
+	HBITMAP GetThumbnail();
 	void ClearAlbumart();
 	void ClearBackground();
 	void ClearCustomBackground();
+	void ClearFonts();
 	void ThumbnailPopup();
 	void SetDimensions(const int new_w, const int new_h);
 
@@ -37,6 +38,9 @@ private:
 	Gdiplus::Image *custom_img;
 	Gdiplus::Bitmap *background;
 	Gdiplus::Bitmap *albumart;
+
+	Gdiplus::Font *normal_font;
+	Gdiplus::Font *large_font;
 
 	sSettings &m_settings;
 	MetaData &m_metadata;

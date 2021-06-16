@@ -107,8 +107,8 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	Destination_struct.Add2RecentDocs = GetBool(L"Add2RecentDocs", true);
 	Destination_struct.Antialias = GetBool(L"AntiAlias", true);
 	Destination_struct.AsIcon = GetBool(L"AsIcon", true);
-	wcsncpy(Destination_struct.BGPath, GetString(L"BGPath", L"", MAX_PATH).c_str(),
-												  ARRAYSIZE(Destination_struct.BGPath));
+	(void)StringCchCopy(Destination_struct.BGPath, ARRAYSIZE(Destination_struct.BGPath),
+						GetString(L"BGPath", L"", MAX_PATH).c_str());
 	Destination_struct.JLbms = GetBool(L"JLBookMarks", true);
 	Destination_struct.JLfrequent = GetBool(L"Frequent", false);
 	Destination_struct.JLpl = GetBool(L"JLPlayList", true);
@@ -120,16 +120,15 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	Destination_struct.Shrinkframe = GetBool(L"ShrinkFrame", false);
 	Destination_struct.Stoppedstatus = GetBool(L"StoppedStatusOn", true);
 	Destination_struct.Streamstatus = GetBool(L"StreamStatusOn", true);
-	wcsncpy(Destination_struct.Text, GetString(L"Text", L"‡").c_str(),
-											   ARRAYSIZE(Destination_struct.Text));
+	(void)StringCchCopy(Destination_struct.Text, ARRAYSIZE(Destination_struct.Text),
+						GetString(L"Text", L"‡").c_str());
 
 	if (!wcscmp(Destination_struct.Text, L"‡"))
 	{
-		wcsncpy(Destination_struct.Text,
-				L"%c%%s%%curpl% of %totalpl%.\\r%c%%s%%title%"
-				L"\\r%c%%s%%artist%\\r\\r%c%%s%%curtime%/%totaltime%"
-				L"\\r%c%%s%Track #: %track%        Volume: %volume%%",
-				ARRAYSIZE(Destination_struct.Text));
+		(void)StringCchCopy(Destination_struct.Text, ARRAYSIZE(Destination_struct.Text),
+							L"%c%%s%%curpl% of %totalpl%.\\r%c%%s%%title%"
+							L"\\r%c%%s%%artist%\\r\\r%c%%s%%curtime%/%totaltime%"
+							L"\\r%c%%s%Track #: %track%        Volume: %volume%%");
 	}
 
 	Destination_struct.Thumbnailbackground = GetInt(L"ThumbnailBG", BG_WINAMP);
@@ -401,13 +400,13 @@ void SettingsManager::WriteSettings_ToForm(HWND hwnd, HWND WinampWnd, const sSet
 
 	std::wstringstream size;
 	size << "Icon size (" << SendDlgItemMessage(hwnd, IDC_SLIDER1, TBM_GETPOS, NULL, NULL) << "%)";
-	SetWindowTextW(GetDlgItem(hwnd, IDC_ICONSIZE), size.str().c_str());
+	SetDlgItemText(hwnd, IDC_ICONSIZE, size.str().c_str());
 
 	size.str(L"");
 	size << SendDlgItemMessage(hwnd, IDC_SLIDER_TRANSPARENCY, TBM_GETPOS, NULL, NULL) << "%";
-	SetWindowTextW(GetDlgItem(hwnd, IDC_TRANSPARENCY_PERCENT), size.str().c_str());
+	SetDlgItemText(hwnd, IDC_TRANSPARENCY_PERCENT, size.str().c_str());
 
-	SetWindowText(GetDlgItem(hwnd, IDC_EDIT2), Settings.BGPath);
+	SetDlgItemText(hwnd, IDC_EDIT2, Settings.BGPath);
 
 	std::wstring tmpbuf = Settings.Text;
 	std::wstring::size_type pos = std::wstring::npos;
@@ -421,7 +420,7 @@ void SettingsManager::WriteSettings_ToForm(HWND hwnd, HWND WinampWnd, const sSet
 	}
 	while (pos != std::wstring::npos);
 
-	SetWindowText(GetDlgItem(hwnd, IDC_EDIT3), tmpbuf.c_str());
+	SetDlgItemText(hwnd, IDC_EDIT3, tmpbuf.c_str());
 
 	EnableControl(hwnd, IDC_CHECK4, Settings.Progressbar);
 	EnableControl(hwnd, IDC_CHECK5, Settings.Progressbar);
