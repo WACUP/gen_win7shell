@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"3.8"
+#define PLUGIN_VERSION L"3.8.1"
 
 #define NR_BUTTONS 15
 
@@ -941,17 +941,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				}
 				case TB_MUTE:
 				{
-					static int lastvolume;
-					if (Settings.play_volume == 0)
-					{
-						Settings.play_volume = lastvolume;
-						PostMessage(plugin.hwndParent, WM_WA_IPC, Settings.play_volume, IPC_SETVOLUME);
-					}
-					else
-					{
-						lastvolume = Settings.play_volume;
-						PostMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_SETVOLUME);
-					}
+					PostMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_TOGGLE_MUTE);
 					break;
 				}
 				case TB_STOPAFTER:

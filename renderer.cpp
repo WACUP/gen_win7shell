@@ -923,8 +923,11 @@ HBITMAP renderer::GetThumbnail()
 			Gdiplus::Bitmap *shrink = canvas->Clone(0, 0, m_width, textheight > m_iconheight ?
 													(int)textheight : (int)m_iconheight,
 													PixelFormat32bppPARGB);
-			shrink->GetHBITMAP(NULL, &retbmp);
-			delete shrink;
+			if (shrink)
+			{
+				shrink->GetHBITMAP(NULL, &retbmp);
+				delete shrink;
+			}
 		}
 
 		delete canvas;
