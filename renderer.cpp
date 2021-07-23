@@ -324,16 +324,8 @@ HBITMAP renderer::GetThumbnail()
 			{
 				no_text = true;
 
-				RECT r = {0};
+				RECT r = { 0 };
 				GetClientRect(dialogParent, &r);
-
-				// see if it's a classic skin and it's in windowshade mode
-				// as depending upon the OS, etc this may not be just 14px
-				// (or 28px for double-size) so is better to double-check!
-				/*if (classicSkin && windowShade)
-				{
-					r.bottom = r.top + (doubleSize ? 28 : 14);
-				}*/
 
 				// because winamp modern is just weird due to it's drawers
 				// it's simpler to force a half-height to make it look ok

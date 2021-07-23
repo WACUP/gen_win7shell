@@ -50,9 +50,8 @@ std::wstring AppID,	// this is updated on loading to what the
 
 bool thumbshowing = false, no_uninstall = true,
 	 classicSkin = true, windowShade = false,
-	 doubleSize = false, modernSUI = false,
-	 modernFix = false, finishedLoad = false,
-	 running = false;
+	 modernSUI = false, modernFix = false,
+	 finishedLoad = false, running = false;
 HWND ratewnd = 0, dialogParent = 0;
 int pladv = 1, repeat = 0;
 LPARAM delay_ipc = -1;
@@ -662,11 +661,6 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				SetThumbnailTimer();
 				break;
 			}
-			case IPC_CB_ONTOGGLEDOUBLESIZE:
-			{
-				doubleSize = wParam;
-				break;
-			}
 			case IPC_CB_ONTOGGLEMANUALADVANCE:
 			{
 				pladv = wParam;
@@ -784,8 +778,6 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					pladv = !!GetManualAdvance();
 
 					windowShade = !!IsHWNDWndshade((WPARAM)-1)/*/SendMessage(hWnd, WM_WA_IPC, (WPARAM)-1, IPC_IS_WNDSHADE)/**/;
-
-					doubleSize = !!GetDoubleSize(0);
 
 					// Accept messages even if Winamp was run as Administrator
 					ChangeWindowMessageFilter(WM_COMMAND, 1);
