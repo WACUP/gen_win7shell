@@ -24,69 +24,73 @@ std::wstring MetaData::getMetadata(const std::wstring &tag)
 		return cache.find(tag)->second;
 	}
 
-	wchar_t buffer[2048] = { 0 };
-	extendedFileInfoStructW efis = { _wcsdup(mfilename.c_str()), _wcsdup(tag.c_str()), buffer, ARRAYSIZE(buffer) };
-
-	// cache the response as long as we got a valid result
-	const int efiWret = !!GetExtendedFileInfoHookable((WPARAM)&efis, TRUE);
-
-	free((void *)efis.filename);
-	free((void *)efis.metadata);
-
-	if (efiWret && buffer[0])
+	if (!mfilename.empty())
 	{
-		cache[tag] = buffer;
-		return buffer;
-	}
-	else
-	{
-		std::wstring ret;
-		const bool artist = (tag == L"artist"), title = (tag == L"title");
-		if (title || artist)
+		wchar_t buffer[2048] = { 0 };
+		extendedFileInfoStructW efis = { _wcsdup(mfilename.c_str()), _wcsdup(tag.c_str()), buffer, ARRAYSIZE(buffer) };
+
+		// cache the response as long as we got a valid result
+		const int efiWret = !!GetExtendedFileInfoHookable((WPARAM)&efis, TRUE);
+
+		free((void *)efis.filename);
+		free((void *)efis.metadata);
+
+		if (efiWret && buffer[0])
 		{
-			ret = GetPlayingTitle(0);
-			if (ret.empty())
+			cache[tag] = buffer;
+			return buffer;
+		}
+		else
+		{
+			std::wstring ret;
+			const bool artist = (tag == L"artist"), title = (tag == L"title");
+			if (title || artist)
 			{
-				return L"";
-			}
-
-			size_t pos = ret.find_first_of('-');
-			if (pos != std::wstring::npos && pos != 0)
-			{
-				if (title)
+				ret = GetPlayingTitle(0);
+				if (ret.empty())
 				{
-					ret = std::wstring(ret, pos + 1, ret.length() - (pos - 2));
-					if (ret[0] == L' ')
+					return L"";
+				}
+
+				size_t pos = ret.find_first_of('-');
+				if (pos != std::wstring::npos && pos != 0)
+				{
+					if (title)
 					{
-						ret.erase(0, 1);
+						ret = std::wstring(ret, pos + 1, ret.length() - (pos - 2));
+						if (ret[0] == L' ')
+						{
+							ret.erase(0, 1);
+						}
+					}
+					else if (artist)
+					{
+						ret = std::wstring(ret, 0, pos);
+						--pos;
+						if (ret[pos] == L' ')
+						{
+							ret.erase(pos, 1);
+						}
 					}
 				}
-				else if (artist)
+				else
 				{
-					ret = std::wstring(ret, 0, pos);
-					--pos;
-					if (ret[pos] == L' ')
+					if (artist)
 					{
-						ret.erase(pos, 1);
+						return L"";
 					}
 				}
 			}
 			else
 			{
-				if (artist)
-				{
-					return L"";
-				}
+				return L"";
 			}
-		}
-		else
-		{
-			return L"";
-		}
 
-		cache[tag] = ret;
-		return ret;
+			cache[tag] = ret;
+			return ret;
+		}
 	}
+	return L"";
 }
 
 std::wstring MetaData::getFileName() const
