@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"3.8.1"
+#define PLUGIN_VERSION L"3.8.3"
 
 #define NR_BUTTONS 15
 
@@ -55,7 +55,6 @@ bool thumbshowing = false, no_uninstall = true,
 HWND ratewnd = 0, dialogParent = 0;
 int pladv = 1, repeat = 0;
 LPARAM delay_ipc = -1;
-HIMAGELIST theicons = NULL;
 #ifdef USE_MOUSE
 HHOOK hMouseHook = NULL;
 #endif
@@ -280,6 +279,7 @@ void quit(void)
 {
 	KillTimer(plugin.hwndParent, 6668);
 	KillTimer(plugin.hwndParent, 6670);
+	KillTimer(plugin.hwndParent, 6671);
 
 	if (updatethread != NULL)
 	{
@@ -465,6 +465,7 @@ DWORD WINAPI UpdateThread(LPVOID lp)
 			if (FAILED(hr))
 			{
 				KillTimer(plugin.hwndParent, 6670);
+				KillTimer(plugin.hwndParent, 6671);
 				running = false;
 				break;
 			}
@@ -490,10 +491,14 @@ void SetThumbnailTimer(void)
 			 (!Settings.LowFrameRate ? Settings.MFT : Settings.MST) :
 			 (!Settings.LowFrameRate ? Settings.TFT : Settings.TST), TimerProc);
 
+	KillTimer(plugin.hwndParent, 6671);
+
 	if (updatethread == NULL)
 	{
 		updatethread = CreateThread(0, 0, UpdateThread, 0, 0, NULL);
 	}
+
+	SetTimer(plugin.hwndParent, 6671, 30000, TimerProc);
 }
 
 void ResetThumbnail(void)
@@ -506,6 +511,16 @@ void ResetThumbnail(void)
 		thumbnaildrawer->ClearFonts();
 		thumbnaildrawer->ThumbnailPopup();
 	}
+}
+
+HIMAGELIST GetThumbnailIcons(void)
+{
+	static HIMAGELIST theicons;
+	if (!theicons)
+	{
+		theicons = tools::prepareIcons();
+	}
+	return theicons;
 }
 
 void UpdateOverlyStatus(void)
@@ -524,7 +539,7 @@ void UpdateOverlyStatus(void)
 			{
 				if (itaskbar != NULL)
 				{
-					icon = ImageList_GetIcon(theicons, tools::getBitmap(TB_PLAYPAUSE, 0), 0);
+					icon = ImageList_GetIcon(GetThumbnailIcons(), tools::getBitmap(TB_PLAYPAUSE, 0), 0);
 					itaskbar->SetIconOverlay(icon, WASABI_API_LNGSTRINGW_BUF(IDS_PLAYING, tmp, 64));
 				}
 				break;
@@ -533,7 +548,7 @@ void UpdateOverlyStatus(void)
 			{
 				if (itaskbar != NULL)
 				{
-					icon = ImageList_GetIcon(theicons, tools::getBitmap(TB_PLAYPAUSE, 1), 0);
+					icon = ImageList_GetIcon(GetThumbnailIcons(), tools::getBitmap(TB_PLAYPAUSE, 1), 0);
 					itaskbar->SetIconOverlay(icon, WASABI_API_LNGSTRINGW_BUF(IDS_PAUSED, tmp, 64));
 				}
 				break;
@@ -542,7 +557,7 @@ void UpdateOverlyStatus(void)
 			{
 				if (itaskbar != NULL)
 				{
-					icon = ImageList_GetIcon(theicons, tools::getBitmap(TB_STOP, 1), 0);
+					icon = ImageList_GetIcon(GetThumbnailIcons(), tools::getBitmap(TB_STOP, 1), 0);
 					itaskbar->SetIconOverlay(icon, WASABI_API_LNGSTRINGW_BUF(IDS_PAUSED, tmp, 64));
 				}
 				break;
@@ -766,7 +781,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				}
 				else if ((lParam == IPC_CB_MISC) && (wParam == IPC_CB_MISC_VOLUME))
 				{
-					Settings.play_volume = GetSetVolume((WPARAM)-666);
+					Settings.play_volume = GetSetVolume((WPARAM)-666, FALSE);
 				}
 				else if (lParam == delay_ipc)
 				{
@@ -787,9 +802,8 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					// Register taskbarcreated message
 					WM_TASKBARBUTTONCREATED = RegisterWindowMessage(L"TaskbarButtonCreated");
 
-					wchar_t ini_path[MAX_PATH] = {0};
-					PathCombine(ini_path, GetPaths()->settings_dir,
-								L"Plugins\\win7shell.ini");
+					wchar_t ini_path[MAX_PATH] = { 0 };
+					PathCombine(ini_path, GetPaths()->settings_sub_dir, L"win7shell.ini");
 					SettingsFile = ini_path;
 
 					// Read Settings into struct
@@ -800,9 +814,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					Settings.play_playlistpos = GetPlaylistPosition();
 					Settings.play_playlistlen = GetPlaylistLength();
 					Settings.play_total = GetCurrentTrackLengthMilliSeconds();
-					Settings.play_volume = GetSetVolume((WPARAM)-666);
-
-					theicons = tools::prepareIcons();
+					Settings.play_volume = GetSetVolume((WPARAM)-666, FALSE);
 
 					LPCWSTR p = GetPlayingFilename(1);
 					if (p != NULL)
@@ -1021,7 +1033,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				}
 				case TB_DELETE:
 				{
-					SHFILEOPSTRUCTW fileop = { 0 };
+					SHFILEOPSTRUCT fileop = { 0 };
 					wchar_t path[MAX_PATH] = { 0 };
 					(void)StringCchCopy(path, ARRAYSIZE(path), metadata.getFileName().c_str());
 
@@ -1072,7 +1084,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 	{
 		if ((itaskbar != NULL) && itaskbar->Reset())
 		{
-			updateToolbar(theicons);
+			updateToolbar(GetThumbnailIcons());
 		}
 
 		SetupJumpList();
@@ -1096,7 +1108,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 				itaskbar = new iTaskBar(Settings);
 				if ((itaskbar != NULL) && itaskbar->Reset())
 				{
-					updateToolbar(theicons);
+					updateToolbar(GetThumbnailIcons());
 				}
 
 				if (Settings.VuMeter)
@@ -1320,6 +1332,28 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 						running = true;
 					}
 				}
+			}
+			break;
+		}
+		case 6671:	// long running check mostly for Windows 11
+		{
+			KillTimer(plugin.hwndParent, 6671);
+
+			// TODO until above is updated to correctly deal with
+			//		Windows 11 (not touching the beta preview for
+			//		now) it's necessary to see if there's a long
+			//		running instance running & manually kill it &
+			//		hope that it's not going to clash with others
+			const bool was_running = running;
+			if (running)
+			{
+				running = false;
+				KillTimer(plugin.hwndParent, 6670);
+			}
+
+			if (was_running)
+			{
+				SetTimer(plugin.hwndParent, 6671, 30000, TimerProc);
 			}
 			break;
 		}
@@ -1615,7 +1649,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 			// Set button icons
 			for (int i = 0; i < NR_BUTTONS; i++)
 			{
-				HICON icon = ImageList_GetIcon(theicons, tools::getBitmap(TB_PREVIOUS+i, i == 10 ? 1 : 0), 0);
+				HICON icon = ImageList_GetIcon(GetThumbnailIcons(), tools::getBitmap(TB_PREVIOUS+i, i == 10 ? 1 : 0), 0);
 				SendDlgItemMessage(hwnd, IDC_PCB1+i, BM_SETIMAGE, IMAGE_ICON, (LPARAM)icon);
 				DestroyIcon(icon);
 			}
@@ -1794,7 +1828,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 					{
 						if ((itaskbar != NULL) && itaskbar->Reset())
 						{
-							updateToolbar(theicons);
+							updateToolbar(GetThumbnailIcons());
 						}
 					}
 					else
@@ -2058,7 +2092,7 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 					{
 						if (itaskbar->Reset())
 						{
-							updateToolbar(theicons);
+							updateToolbar(GetThumbnailIcons());
 						}
 
 						itaskbar->SetWindowAttr();
@@ -2349,8 +2383,8 @@ extern "C" __declspec(dllexport) int winampUninstallPlugin(HINSTANCE hDllInst, H
 	{
 		no_uninstall = false;
 
-		wchar_t ini_path[MAX_PATH] = {0};
-		PathCombine(ini_path, GetPaths()->settings_dir, L"Plugins\\win7shell.ini");
+		wchar_t ini_path[MAX_PATH] = { 0 };
+		PathCombine(ini_path, GetPaths()->settings_sub_dir, L"win7shell.ini");
 		if (PathFileExists(ini_path))
 		{
 			DeleteFile(ini_path);
