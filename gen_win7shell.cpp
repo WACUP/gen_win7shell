@@ -401,7 +401,10 @@ void updateToolbar(HIMAGELIST ImageList)
 			thbButtons.push_back(button);
 		}
 
-		itaskbar->ThumbBarUpdateButtons(thbButtons, ImageList);
+		if (itaskbar != NULL)
+		{
+			itaskbar->ThumbBarUpdateButtons(thbButtons, ImageList);
+		}
 	}
 }
 
