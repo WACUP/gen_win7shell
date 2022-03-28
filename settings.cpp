@@ -4,15 +4,15 @@
 #include <sstream>
 #include <windowsx.h>
 #include <strsafe.h>
+#include <shlwapi.h>
 #include <commctrl.h>
 #include "settings.h"
 #include "gen_win7shell.h"
 #include "api.h"
 #include "resource.h"
+#include <loader/loader/utils.h>
 #include <sdk/nu/autowide.h>
 #include <sdk/nu/autochar.h>
-#include <sdk/nu/autocharfn.h>
-#include <loader/loader/utils.h>
 
 int SettingsManager::GetInt(const std::wstring &key, const int default_value) const
 {
@@ -31,12 +31,12 @@ std::wstring SettingsManager::GetString(const std::wstring &key,
 	LPCSTR _section = AutoCharDup((LPWSTR)currentSection.c_str(), CP_UTF8),
 		   _key = AutoCharDup((LPWSTR)key.c_str(), CP_UTF8),
 		   _default = AutoCharDup((LPWSTR)default_value.c_str(), CP_UTF8),
-		   _file = AutoCharFnDup((LPWSTR)SettingsFile.c_str());
+		   _file = ConvertPathToA((LPWSTR)SettingsFile.c_str(), NULL, 0, CP_ACP);
 
 	std::string buffer;
 	buffer.resize(max_size);
 	const DWORD len = GetPrivateProfileStringA(_section, _key, _default,
-											   &buffer[0], max_size, _file);
+											   &buffer[0], (int)max_size, _file);
 	buffer.resize(len);
 
 	free((void *)_section);
@@ -81,7 +81,7 @@ void SettingsManager::WriteString(const std::wstring &key, const std::wstring &v
 {
 	LPCSTR _section = AutoCharDup((LPWSTR)currentSection.c_str(), CP_UTF8),
 		   _key = AutoCharDup((LPWSTR)key.c_str(), CP_UTF8),
-		   _file = AutoCharFnDup((LPWSTR)SettingsFile.c_str());
+		   _file = ConvertPathToA((LPWSTR)SettingsFile.c_str(), NULL, 0, CP_ACP);
 	if (value != default_value)
 	{
 		LPCSTR _value = AutoCharDup((LPWSTR)value.c_str(), CP_UTF8);
@@ -278,7 +278,7 @@ void SettingsManager::WriteSettings(const sSettings &Source_struct)
 
 	// now we see if the file remaining is empty as
 	// there's no point in keeping an empty file...
-	if (PathFileExists(SettingsFile.c_str()) &&
+	if (FileExists(SettingsFile.c_str()) &&
 		!GetFileSizeByPath(SettingsFile.c_str()))
 	{
 		DeleteFile(SettingsFile.c_str());

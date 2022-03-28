@@ -16,15 +16,17 @@
 namespace tools
 {
 	// Namespace variables
-	const int NR_THUMB_BUTTONS = 19;
+	const int NR_THUMB_BUTTONS = 19,
+			  NR_OVERLAY_ICONS = 3;
 
 	// Functions declarations
 	std::wstring getBookmarks(void);
 	HRESULT CreateShellLink(LPCWSTR filename, LPCWSTR pszTitle, IShellLink **ppsl);
 	//bool is_in_recent(std::wstring &filename);
+	HIMAGELIST prepareOverlayIcons(void);
 	HIMAGELIST prepareIcons(void);
 	std::wstring SecToTime(const int sec);
-	LPCWSTR getToolTip(const int button, const int mode = -1);
+	LPCWSTR getToolTip(const WPARAM button, const int mode = -1);
 	int getBitmap(const int button, const int mode);
 }
 

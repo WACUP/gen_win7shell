@@ -13,9 +13,6 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
     </Filter>
-    <Filter Include="External Libraries">
-      <UniqueIdentifier>{aa4172f7-294c-4268-8a86-8560d38fb47f}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="gen_win7shell.cpp">
@@ -157,6 +154,9 @@
       <Filter>Resource Files</Filter>
     </None>
     <None Include="Resources\stop.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="gen_win7shell.def">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>

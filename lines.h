@@ -12,8 +12,8 @@ public:
 	lines(sSettings &Settings, MetaData &Metadata);
 
 	std::wstring::size_type GetNumberOfLines() const { return m_texts.size(); }
-	std::wstring GetLineText(int index) const { return m_texts[index]; }
-	linesettings GetLineSettings(int index) const { return m_linesettings[index]; }
+	std::wstring GetLineText(const size_t index) const { return m_texts[index]; }
+	linesettings GetLineSettings(const size_t index) const { return m_linesettings[index]; }
 
 	void Parse();
 

@@ -129,7 +129,7 @@ enum ThumbButtonID
 
 extern winampGeneralPurposePlugin plugin;
 extern std::wstring SettingsFile;
-extern bool windowShade, classicSkin, modernSUI, modernFix;
+extern bool windowShade, classicSkin, modernSUI, modernFix, running;
 extern HWND dialogParent;
 extern int repeat;
 

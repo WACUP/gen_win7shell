@@ -47,10 +47,10 @@ HRESULT iTaskBar::ThumbBarUpdateButtons(std::vector<THUMBBUTTON>& buttons, HIMAG
 	if (ImageList != NULL)
 	{
 		pTBL->ThumbBarSetImageList(plugin.hwndParent, ImageList);
-		return pTBL->ThumbBarAddButtons(plugin.hwndParent, buttons.size(), &buttons[0]);
+		return pTBL->ThumbBarAddButtons(plugin.hwndParent, (int)buttons.size(), &buttons[0]);
 	}
 
-	return pTBL->ThumbBarUpdateButtons(plugin.hwndParent, buttons.size(), &buttons[0]);
+	return pTBL->ThumbBarUpdateButtons(plugin.hwndParent, (int)buttons.size(), &buttons[0]);
 }
 
 void iTaskBar::SetIconOverlay(HICON icon, const std::wstring &text)

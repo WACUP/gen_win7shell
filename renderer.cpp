@@ -131,10 +131,13 @@ void renderer::createArtwork(const int cur_w, const int cur_h, ARGB32 *cur_image
 int __cdecl preview_sync_callback(const wchar_t *filename, const int w, const int h,
 								  ARGB32 *callback_bits, void *user_data)
 {
-	LPCWSTR fn = ((renderer*)user_data)->GetMetadata().getFileName().c_str();
+	// due to how this might be triggered (e.g. closing action) it's necessary to have it avoid
+	// trying to do anything here so we don't then crash due to accessing a non-existant object
+	renderer* this_renderer = reinterpret_cast<renderer*>(user_data);
+	LPCWSTR fn = (running && this_renderer ? this_renderer->GetMetadata().getFileName().c_str() : NULL);
 	if (fn && *fn && !_wcsicmp(filename, fn))
 	{
-		((renderer*)user_data)->createArtwork(w, h, callback_bits);
+		this_renderer->createArtwork(w, h, callback_bits);
 		return TRUE;
 	}
 	return FALSE;

@@ -8,7 +8,7 @@
 
 namespace tools
 {
-	LPCWSTR getToolTip(const int button, const int mode)
+	LPCWSTR getToolTip(const WPARAM button, const int mode)
 	{
 		int strID = -1;
 
@@ -145,14 +145,18 @@ namespace tools
 			HRESULT hr = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&psl));
 			if (SUCCEEDED(hr) && psl)
 			{
+				wchar_t fname[MAX_PATH] = { 0 };
+#ifndef _WIN64
 				// due to how WACUP works, a wacup.exe or
 				// a winamp.exe might be being used (this
 				// is ignoring the winamp.original aspect
 				// that this code was dealing with). this
 				// call will get the appropriate filepath
 				// for the instance of the loader in use!
-				wchar_t fname[MAX_PATH] = { 0 };
 				RealWACUPPath(fname, ARRAYSIZE(fname));
+#else
+				StringCchCopy(fname, ARRAYSIZE(fname), GetPaths()->wacup_exe_path);
+#endif
 
 				LPSHELLFOLDER pDesktopFolder = 0;
 				if (SUCCEEDED(SHGetDesktopFolder(&pDesktopFolder)) && pDesktopFolder)
@@ -232,8 +236,8 @@ namespace tools
 						hr = psl->QueryInterface(IID_PPV_ARGS(&pps));
 						if (SUCCEEDED(hr))
 						{
-							PROPVARIANT propvar = {0};
-							hr = InitPropVariantFromString(pszTitle, &propvar);
+							PROPVARIANT propvar = { 0 };
+							hr = PropVarFromStr(pszTitle, &propvar);
 							if (SUCCEEDED(hr))
 							{
 								hr = pps->SetValue(PKEY_Title, propvar);
@@ -268,8 +272,79 @@ namespace tools
 		ExpandEnvironmentStrings(L"%appdata%\\Microsoft\\Windows\\Recent", path, ARRAYSIZE(path));
 		PathAppend(path, filename.c_str());
 		PathAddExtension(path, L".lnk");
-		return !!PathFileExists(path);
+		return !!FileExists(path);
 	}*/
+
+	HICON getCustomIcon(LPCWSTR file)
+	{
+		HICON hicon = NULL;
+		if (file)
+		{
+			wchar_t folder[MAX_PATH] = { 0 },
+					test_path[MAX_PATH] = { 0 };
+
+			// look in the current skin for per-skin customisation
+			GetCurrentSkin(folder, ARRAYSIZE(folder));
+			if (folder[0])
+			{
+				StringCchPrintf(test_path, ARRAYSIZE(test_path),
+								L"%s\\%s.ico", folder, file);
+
+				if (FileExists(test_path))
+				{
+					hicon = (HICON)LoadImage(NULL, test_path, IMAGE_ICON,
+												0, 0, LR_LOADFROMFILE);
+				}
+			}
+
+			// before looking in a more generic taskbar folder
+			// which is stored in the user settings folder...
+			if (hicon == NULL)
+			{
+				CombinePath(folder, GetPaths()->settings_dir, L"Taskbar");
+				StringCchPrintf(test_path, ARRAYSIZE(test_path),
+								L"%s\\%s.ico", folder, file);
+
+				if (FileExists(test_path))
+				{
+					hicon = (HICON)LoadImage(NULL, test_path, IMAGE_ICON,
+												0, 0, LR_LOADFROMFILE);
+				}
+			}
+		}
+		return hicon;
+	}
+
+	HIMAGELIST prepareOverlayIcons(void)
+	{
+		HIMAGELIST himlIcons = ImageList_Create(GetSystemMetrics(SM_CXSMICON),
+												GetSystemMetrics(SM_CYSMICON),
+												ILC_COLOR32, NR_OVERLAY_ICONS, 0);
+
+		for (int i = 0; i < NR_OVERLAY_ICONS; ++i)
+		{
+			int icon[] = { 2, 1, 0 };
+			LPCWSTR file[] = { L"overlay_stop", L"overlay_pause", L"overlay_play" };
+			HICON hicon = getCustomIcon(file[i]);
+			if (hicon == NULL)
+			{
+				const int icons[] = { 204/*play*/, 208/*pause*/, 205/*stop*/ };
+				hicon = (HICON)LoadImage(GetModuleHandle(GetPaths()->wacup_core_dll),
+									MAKEINTRESOURCE(icons[(NR_OVERLAY_ICONS - i)]),
+														   IMAGE_ICON, 0, 0, 0);
+			}
+
+			if (hicon == NULL)
+			{
+				return NULL;
+			}
+			else
+			{
+				ImageList_AddIcon(himlIcons, hicon);
+			}
+		}
+		return himlIcons;
+	}
 
 	HIMAGELIST prepareIcons(void)
 	{
@@ -279,78 +354,143 @@ namespace tools
 
 		for (int i = 0; i < NR_THUMB_BUTTONS; ++i)
 		{
-#if 1
 			int icon = -1;
+			LPCWSTR file = NULL;
 			switch (IDI_TBICON0 + i)
 			{
 				case IDI_TBICON0:	// stop
 				{
 					icon = 3;
+					file = L"stop";
 					break;
 				}
 				case IDI_TBICON1:	// prev
 				{
 					icon = 0;
+					file = L"prev";
 					break;
 				}
 				case IDI_TBICON2:	// pause
 				{
 					icon = 2;
+					file = L"pause";
 					break;
 				}
 				case IDI_TBICON3:	// play
 				{
 					icon = 1;
+					file = L"play";
 					break;
 				}
 				case IDI_TBICON4:	// next
 				{
 					icon = 4;
+					file = L"next";
+					break;
+				}
+				case IDI_TBICON5:	// rate/fav
+				{
+					file = L"rate";
 					break;
 				}
 				case IDI_TBICON6:	// voldown
 				{
 					icon = 6;
+					file = L"voldown";
 					break;
 				}
 				case IDI_TBICON7:	// volup
 				{
 					icon = 7;
+					file = L"volup";
 					break;
 				}
 				case IDI_TBICON8:	// open
 				{
 					icon = 5;
+					file = L"open";
+					break;
+				}
+				case IDI_TBICON9:	// mute
+				{
+					file = L"mute";
+					break;
+				}
+				case IDI_TBICON10:	// stopaftercurrent
+				{
+					file = L"stopaftercurrent";
+					break;
+				}
+				case IDI_TBICON11:	// repeatoff
+				{
+					file = L"repeatoff";
+					break;
+				}
+				case IDI_TBICON12:	// repeatall
+				{
+					file = L"repeatall";
+					break;
+				}
+				case IDI_TBICON13:	// repeatone
+				{
+					file = L"repeatone";
+					break;
+				}
+				case IDI_TBICON14:	// shuffleoff
+				{
+					file = L"shuffleoff";
+					break;
+				}
+				case IDI_TBICON15:	// shuffleon
+				{
+					file = L"shuffleon";
+					break;
+				}
+				case IDI_TBICON16:	// search
+				{
+					file = L"search";
+					break;
+				}
+				case IDI_TBICON17:	// delete
+				{
+					file = L"delete";
+					break;
+				}
+				case IDI_TBICON18:	// folder
+				{
+					file = L"openfolder";
 					break;
 				}
 			}
 
+			HICON hicon = getCustomIcon(file);
 			if (icon != -1)
 			{
-				const int icons[] = {203/*prev*/, 204/*play*/, 208/*pause*/, 205/*stop*/,
-									 206/*next*/, 207/*open*/, 209/*voldown*/, 210/*volup*/};
-				HICON hicon = LoadIcon(GetModuleHandle(GetPaths()->wacup_core_dll), MAKEINTRESOURCE(icons[icon]));
 				if (hicon == NULL)
 				{
-					return NULL;
-				}
-				else
-				{
-					ImageList_AddIcon(himlIcons, hicon);
+					const int icons[] = {203/*prev*/, 204/*play*/, 208/*pause*/, 205/*stop*/,
+										 206/*next*/, 207/*open*/, 209/*voldown*/, 210/*volup*/};
+					hicon = (HICON)LoadImage(GetModuleHandle(GetPaths()->wacup_core_dll),
+									   MAKEINTRESOURCE(icons[icon]), IMAGE_ICON, 0, 0, 0);
 				}
 			}
 			else
-#endif
 			{
-				HICON hicon = LoadIcon(plugin.hDllInstance, MAKEINTRESOURCE(IDI_TBICON0 + i)); 
 				if (hicon == NULL)
 				{
-					return NULL;
+					hicon = (HICON)LoadImage(plugin.hDllInstance,
+								   MAKEINTRESOURCE(IDI_TBICON0 + i),
+												   IMAGE_ICON, 0, 0, 0);
 				}
-				else
-				{
-					ImageList_AddIcon(himlIcons, hicon);
-				}
+			}
+
+			if (hicon == NULL)
+			{
+				return NULL;
+			}
+			else
+			{
+				ImageList_AddIcon(himlIcons, hicon);
 			}
 		}
 

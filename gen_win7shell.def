@@ -1,0 +1,6 @@
+EXPORTS
+winampGetGeneralPurposePlugin @1
+winampUninstallPlugin @2
+TabHandler_Taskbar @3 NONAME
+TabHandler_Thumbnail @4 NONAME
+TabHandler_ThumbnailImage @5 NONAME

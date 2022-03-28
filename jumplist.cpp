@@ -10,6 +10,9 @@
 #include <strsafe.h>
 #include "jumplist.h"
 #include "api.h"
+#ifdef _WIN64
+#include <loader/loader/paths.h>
+#endif
 #include <loader/loader/utils.h>
 
 JumpList::JumpList(LPCWSTR AppID, const bool delete_now) : pcdl(NULL)
@@ -66,6 +69,7 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 			{
 				__try
 				{
+#ifndef _WIN64
 					// due to how WACUP works, a wacup.exe or
 					// a winamp.exe might be being used (this
 					// is ignoring the winamp.original aspect
@@ -77,6 +81,9 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 					{
 						RealWACUPPath(fname, ARRAYSIZE(fname));
 					}
+#else
+					LPCWSTR fname = GetPaths()->wacup_exe_path;
+#endif
 
 					if (mode == 1)
 					{
@@ -118,8 +125,8 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 					hr = psl->QueryInterface(IID_PPV_ARGS(&pps));
 					if (SUCCEEDED(hr))
 					{
-						PROPVARIANT propvar = {0};
-						hr = InitPropVariantFromString(pszTitle, &propvar);
+						PROPVARIANT propvar = { 0 };
+						hr = PropVarFromStr(pszTitle, &propvar);
 						if (SUCCEEDED(hr))
 						{
 							hr = pps->SetValue(PKEY_Title, propvar);
@@ -227,8 +234,14 @@ void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring
 
 		if (SUCCEEDED(hr))
 		{
-			// Commit the list-building transaction.
-			pcdl->CommitList();
+			__try
+			{
+				// Commit the list-building transaction.
+				pcdl->CommitList();
+			}
+			__except (EXCEPTION_EXECUTE_HANDLER)
+			{
+			}
 		}
 	}
 	poaRemoved->Release();

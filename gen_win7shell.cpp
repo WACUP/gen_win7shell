@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"3.8.3"
+#define PLUGIN_VERSION L"4.0"
 
 #define NR_BUTTONS 15
 
@@ -123,7 +123,7 @@ const bool GenerateAppIDFromFolder(const wchar_t *search_path, wchar_t *app_id)
 
 	IKnownFolderManager* pkfm = NULL;
 	HRESULT hr = CoCreateInstance(CLSID_KnownFolderManager, NULL,
-	CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pkfm));
+								  CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pkfm));
 
 	if (SUCCEEDED(hr))
 	{
@@ -136,7 +136,7 @@ const bool GenerateAppIDFromFolder(const wchar_t *search_path, wchar_t *app_id)
 			if (SUCCEEDED(pFolder->GetPath(0, &path)))
 			{
 				// we now check that things are a match
-				const int len = wcslen(path);
+				const size_t len = wcslen(path);
 				if (!_wcsnicmp(search_path, path, len))
 				{
 					// and if they are then we'll merge
@@ -183,7 +183,7 @@ LPCWSTR GetAppID(void)
 					(void)StringCchCopy(app_id, ARRAYSIZE(app_id), self_path);
 				}
 
-				PathRenameExtension(app_id, L".exe");
+				RenameExtension(app_id, L".exe");
 
 				// TODO: auto-pin icon (?)
 				if (SetCurrentProcessExplicitAppUserModelID(app_id) != S_OK)
@@ -259,7 +259,7 @@ void config(void)
 		{
 			wchar_t text[512] = {0};
 			StringCchPrintf(text, ARRAYSIZE(text), WASABI_API_LNGSTRINGW(IDS_ABOUT_MESSAGE),
-							L"Darren Owen aka DrO (2018-2021)", TEXT(__DATE__));
+							L"Darren Owen aka DrO (2018-2022)", TEXT(__DATE__));
 			AboutMessageBox(list, text, (LPWSTR)plugin.description);
 			break;
 		}
@@ -277,6 +277,7 @@ void config(void)
 
 void quit(void)
 {
+	KillTimer(plugin.hwndParent, 6667);
 	KillTimer(plugin.hwndParent, 6668);
 	KillTimer(plugin.hwndParent, 6670);
 	KillTimer(plugin.hwndParent, 6671);
@@ -315,45 +316,6 @@ void quit(void)
 	//ServiceRelease(plugin.service, WASABI_API_LNG, languageApiGUID);
 	//ServiceRelease(plugin.service, WASABI_API_EXPLORERFINDFILE, ExplorerFindFileApiGUID);
 	ServiceRelease(plugin.service, WASABI_API_SKIN, skinApiServiceGuid);
-}
-
-HWND WINAPI TASKBAR_CreateDialogParam(HINSTANCE original, LPCWSTR id, HWND parent, DLGPROC proc, LPARAM param)
-{
-	return WASABI_API_CREATEDIALOGPARAMW((int)id, parent, proc, param);
-}
-
-// callback so i can get some of the prefence dialog messages
-void PrefDialogCallback(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, INT section_idx)
-{
-	if (msg == -1)
-	{
-		static int _wa_cur_page = -1;
-		int wa_cur_page = 0;
-		if (!wp)
-		{
-			LPARAM* cur_page = (LPARAM*)lp;
-			*cur_page = wa_cur_page = Settings.LastTab;
-			if (_wa_cur_page == -1)
-			{
-				_wa_cur_page = wa_cur_page;
-			}
-		}
-		else if (wp == 1)
-		{
-			if (_wa_cur_page != -1)
-			{
-				wa_cur_page = lp;
-				if ((wa_cur_page != _wa_cur_page) && no_uninstall)
-				{
-					Settings.LastTab = wa_cur_page;
-
-					// save the settings only when changed
-					SettingsManager SManager;
-					SManager.WriteSettings(Settings);
-				}
-			}
-		}
-	}
 }
 
 void updateToolbar(HIMAGELIST ImageList)
@@ -410,7 +372,7 @@ void updateToolbar(HIMAGELIST ImageList)
 
 BOOL CALLBACK checkSkinProc(HWND hwnd, LPARAM lParam)
 {
-	wchar_t cl[24] = {0};
+	wchar_t cl[24] = { 0 };
 	GetClassName(hwnd, cl, ARRAYSIZE(cl));
 	if (!_wcsnicmp(cl, L"BaseWindow_RootWnd", 18))
 	{
@@ -516,25 +478,44 @@ void ResetThumbnail(void)
 	}
 }
 
-HIMAGELIST GetThumbnailIcons(void)
+HIMAGELIST GetThumbnailIcons(const bool force_refresh)
 {
 	static HIMAGELIST theicons;
-	if (!theicons)
+	if (!theicons || force_refresh)
 	{
+		if (theicons)
+		{
+			ImageList_Destroy(theicons);
+		}
 		theicons = tools::prepareIcons();
 	}
 	return theicons;
 }
 
-void UpdateOverlyStatus(void)
+HIMAGELIST GetOverlayIcons(const bool force_refresh)
+{
+	static HIMAGELIST overlayicons;
+	if (!overlayicons || force_refresh)
+	{
+		if (overlayicons)
+		{
+			ImageList_Destroy(overlayicons);
+		}
+		overlayicons = tools::prepareOverlayIcons();
+	}
+	return overlayicons;
+}
+
+void UpdateOverlyStatus(const bool force_refresh)
 {
 	Settings.play_state = GetPlayingState();
 
-	updateToolbar();
+	updateToolbar(GetThumbnailIcons(force_refresh));
 
 	if (Settings.Overlay)
 	{
-		wchar_t tmp[64] = {0};
+		static wchar_t *playing_str = WASABI_API_LNGSTRINGW_DUP(IDS_PLAYING),
+					   *paused_str = WASABI_API_LNGSTRINGW_DUP(IDS_PAUSED);
 		HICON icon = NULL;
 		switch (Settings.play_state)
 		{
@@ -542,8 +523,13 @@ void UpdateOverlyStatus(void)
 			{
 				if (itaskbar != NULL)
 				{
-					icon = ImageList_GetIcon(GetThumbnailIcons(), tools::getBitmap(TB_PLAYPAUSE, 0), 0);
-					itaskbar->SetIconOverlay(icon, WASABI_API_LNGSTRINGW_BUF(IDS_PLAYING, tmp, 64));
+					const int index = tools::getBitmap(TB_PLAYPAUSE, 0);
+					icon = ImageList_GetIcon(GetOverlayIcons(force_refresh), (index - 1), 0);
+					if (icon == NULL)
+					{
+						icon = ImageList_GetIcon(GetThumbnailIcons(false/*force_refresh*/), index, 0);
+					}
+					itaskbar->SetIconOverlay(icon, playing_str);
 				}
 				break;
 			}
@@ -551,8 +537,13 @@ void UpdateOverlyStatus(void)
 			{
 				if (itaskbar != NULL)
 				{
-					icon = ImageList_GetIcon(GetThumbnailIcons(), tools::getBitmap(TB_PLAYPAUSE, 1), 0);
-					itaskbar->SetIconOverlay(icon, WASABI_API_LNGSTRINGW_BUF(IDS_PAUSED, tmp, 64));
+					const int index = tools::getBitmap(TB_PLAYPAUSE, 1);
+					icon = ImageList_GetIcon(GetOverlayIcons(force_refresh), (index - 1), 0);
+					if (icon == NULL)
+					{
+						icon = ImageList_GetIcon(GetThumbnailIcons(false/*force_refresh*/), index, 0);
+					}
+					itaskbar->SetIconOverlay(icon, paused_str);
 				}
 				break;
 			}
@@ -560,8 +551,13 @@ void UpdateOverlyStatus(void)
 			{
 				if (itaskbar != NULL)
 				{
-					icon = ImageList_GetIcon(GetThumbnailIcons(), tools::getBitmap(TB_STOP, 1), 0);
-					itaskbar->SetIconOverlay(icon, WASABI_API_LNGSTRINGW_BUF(IDS_PAUSED, tmp, 64));
+					const int index = tools::getBitmap(TB_STOP, 1);
+					icon = ImageList_GetIcon(GetOverlayIcons(force_refresh), index, 0);
+					if (icon == NULL)
+					{
+						icon = ImageList_GetIcon(GetThumbnailIcons(false/*force_refresh*/), index, 0);
+					}
+					itaskbar->SetIconOverlay(icon, paused_str);
 				}
 				break;
 			}
@@ -663,8 +659,13 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				ResetThumbnail();
 				break;
 			}
-			case IPC_SETDIALOGBOXPARENT:
-			case IPC_UPDATEDIALOGBOXPARENT:
+			/*case IPC_SETDIALOGBOXPARENT:
+			case IPC_UPDATEDIALOGBOXPARENT:*/
+			// instead of checking for the above
+			// we'll use this since WACUP 1.6.4+
+			// which consolidates & filters out
+			// duplicate messages to reduce work
+			case IPC_CB_ONDIALOGPARENTCHANGE:
 			{
 				// we cache this now as winamp will have
 				// cached it too by now so we're in-sync
@@ -681,25 +682,25 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 			}
 			case IPC_CB_ONTOGGLEMANUALADVANCE:
 			{
-				pladv = wParam;
+				pladv = (int)wParam;
 				updateRepeatButton();
 				break;
 			}
 			case IPC_CB_ONTOGGLEREPEAT:
 			{
-				repeat = wParam;
+				repeat = (int)wParam;
 				updateRepeatButton();
 				break;
 			}
 			case IPC_CB_ONTOGGLESHUFFLE:
 			{
-				Settings.state_shuffle = wParam;
+				Settings.state_shuffle = (int)wParam;
 				updateToolbar();
 				break;
 			}
 			case IPC_PLAYLIST_MODIFIED:
 			{
-				Settings.play_playlistlen = wParam;
+				Settings.play_playlistlen = (int)wParam;
 				break;
 			}
 			case IPC_ADDBOOKMARK:
@@ -754,6 +755,8 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					itaskbar->SetWindowAttr();
 				}
 
+				UpdateOverlyStatus(true);
+
 				// fall-through for the other handling needed
 			}
 			default:
@@ -780,11 +783,11 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				}
 				else if ((lParam == IPC_CB_MISC) && (wParam == IPC_CB_MISC_STATUS))
 				{
-					UpdateOverlyStatus();
+					UpdateOverlyStatus(false);
 				}
 				else if ((lParam == IPC_CB_MISC) && (wParam == IPC_CB_MISC_VOLUME))
 				{
-					Settings.play_volume = GetSetVolume((WPARAM)-666, FALSE);
+					Settings.play_volume = (int)GetSetVolume((WPARAM)-666, FALSE);
 				}
 				else if (lParam == delay_ipc)
 				{
@@ -797,16 +800,19 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 
 					windowShade = !!IsHWNDWndshade((WPARAM)-1)/*/SendMessage(hWnd, WM_WA_IPC, (WPARAM)-1, IPC_IS_WNDSHADE)/**/;
 
-					// Accept messages even if Winamp was run as Administrator
-					ChangeWindowMessageFilter(WM_COMMAND, 1);
-					ChangeWindowMessageFilter(WM_DWMSENDICONICTHUMBNAIL, 1);
-					ChangeWindowMessageFilter(WM_DWMSENDICONICLIVEPREVIEWBITMAP, 1);
+					if (!OnWINE())
+					{
+						// Accept messages even if Winamp was run as Administrator
+						ChangeWindowMessageFilter(WM_COMMAND, 1);
+						ChangeWindowMessageFilter(WM_DWMSENDICONICTHUMBNAIL, 1);
+						ChangeWindowMessageFilter(WM_DWMSENDICONICLIVEPREVIEWBITMAP, 1);
+					}
 
 					// Register taskbarcreated message
 					WM_TASKBARBUTTONCREATED = RegisterWindowMessage(L"TaskbarButtonCreated");
 
 					wchar_t ini_path[MAX_PATH] = { 0 };
-					PathCombine(ini_path, GetPaths()->settings_sub_dir, L"win7shell.ini");
+					CombinePath(ini_path, GetPaths()->settings_sub_dir, L"win7shell.ini");
 					SettingsFile = ini_path;
 
 					// Read Settings into struct
@@ -817,7 +823,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					Settings.play_playlistpos = GetPlaylistPosition();
 					Settings.play_playlistlen = GetPlaylistLength();
 					Settings.play_total = GetCurrentTrackLengthMilliSeconds();
-					Settings.play_volume = GetSetVolume((WPARAM)-666, FALSE);
+					Settings.play_volume = (int)GetSetVolume((WPARAM)-666, FALSE);
 
 					LPCWSTR p = GetPlayingFilename(1);
 					if (p != NULL)
@@ -996,7 +1002,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					LPCWSTR filename = metadata.getFileName().c_str();
 					if (filename && *filename)
 					{
-						if (PathFileExists(filename))
+						if (FileExists(filename))
 						{
 							/*if (WASABI_API_EXPLORERFINDFILE == NULL)
 							{
@@ -1025,8 +1031,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 
 							// if there's an extension then we'll give it another go
 							// as typically no extension means that it won't work...
-							LPCWSTR ext = PathFindExtension(filename);
-							if (ext && *ext)
+							if (FindPathExtension(filename))
 							{
 								plugin.explorerfindfile->AddAndShowFile(filename);
 							}
@@ -1050,7 +1055,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					SendMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(40047, 0), 0);
 					Settings.play_state = PLAYSTATE_NOTPLAYING; 
 
-					if (SHFileOperation(&fileop) == 0)
+					if (FileAction(&fileop) == 0)
 					{
 						SendMessage(GetPlaylistWnd(), WM_WA_IPC, IPC_PE_DELETEINDEX, GetPlaylistPosition());
 					}
@@ -1087,9 +1092,12 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 	{
 		if ((itaskbar != NULL) && itaskbar->Reset())
 		{
-			updateToolbar(GetThumbnailIcons());
+			updateToolbar(GetThumbnailIcons(true));
 		}
 
+		// TODO can this be done in a background
+		//		thread so it won't block as some
+		//		installs seem to be slow to run
 		SetupJumpList();
 	}
 }
@@ -1111,7 +1119,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 				itaskbar = new iTaskBar(Settings);
 				if ((itaskbar != NULL) && itaskbar->Reset())
 				{
-					updateToolbar(GetThumbnailIcons());
+					updateToolbar(GetThumbnailIcons(false));
 				}
 
 				if (Settings.VuMeter)
@@ -1132,8 +1140,8 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 
 			if (Settings.play_state != PLAYSTATE_NOTPLAYING)
 			{
-				Settings.play_kbps = GetInfoIPC(1);
-				Settings.play_khz = GetInfoIPC(0);
+				Settings.play_kbps = (int)GetInfoIPC(1);
+				Settings.play_khz = (int)GetInfoIPC(0);
 			}
 			else
 			{
@@ -1151,7 +1159,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 				if (!finishedLoad)
 				{
 					finishedLoad = true;
-					UpdateOverlyStatus();
+					UpdateOverlyStatus(false);
 				}
 
 				switch (Settings.play_state)
@@ -1369,45 +1377,47 @@ LRESULT CALLBACK rateWndProc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lPara
 	{
 		case WM_COMMAND:
 		{
+			WPARAM value = -1;
 			switch (LOWORD(wParam))
 			{
 				case IDC_RATE1:
 				{
-					PostMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_SETRATING);
-					DestroyWindow(hwndDlg);
+					value = 0;
 					break;
 				}
 				case IDC_RATE2:
 				{
-					PostMessage(plugin.hwndParent, WM_WA_IPC, 1, IPC_SETRATING);
-					DestroyWindow(hwndDlg);
+					value = 1;
 					break;
 				}
 				case IDC_RATE3:
 				{
-					PostMessage(plugin.hwndParent, WM_WA_IPC, 2, IPC_SETRATING);
-					DestroyWindow(hwndDlg);
+					value = 2;
 					break;
 				}
 				case IDC_RATE4:
 				{
-					PostMessage(plugin.hwndParent, WM_WA_IPC, 3, IPC_SETRATING);
-					DestroyWindow(hwndDlg);
+					value = 3;
 					break;
 				}
 				case IDC_RATE5:
 				{
-					PostMessage(plugin.hwndParent, WM_WA_IPC, 4, IPC_SETRATING);
-					DestroyWindow(hwndDlg);
+					value = 4;
 					break;
 				}
 				case IDC_RATE6:
 				{
-					PostMessage(plugin.hwndParent, WM_WA_IPC, 5, IPC_SETRATING);
-					DestroyWindow(hwndDlg);
+					value = 5;
 					break;
 				}
 			}
+
+			if (value != -1)
+			{
+				GetSetMainRating(value, IPC_SETRATING);
+			}
+
+			DestroyWindow(hwndDlg);
 			break;
 		}
 	}
@@ -1453,8 +1463,8 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 				{
 					wchar_t filepath[MAX_PATH] = {0};
 					SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, SHGFP_TYPE_CURRENT, filepath);
-					PathAppend(filepath, L"\\Microsoft\\Windows\\Recent\\AutomaticDestinations"
-										 L"\\879d567ffa1f5b9f.automaticDestinations-ms");
+					AppendOnPath(filepath, L"\\Microsoft\\Windows\\Recent\\AutomaticDestinations"
+										   L"\\879d567ffa1f5b9f.automaticDestinations-ms");
 
 					if (DeleteFile(filepath) != 0)
 					{
@@ -1493,7 +1503,7 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 					Settings.Overlay = (Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK3)) == BST_CHECKED);
 					if (Settings.Overlay)
 					{
-						UpdateOverlyStatus();
+						UpdateOverlyStatus(false);
 					}
 					else
 					{
@@ -1629,9 +1639,9 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 			// disable the 'text' section if needed
 			if (Settings.Thumbnailbackground == BG_WINAMP)
 			{
-				const int ids[] = {IDC_TEXT_GROUP, IDC_EDIT3, IDC_BUTTON5,
-								   IDC_BUTTON9, IDC_DEFAULT, IDC_BUTTON6,
-								   IDC_CHECK8, IDC_CHECK1, IDC_CHECK29};
+				const int ids[] = { IDC_TEXT_GROUP, IDC_EDIT3, IDC_BUTTON5,
+								    IDC_BUTTON9, IDC_DEFAULT, IDC_BUTTON6,
+								    IDC_CHECK8, IDC_CHECK1, IDC_CHECK29 };
 				for (int i = 0; i < ARRAYSIZE(ids); i++)
 				{
 					EnableControl(hwnd, ids[i], FALSE);
@@ -1644,16 +1654,16 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 			const HWND list = GetDlgItem(hwnd, IDC_LIST1);
 			for (size_t i = 0; i < TButtons.size(); ++i)
 			{
-				const int index = SendMessage(list, LB_ADDSTRING, NULL, (LPARAM)tools::getToolTip(TButtons[i], -1));
-				SendMessage(list, LB_SETITEMDATA, index, TButtons[i]);
+				SendMessage(list, LB_SETITEMDATA, SendMessage(list, LB_ADDSTRING, NULL,
+							(LPARAM)tools::getToolTip(TButtons[i], -1)), TButtons[i]);
 				SendDlgItemMessage(hwnd, TButtons[i], BM_SETCHECK, BST_CHECKED, NULL);
 			}
 			
 			// Set button icons
 			for (int i = 0; i < NR_BUTTONS; i++)
 			{
-				HICON icon = ImageList_GetIcon(GetThumbnailIcons(), tools::getBitmap(TB_PREVIOUS+i, i == 10 ? 1 : 0), 0);
-				SendDlgItemMessage(hwnd, IDC_PCB1+i, BM_SETIMAGE, IMAGE_ICON, (LPARAM)icon);
+				HICON icon = ImageList_GetIcon(GetThumbnailIcons(false), tools::getBitmap(TB_PREVIOUS + i, i == 10 ? 1 : 0), 0);
+				SendDlgItemMessage(hwnd, IDC_PCB1 + i, BM_SETIMAGE, IMAGE_ICON, (LPARAM)icon);
 				DestroyIcon(icon);
 			}
 
@@ -1772,15 +1782,16 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 				case IDC_UPBUTT:
 				{
 					const HWND list = GetDlgItem(hwnd, IDC_LIST1);
-					int index = SendMessage(list, LB_GETCURSEL, NULL, NULL);
+					int index = (int)SendMessage(list, LB_GETCURSEL, NULL, NULL);
 					if (index == 0 || index == -1)
 					{
 						break;
 					}
 
-					const int data = SendMessage(list, LB_GETITEMDATA, index, NULL);
+					const int data = (const int)SendMessage(list, LB_GETITEMDATA, index, NULL);
 					SendMessage(list, LB_DELETESTRING, index, NULL);
-					index = SendMessage(list, LB_INSERTSTRING, index - 1, (LPARAM)tools::getToolTip(data));
+					index = (int)SendMessage(list, LB_INSERTSTRING, index - 1,
+											 (LPARAM)tools::getToolTip(data));
 					SendMessage(list, LB_SETITEMDATA, index, data);
 					SendMessage(list, LB_SETCURSEL, index, NULL);
 
@@ -1788,7 +1799,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 					TButtons.clear();
 					for (int i = 0; i != ListBox_GetCount(list); ++i)
 					{
-						TButtons.push_back(ListBox_GetItemData(list, i));
+						TButtons.push_back((int)ListBox_GetItemData(list, i));
 					}
 
 					// Show note
@@ -1798,15 +1809,16 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 				case IDC_DOWNBUTT:
 				{
 					const HWND list = GetDlgItem(hwnd, IDC_LIST1);
-					int index = SendMessage(list, LB_GETCURSEL, NULL, NULL);
+					int index = (int)SendMessage(list, LB_GETCURSEL, NULL, NULL);
 					if (index == ListBox_GetCount(list)-1 || index == -1)
 					{
 						return 0;
 					}
 
-					const int data = SendMessage(list, LB_GETITEMDATA, index, NULL);
+					const int data = (const int)SendMessage(list, LB_GETITEMDATA, index, NULL);
 					SendMessage(list, LB_DELETESTRING, index, NULL);
-					index = SendMessage(list, LB_INSERTSTRING, index+1, (LPARAM)tools::getToolTip(data));
+					index = (int)SendMessage(list, LB_INSERTSTRING, index + 1,
+											 (LPARAM)tools::getToolTip(data));
 					SendMessage(list, LB_SETITEMDATA, index, data);
 					SendMessage(list, LB_SETCURSEL, index, NULL);
 
@@ -1814,7 +1826,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 					TButtons.clear();
 					for (int i = 0; i != ListBox_GetCount(list); ++i)
 					{
-						TButtons.push_back(ListBox_GetItemData(list, i));
+						TButtons.push_back((int)ListBox_GetItemData(list, i));
 					}
 
 					// Show note
@@ -1824,14 +1836,14 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 				case IDC_CHECK6:
 				{
 					Settings.Thumbnailbuttons = (Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK6)) == BST_CHECKED);
-					EnableControl(hwnd, IDC_CHECK27, SendDlgItemMessage(hwnd, IDC_CHECK6, (UINT) BM_GETCHECK, 0, 0));
+					EnableControl(hwnd, IDC_CHECK27, (UINT)SendDlgItemMessage(hwnd, IDC_CHECK6, BM_GETCHECK, 0, 0));
 					UpdateContolButtons(hwnd);
 
 					if (Settings.Thumbnailbuttons)
 					{
 						if ((itaskbar != NULL) && itaskbar->Reset())
 						{
-							updateToolbar(GetThumbnailIcons());
+							updateToolbar(GetThumbnailIcons(false));
 						}
 					}
 					else
@@ -1905,7 +1917,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 				}
 				case IDC_BUTTON5:
 				{
-					CHOOSEFONT cf = {0};
+					CHOOSEFONT cf = { 0 };
 					cf.lStructSize = sizeof(cf);
 					cf.hwndOwner = GetPrefsHWND();
 					cf.rgbColors = Settings.text_color;
@@ -1917,7 +1929,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 							   // safety blanket on things for the time being - dro)
 							   CF_SCALABLEONLY | CF_NOOEMFONTS | CF_TTONLY;
 
-					if (ChooseFont(&cf))
+					if (PickFont(&cf))
 					{
 						Settings.font = *cf.lpLogFont;
 						thumbnaildrawer->ClearFonts();
@@ -1928,14 +1940,14 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 				case IDC_BUTTON9:
 				{
 					const bool text = (LOWORD(wParam) == IDC_BUTTON9);
-					CHOOSECOLOR cc = {0};			// common dialog box structure
+					CHOOSECOLOR cc = { 0 };			// common dialog box structure
 					cc.lStructSize = sizeof(cc);
 					cc.hwndOwner = GetPrefsHWND();
 					cc.lpCustColors = (LPDWORD)acrCustClr;
 					cc.rgbResult = (!text ? Settings.bgcolor : Settings.text_color);
 					cc.Flags = CC_FULLOPEN | CC_RGBINIT;
 
-					if (ChooseColor(&cc) == TRUE) 
+					if (PickColour(&cc) == TRUE)
 					{
 						(!text ? Settings.bgcolor : Settings.text_color) = cc.rgbResult;
 						InvalidateRect(hwnd, NULL, false);
@@ -2045,13 +2057,13 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 			DWORD slider = GetDlgCtrlID((HWND)lParam);
 			if (slider == IDC_SLIDER1)
 			{
-				Settings.IconSize = SendMessage((HWND)lParam, TBM_GETPOS, NULL, NULL);
+				Settings.IconSize = (int)SendMessage((HWND)lParam, TBM_GETPOS, NULL, NULL);
 				StringCchPrintf(text, ARRAYSIZE(text), WASABI_API_LNGSTRINGW(IDS_ICON_SIZE), Settings.IconSize);
 				SetDlgItemText(hwnd, IDC_ICONSIZE, text);
 			}
 			else if (slider == IDC_SLIDER_TRANSPARENCY)
 			{
-				Settings.BG_Transparency = SendMessage((HWND)lParam, TBM_GETPOS, NULL, NULL);
+				Settings.BG_Transparency = (int)SendMessage((HWND)lParam, TBM_GETPOS, NULL, NULL);
 				StringCchPrintf(text, ARRAYSIZE(text), L"%d%%", Settings.BG_Transparency);
 				SetDlgItemText(hwnd, IDC_TRANSPARENCY_PERCENT, text);
 			}
@@ -2095,7 +2107,7 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 					{
 						if (itaskbar->Reset())
 						{
-							updateToolbar(GetThumbnailIcons());
+							updateToolbar(GetThumbnailIcons(false));
 						}
 
 						itaskbar->SetWindowAttr();
@@ -2165,7 +2177,7 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 				}
 				case IDC_COMBO1:
 				{
-					Settings.Revertto = SendDlgItemMessage(hwnd, IDC_COMBO1, CB_GETCURSEL, 0, 0);
+					Settings.Revertto = (int)SendDlgItemMessage(hwnd, IDC_COMBO1, CB_GETCURSEL, 0, 0);
 					ResetThumbnail();
 					break;
 				}
@@ -2237,8 +2249,8 @@ void AddStringtoList(HWND window, const int control_ID)
 	{
 		if (ListBox_GetCount(list) > 0)
 		{
-			const int index = SendMessage(list, LB_FINDSTRINGEXACT, (WPARAM)-1,
-										  (LPARAM)tools::getToolTip(control_ID));
+			const int index = (const int)SendMessage(list, LB_FINDSTRINGEXACT, (WPARAM)-1,
+													 (LPARAM)tools::getToolTip(control_ID));
 			if (index != LB_ERR)
 			{
 				ListBox_DeleteString(list, index);
@@ -2249,7 +2261,8 @@ void AddStringtoList(HWND window, const int control_ID)
 	{
 		if (ListBox_GetCount(list) == 0)
 		{
-			const int index = SendMessage(list, LB_ADDSTRING, NULL, (LPARAM)tools::getToolTip(control_ID));
+			const int index = (const int)SendMessage(list, LB_ADDSTRING, NULL, (LPARAM)
+													 tools::getToolTip(control_ID));
 			SendMessage(list, LB_SETITEMDATA, index, control_ID);
 		}
 		else
@@ -2264,8 +2277,7 @@ void AddStringtoList(HWND window, const int control_ID)
 				LPCWSTR tooltip = tools::getToolTip(control_ID);
 				if (SendMessage(list, LB_FINDSTRINGEXACT, (WPARAM)-1, (LPARAM)tooltip) == LB_ERR) //no duplicate
 				{
-					const int index = SendMessage(list, LB_ADDSTRING, NULL, (LPARAM)tooltip);
-					ListBox_SetItemData(list, index, control_ID);
+					ListBox_SetItemData(list, SendMessage(list, LB_ADDSTRING, NULL, (LPARAM)tooltip), control_ID);
 				}
 			}
 		}
@@ -2275,7 +2287,7 @@ void AddStringtoList(HWND window, const int control_ID)
 	TButtons.clear();
 	for (int i = 0; i != ListBox_GetCount(list); ++i)
 	{
-		TButtons.push_back(ListBox_GetItemData(list, i));
+		TButtons.push_back((int)ListBox_GetItemData(list, i));
 	}
 
 	// Show note
@@ -2387,8 +2399,8 @@ extern "C" __declspec(dllexport) int winampUninstallPlugin(HINSTANCE hDllInst, H
 		no_uninstall = false;
 
 		wchar_t ini_path[MAX_PATH] = { 0 };
-		PathCombine(ini_path, GetPaths()->settings_sub_dir, L"win7shell.ini");
-		if (PathFileExists(ini_path))
+		CombinePath(ini_path, GetPaths()->settings_sub_dir, L"win7shell.ini");
+		if (FileExists(ini_path))
 		{
 			DeleteFile(ini_path);
 		}
