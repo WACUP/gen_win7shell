@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.0"
+#define PLUGIN_VERSION L"4.0.2"
 
 #define NR_BUTTONS 15
 
@@ -58,8 +58,8 @@ LPARAM delay_ipc = -1;
 #ifdef USE_MOUSE
 HHOOK hMouseHook = NULL;
 #endif
-COLORREF acrCustClr[16] = {0};	// array of custom colors
-sSettings Settings = {0};
+COLORREF acrCustClr[16] = { 0 };	// array of custom colors
+sSettings Settings = { 0 };
 std::vector<int> TButtons;
 iTaskBar *itaskbar = NULL;
 MetaData metadata;
@@ -323,9 +323,10 @@ void updateToolbar(HIMAGELIST ImageList)
 	if ((itaskbar != NULL) && Settings.Thumbnailbuttons)
 	{
 		std::vector<THUMBBUTTON> thbButtons;
-		for (size_t i = 0; i != TButtons.size(); ++i)
+		const size_t count = TButtons.size();
+		for (size_t i = 0; i != count; ++i)
 		{
-			THUMBBUTTON button = {THB_BITMAP | THB_TOOLTIP, (UINT)TButtons[i], 0, NULL, {0}, THBF_ENABLED};
+			THUMBBUTTON button = { THB_BITMAP | THB_TOOLTIP, (UINT)TButtons[i], 0, NULL, {0}, THBF_ENABLED };
 
 			if (button.iId == TB_RATE || button.iId == TB_STOPAFTER ||
 				button.iId == TB_DELETE || button.iId == TB_JTFE ||
@@ -336,14 +337,14 @@ void updateToolbar(HIMAGELIST ImageList)
 			}
 			else if (button.iId == TB_PLAYPAUSE)
 			{
-				button.iBitmap = tools::getBitmap(button.iId, (Settings.play_state == PLAYSTATE_PLAYING ? 1 : 0));
+				button.iBitmap = tools::getBitmap(button.iId, !!(Settings.play_state == PLAYSTATE_PLAYING));
 				(void)StringCchCopy(button.szTip, ARRAYSIZE(button.szTip), tools::getToolTip(TB_PLAYPAUSE, Settings.play_state));
-			} 
+			}
 			else if (button.iId == TB_REPEAT)
 			{
 				button.iBitmap = tools::getBitmap(button.iId, Settings.state_repeat);
 				(void)StringCchCopy(button.szTip, ARRAYSIZE(button.szTip), tools::getToolTip(TB_REPEAT, Settings.state_repeat));
-			} 
+			}
 			else if (button.iId == TB_SHUFFLE)
 			{
 				button.iBitmap = tools::getBitmap(button.iId, Settings.play_state == Settings.state_shuffle);
@@ -510,7 +511,9 @@ void UpdateOverlyStatus(const bool force_refresh)
 {
 	Settings.play_state = GetPlayingState();
 
-	updateToolbar(GetThumbnailIcons(force_refresh));
+	// ensure we're either updating the full imagelist when needed or that
+	// we're going to be able to correctly show toggled play/paused states
+	updateToolbar((force_refresh ? GetThumbnailIcons(force_refresh) : NULL));
 
 	if (Settings.Overlay)
 	{
@@ -1377,7 +1380,7 @@ LRESULT CALLBACK rateWndProc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lPara
 	{
 		case WM_COMMAND:
 		{
-			WPARAM value = -1;
+			WPARAM value = (WPARAM)-1;
 			switch (LOWORD(wParam))
 			{
 				case IDC_RATE1:
@@ -1412,7 +1415,7 @@ LRESULT CALLBACK rateWndProc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lPara
 				}
 			}
 
-			if (value != -1)
+			if (value != (WPARAM)-1)
 			{
 				GetSetMainRating(value, IPC_SETRATING);
 			}

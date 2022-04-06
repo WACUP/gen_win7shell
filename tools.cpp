@@ -288,7 +288,7 @@ namespace tools
 			if (folder[0])
 			{
 				StringCchPrintf(test_path, ARRAYSIZE(test_path),
-								L"%s\\%s.ico", folder, file);
+								L"%s\\Taskbar\\%s.ico", folder, file);
 
 				if (FileExists(test_path))
 				{
@@ -468,8 +468,8 @@ namespace tools
 			{
 				if (hicon == NULL)
 				{
-					const int icons[] = {203/*prev*/, 204/*play*/, 208/*pause*/, 205/*stop*/,
-										 206/*next*/, 207/*open*/, 209/*voldown*/, 210/*volup*/};
+					const int icons[] = { 203/*prev*/, 204/*play*/, 208/*pause*/, 205/*stop*/,
+										  206/*next*/, 207/*open*/, 209/*voldown*/, 210/*volup*/ };
 					hicon = (HICON)LoadImage(GetModuleHandle(GetPaths()->wacup_core_dll),
 									   MAKEINTRESOURCE(icons[icon]), IMAGE_ICON, 0, 0, 0);
 				}
