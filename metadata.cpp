@@ -27,15 +27,9 @@ std::wstring MetaData::getMetadata(const std::wstring &tag)
 	if (!mfilename.empty())
 	{
 		wchar_t buffer[2048] = { 0 };
-		extendedFileInfoStructW efis = { _wcsdup(mfilename.c_str()), _wcsdup(tag.c_str()), buffer, ARRAYSIZE(buffer) };
-
 		// cache the response as long as we got a valid result
-		const int efiWret = !!GetExtendedFileInfoHookable((WPARAM)&efis, TRUE, NULL);
-
-		free((void *)efis.filename);
-		free((void *)efis.metadata);
-
-		if (efiWret && buffer[0])
+		if (!!GetExtendedFileInfoW(mfilename.c_str(), tag.c_str(), buffer,
+								   ARRAYSIZE(buffer), NULL) && buffer[0])
 		{
 			cache[tag] = buffer;
 			return buffer;

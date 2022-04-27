@@ -39,10 +39,10 @@ std::wstring SettingsManager::GetString(const std::wstring &key,
 											   &buffer[0], (int)max_size, _file);
 	buffer.resize(len);
 
-	free((void *)_section);
-	free((void *)_key);
-	free((void *)_default);
-	free((void *)_file);
+	AutoCharDupFree((void *)_section);
+	AutoCharDupFree((void *)_key);
+	AutoCharDupFree((void *)_default);
+	AutoCharDupFree((void *)_file);
 
 	if (!buffer.empty())
 	{
@@ -87,16 +87,16 @@ void SettingsManager::WriteString(const std::wstring &key, const std::wstring &v
 		LPCSTR _value = AutoCharDup((LPWSTR)value.c_str(), CP_UTF8);
 		WritePrivateProfileStringA(_section, _key,
 								   _value, _file);
-		free((void *)_value);
+		AutoCharDupFree((void *)_value);
 	}
 	else
 	{
 		WritePrivateProfileStringA(_section, _key,
 								   NULL, _file);
 	}
-	free((void *)_section);
-	free((void *)_key);
-	free((void *)_file);
+	AutoCharDupFree((void *)_section);
+	AutoCharDupFree((void *)_key);
+	AutoCharDupFree((void *)_file);
 }
 
 void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<int> &tba)

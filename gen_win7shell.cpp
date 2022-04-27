@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.0.2"
+#define PLUGIN_VERSION L"4.0.4"
 
 #define NR_BUTTONS 15
 
@@ -487,7 +487,9 @@ HIMAGELIST GetThumbnailIcons(const bool force_refresh)
 		if (theicons)
 		{
 			ImageList_Destroy(theicons);
+			theicons = NULL;
 		}
+
 		theicons = tools::prepareIcons();
 	}
 	return theicons;
@@ -501,7 +503,9 @@ HIMAGELIST GetOverlayIcons(const bool force_refresh)
 		if (overlayicons)
 		{
 			ImageList_Destroy(overlayicons);
+			overlayicons = NULL;
 		}
+
 		overlayicons = tools::prepareOverlayIcons();
 	}
 	return overlayicons;
@@ -560,7 +564,11 @@ void UpdateOverlyStatus(const bool force_refresh)
 					{
 						icon = ImageList_GetIcon(GetThumbnailIcons(false/*force_refresh*/), index, 0);
 					}
-					itaskbar->SetIconOverlay(icon, paused_str);
+
+					if (itaskbar != NULL)
+					{
+						itaskbar->SetIconOverlay(icon, paused_str);
+					}
 				}
 				break;
 			}

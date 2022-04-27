@@ -275,20 +275,18 @@ namespace tools
 		return !!FileExists(path);
 	}*/
 
-	HICON getCustomIcon(LPCWSTR file)
+	HICON getCustomIcon(LPCWSTR file, LPCWSTR skin_folder)
 	{
 		HICON hicon = NULL;
 		if (file)
 		{
-			wchar_t folder[MAX_PATH] = { 0 },
-					test_path[MAX_PATH] = { 0 };
+			wchar_t test_path[MAX_PATH] = { 0 };
 
 			// look in the current skin for per-skin customisation
-			GetCurrentSkin(folder, ARRAYSIZE(folder));
-			if (folder[0])
+			if (skin_folder && *skin_folder)
 			{
 				StringCchPrintf(test_path, ARRAYSIZE(test_path),
-								L"%s\\Taskbar\\%s.ico", folder, file);
+								L"%s\\Taskbar\\%s.ico", skin_folder, file);
 
 				if (FileExists(test_path))
 				{
@@ -301,6 +299,7 @@ namespace tools
 			// which is stored in the user settings folder...
 			if (hicon == NULL)
 			{
+				wchar_t folder[MAX_PATH] = { 0 };
 				CombinePath(folder, GetPaths()->settings_dir, L"Taskbar");
 				StringCchPrintf(test_path, ARRAYSIZE(test_path),
 								L"%s\\%s.ico", folder, file);
@@ -321,11 +320,14 @@ namespace tools
 												GetSystemMetrics(SM_CYSMICON),
 												ILC_COLOR32, NR_OVERLAY_ICONS, 0);
 
+		wchar_t skin_folder[MAX_PATH] = { 0 };
+		GetCurrentSkin(skin_folder, ARRAYSIZE(skin_folder));
+
 		for (int i = 0; i < NR_OVERLAY_ICONS; ++i)
 		{
 			int icon[] = { 2, 1, 0 };
 			LPCWSTR file[] = { L"overlay_stop", L"overlay_pause", L"overlay_play" };
-			HICON hicon = getCustomIcon(file[i]);
+			HICON hicon = getCustomIcon(file[i], (skin_folder[0] ? skin_folder : NULL));
 			if (hicon == NULL)
 			{
 				const int icons[] = { 204/*play*/, 208/*pause*/, 205/*stop*/ };
@@ -336,13 +338,30 @@ namespace tools
 
 			if (hicon == NULL)
 			{
+				ImageList_Destroy(himlIcons);
 				return NULL;
 			}
 			else
 			{
-				ImageList_AddIcon(himlIcons, hicon);
+				__try
+				{
+					if (ImageList_AddIcon(himlIcons, hicon) == -1)
+					{
+						DestroyIcon(hicon);
+						ImageList_Destroy(himlIcons);
+						return NULL;
+					}
+					DestroyIcon(hicon);
+				}
+				__except (EXCEPTION_EXECUTE_HANDLER)
+				{
+					DestroyIcon(hicon);
+					ImageList_Destroy(himlIcons);
+					return NULL;
+				}
 			}
 		}
+
 		return himlIcons;
 	}
 
@@ -351,6 +370,9 @@ namespace tools
 		HIMAGELIST himlIcons = ImageList_Create(GetSystemMetrics(SM_CXSMICON),
 												GetSystemMetrics(SM_CYSMICON),
 												ILC_COLOR32, NR_THUMB_BUTTONS, 0);
+
+		wchar_t skin_folder[MAX_PATH] = { 0 };
+		GetCurrentSkin(skin_folder, ARRAYSIZE(skin_folder));
 
 		for (int i = 0; i < NR_THUMB_BUTTONS; ++i)
 		{
@@ -463,7 +485,7 @@ namespace tools
 				}
 			}
 
-			HICON hicon = getCustomIcon(file);
+			HICON hicon = getCustomIcon(file, (skin_folder[0] ? skin_folder : NULL));
 			if (icon != -1)
 			{
 				if (hicon == NULL)
@@ -486,11 +508,27 @@ namespace tools
 
 			if (hicon == NULL)
 			{
+				ImageList_Destroy(himlIcons);
 				return NULL;
 			}
 			else
 			{
-				ImageList_AddIcon(himlIcons, hicon);
+				__try
+				{
+					if (ImageList_AddIcon(himlIcons, hicon) == -1)
+					{
+						DestroyIcon(hicon);
+						ImageList_Destroy(himlIcons);
+						return NULL;
+					}
+					DestroyIcon(hicon);
+				}
+				__except (EXCEPTION_EXECUTE_HANDLER)
+				{
+					DestroyIcon(hicon);
+					ImageList_Destroy(himlIcons);
+					return NULL;
+				}
 			}
 		}
 
