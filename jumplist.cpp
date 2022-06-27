@@ -15,15 +15,21 @@
 #endif
 #include <loader/loader/utils.h>
 
-JumpList::JumpList(LPCWSTR AppID, const bool delete_now) : pcdl(NULL)
+LPCWSTR GetAppID(void);
+
+JumpList::JumpList(const bool delete_now) : pcdl(NULL)
 {
-	HRESULT hr = CoCreateInstance(CLSID_DestinationList, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pcdl));
+	HRESULT hr = CoCreateInstance(CLSID_DestinationList, NULL,
+								  CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pcdl));
 	if (SUCCEEDED(hr) && (pcdl != NULL))
 	{
+		LPCWSTR AppID = GetAppID();
+
 		pcdl->SetAppID(AppID);
 
 		IApplicationDocumentLists *padl = NULL;
-		hr = CoCreateInstance(CLSID_ApplicationDocumentLists, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&padl));
+		hr = CoCreateInstance(CLSID_ApplicationDocumentLists, NULL,
+							  CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&padl));
 		if (SUCCEEDED(hr) && padl)
 		{
 			CleanJL(AppID, padl, ADLT_RECENT);
@@ -59,7 +65,9 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 								   const int iconindex, const int mode)
 {
 	IShellLink *psl = NULL;
-	HRESULT hr = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&psl));
+	HRESULT hr = CoCreateInstance(CLSID_ShellLink, NULL,
+								  CLSCTX_INPROC_SERVER,
+								  IID_PPV_ARGS(&psl));
 	if (SUCCEEDED(hr))
 	{
 		if (psl)
@@ -165,7 +173,8 @@ void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring
 	IObjectCollection *poc = NULL;
 	HRESULT hr = pcdl->BeginList(&cMinSlots, IID_PPV_ARGS(&poaRemoved));
 
-	CoCreateInstance(CLSID_EnumerableObjectCollection, NULL, CLSCTX_INPROC, IID_PPV_ARGS(&poc));
+	CoCreateInstance(CLSID_EnumerableObjectCollection, NULL,
+					 CLSCTX_INPROC, IID_PPV_ARGS(&poc));
 
 	if (!bms.empty() && addbm && hr == S_OK)
 	{
@@ -251,7 +260,8 @@ void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring
 HRESULT JumpList::_AddTasksToList(const std::wstring &pluginpath, const std::wstring &pref, const std::wstring &openfile)
 {
 	IObjectCollection *poc = NULL;
-	HRESULT hr = CoCreateInstance(CLSID_EnumerableObjectCollection, NULL, CLSCTX_INPROC, IID_PPV_ARGS(&poc));
+	HRESULT hr = CoCreateInstance(CLSID_EnumerableObjectCollection, NULL,
+								  CLSCTX_INPROC, IID_PPV_ARGS(&poc));
 	if (SUCCEEDED(hr))
 	{
 		if (poc)
@@ -340,32 +350,33 @@ HRESULT JumpList::_AddCategoryToList(IObjectCollection *poc, const std::wstring 
 HRESULT JumpList::_AddCategoryToList2(const std::wstring &pluginpath, const std::wstring &pltext)
 {
 	IObjectCollection *poc = NULL;
-	HRESULT hr = CoCreateInstance(CLSID_EnumerableObjectCollection, NULL, CLSCTX_INPROC, IID_PPV_ARGS(&poc));
+	HRESULT hr = CoCreateInstance(CLSID_EnumerableObjectCollection, NULL,
+								  CLSCTX_INPROC, IID_PPV_ARGS(&poc));
 
 	if (poc)
 	{
 		// enumerate through playlists (need to see if can use api_playlists.h via sdk)
-		if (AGAVE_API_PLAYLISTS && AGAVE_API_PLAYLISTS->GetCount())
+		if (WASABI_API_PLAYLISTS && WASABI_API_PLAYLISTS->GetCount())
 		{
-			const size_t count = AGAVE_API_PLAYLISTS->GetCount();
+			const size_t count = WASABI_API_PLAYLISTS->GetCount();
 			for (size_t i = 0; i < count; i++)
 			{
 				size_t numItems = 0;
 				IShellLink *psl = NULL;
 
 				wchar_t tmp[MAX_PATH] = {0};
-				std::wstring title = AGAVE_API_PLAYLISTS->GetName(i);
+				std::wstring title = WASABI_API_PLAYLISTS->GetName(i);
 
-				AGAVE_API_PLAYLISTS->GetInfo(i, api_playlists_itemCount, &numItems, sizeof(numItems));
+				WASABI_API_PLAYLISTS->GetInfo(i, api_playlists_itemCount, &numItems, sizeof(numItems));
 				StringCchPrintf(tmp, MAX_PATH, L" [%d]", numItems);
 				title += tmp;
 
-				hr = _CreateShellLink(pluginpath, AGAVE_API_PLAYLISTS->GetFilename(i), title.c_str(), &psl, 3, 1);
+				hr = _CreateShellLink(pluginpath, WASABI_API_PLAYLISTS->GetFilename(i), title.c_str(), &psl, 3, 1);
 				if (SUCCEEDED(hr))
 				{
 					if (psl)
 					{
-						psl->SetDescription(AGAVE_API_PLAYLISTS->GetFilename(i));
+						psl->SetDescription(WASABI_API_PLAYLISTS->GetFilename(i));
 						hr = poc->AddObject(psl);
 						psl->Release();
 					}
@@ -396,7 +407,16 @@ bool JumpList::CleanJL(LPCWSTR AppID, IApplicationDocumentLists *padl, APPDOCLIS
 {
 	IObjectArray *poa = NULL;
 	padl->SetAppID(AppID);
-	HRESULT hr = padl->GetList(type, 0, IID_PPV_ARGS(&poa));
+	HRESULT hr;
+	
+	try
+	{
+		hr = padl->GetList(type, 0, IID_PPV_ARGS(&poa));
+	}
+	catch (...)
+	{
+		return false;
+	}
 
 	if (SUCCEEDED(hr))
 	{
@@ -405,7 +425,8 @@ bool JumpList::CleanJL(LPCWSTR AppID, IApplicationDocumentLists *padl, APPDOCLIS
 		if (SUCCEEDED(hr) && (*count) > 100)
 		{
 			IApplicationDestinations *pad = NULL;
-			hr = CoCreateInstance(CLSID_ApplicationDestinations, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pad));
+			hr = CoCreateInstance(CLSID_ApplicationDestinations, NULL,
+								  CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pad));
 			pad->SetAppID(AppID);
 
 			if (SUCCEEDED(hr))

@@ -145,18 +145,18 @@ int __cdecl preview_sync_callback(const wchar_t *filename, const int w, const in
 
 bool renderer::getAlbumArt(const std::wstring &fname)
 {
-	if (!albumart && (AGAVE_API_ALBUMART != NULL))
+	if (!albumart && (WASABI_API_ALBUMART != NULL))
 	{
 		ARGB32 *cur_image = 0;
 		int cur_w = 0, cur_h = 0;
 		// when running under WACUP this request is cached for us
 		// so we don't have to worry too much about it being slow
-		int ret = AGAVE_API_ALBUMART->GetAlbumArtAsyncResize(fname.c_str(), L"cover", this, 600,
-															 600, FALSE, preview_sync_callback);
+		int ret = WASABI_API_ALBUMART->GetAlbumArtAsyncResize(fname.c_str(), L"cover", this, 600,
+															  600, FALSE, preview_sync_callback);
 		if ((ret != ALBUMART_SUCCESS) && (ret != ALBUMART_GOTCACHE))
 		{
-			ret = AGAVE_API_ALBUMART->GetAlbumArtResize(fname.c_str(), L"cover", &cur_w,
-														&cur_h, &cur_image, 600, 600, 0);
+			ret = WASABI_API_ALBUMART->GetAlbumArtResize(fname.c_str(), L"cover", &cur_w,
+														 &cur_h, &cur_image, 600, 600, 0);
 			if ((ret == ALBUMART_SUCCESS) || (ret == ALBUMART_GOTCACHE))
 			{
 				createArtwork(cur_w, cur_h, cur_image);
@@ -360,8 +360,10 @@ HBITMAP renderer::GetThumbnail()
 				}
 				else
 				{
-					SendMessage(dialogParent, WM_PRINTCLIENT, (WPARAM)hdc,
-								PRF_CHILDREN | PRF_CLIENT | PRF_NONCLIENT);
+					DWORD_PTR ret = 0;
+					SendMessageTimeout(dialogParent, WM_PRINTCLIENT, (WPARAM)hdc,
+									   PRF_CHILDREN | PRF_NONCLIENT | PRF_CLIENT,
+									   SMTO_ABORTIFHUNG | SMTO_ERRORONEXIT, 1000, &ret);
 				}
 
 				gfx.ReleaseHDC(hdc);

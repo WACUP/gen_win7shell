@@ -92,7 +92,7 @@ std::wstring MetaData::getFileName() const
 	return mfilename;
 }
 
-bool MetaData::CheckPlayCount()
+/*bool MetaData::CheckPlayCount()
 {
 	if (m_play_count > 50)
 	{
@@ -102,4 +102,4 @@ bool MetaData::CheckPlayCount()
 
 	++m_play_count;
 	return false;
-}
+}*/

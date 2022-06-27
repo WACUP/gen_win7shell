@@ -7,7 +7,7 @@
 
 iTaskBar::iTaskBar(sSettings& settings) : pTBL(NULL), progressbarstate(TBPF_NOPROGRESS), m_settings(settings)
 {
-	CoInitializeEx(0, COINIT_APARTMENTTHREADED);
+	(void)CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 	SetWindowAttr();
 }
 
@@ -42,15 +42,20 @@ bool iTaskBar::Reset()
 	return ret;
 }
 
-HRESULT iTaskBar::ThumbBarUpdateButtons(std::vector<THUMBBUTTON>& buttons, HIMAGELIST ImageList)
+void iTaskBar::ThumbBarUpdateButtons(std::vector<THUMBBUTTON>& buttons, HIMAGELIST ImageList)
 {
-	if (ImageList != NULL)
+	if (pTBL != NULL)
 	{
-		pTBL->ThumbBarSetImageList(plugin.hwndParent, ImageList);
-		return pTBL->ThumbBarAddButtons(plugin.hwndParent, (int)buttons.size(), &buttons[0]);
+		if (ImageList != NULL)
+		{
+			pTBL->ThumbBarSetImageList(plugin.hwndParent, ImageList);
+			pTBL->ThumbBarAddButtons(plugin.hwndParent, (int)buttons.size(), &buttons[0]);
+		}
+		else
+		{
+			pTBL->ThumbBarUpdateButtons(plugin.hwndParent, (int)buttons.size(), &buttons[0]);
+		}
 	}
-
-	return pTBL->ThumbBarUpdateButtons(plugin.hwndParent, (int)buttons.size(), &buttons[0]);
 }
 
 void iTaskBar::SetIconOverlay(HICON icon, const std::wstring &text)

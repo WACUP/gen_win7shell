@@ -13,7 +13,7 @@
 class JumpList
 {
 public:
-	explicit JumpList(LPCWSTR AppID, const bool delete_now = false);
+	explicit JumpList(const bool delete_now = false);
 	~JumpList();
 
 	void CreateJumpList(const std::wstring &pluginpath, const std::wstring &pref,

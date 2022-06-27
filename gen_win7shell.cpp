@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.0.4"
+#define PLUGIN_VERSION L"4.0.8"
 
 #define NR_BUTTONS 15
 
@@ -15,6 +15,10 @@
 #include <process.h>
 
 #include "gen_win7shell.h"
+#include <loader/loader/utils.h>
+#include <loader/loader/paths.h>
+#include <loader/hook/squash.h>
+#include <loader/hook/plugins.h>
 #include <sdk/winamp/wa_ipc.h>
 #include <sdk/winamp/wa_msgids.h>
 #include <sdk/winamp/wa_cup.h>
@@ -30,10 +34,6 @@
 #include "settings.h"
 #include "taskbar.h"
 #include "renderer.h"
-#include <loader/loader/utils.h>
-#include <loader/loader/paths.h>
-#include <loader/hook/squash.h>
-#include <loader/hook/plugins.h>
 
 // TODO add to lang.h
 // Taskbar Integration plugin (gen_win7shell.dll)
@@ -54,7 +54,6 @@ bool thumbshowing = false, no_uninstall = true,
 	 finishedLoad = false, running = false;
 HWND ratewnd = 0, dialogParent = 0;
 int pladv = 1, repeat = 0;
-LPARAM delay_ipc = -1;
 #ifdef USE_MOUSE
 HHOOK hMouseHook = NULL;
 #endif
@@ -62,12 +61,12 @@ COLORREF acrCustClr[16] = { 0 };	// array of custom colors
 sSettings Settings = { 0 };
 std::vector<int> TButtons;
 iTaskBar *itaskbar = NULL;
-MetaData metadata;
+MetaData *metadata = NULL;
 renderer *thumbnaildrawer = NULL;
 HANDLE updatethread = NULL;
 
-api_albumart *AGAVE_API_ALBUMART = 0;
-api_playlists *AGAVE_API_PLAYLISTS = 0;
+api_albumart *WASABI_API_ALBUMART = 0;
+api_playlists *WASABI_API_PLAYLISTS = 0;
 //api_explorerfindfile *WASABI_API_EXPLORERFINDFILE = 0;
 api_skin *WASABI_API_SKIN = 0;
 api_language *WASABI_API_LNG = 0;
@@ -106,12 +105,21 @@ winampGeneralPurposePlugin plugin =
 	GEN_INIT_WACUP_HAS_MESSAGES
 };
 
+MetaData* get_metadata(void)
+{
+	if (metadata == NULL)
+	{
+		metadata = new MetaData();
+	}
+	return metadata;
+}
+
 bool CreateThumbnailDrawer(const bool always_create = true)
 {
 	if ((thumbnaildrawer == NULL) && always_create)
 	{
 		// Create thumbnail renderer
-		thumbnaildrawer = new renderer(Settings, metadata);
+		thumbnaildrawer = new renderer(Settings, *get_metadata());
 	}
 
 	return (thumbnaildrawer != NULL);
@@ -119,11 +127,11 @@ bool CreateThumbnailDrawer(const bool always_create = true)
 
 const bool GenerateAppIDFromFolder(const wchar_t *search_path, wchar_t *app_id)
 {
-	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+	(void)CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 
 	IKnownFolderManager* pkfm = NULL;
 	HRESULT hr = CoCreateInstance(CLSID_KnownFolderManager, NULL,
-								  CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pkfm));
+								  CLSCTX_INPROC, IID_PPV_ARGS(&pkfm));
 
 	if (SUCCEEDED(hr))
 	{
@@ -218,10 +226,10 @@ int init(void)
 	/* Winamp services                                                      */
 	/************************************************************************/
 	//ServiceBuild(plugin.service, WASABI_API_MEMMGR, memMgrApiServiceGuid);
-	//ServiceBuild(plugin.service, AGAVE_API_ALBUMART, albumArtGUID);
-	AGAVE_API_ALBUMART = plugin.albumart;
-	//ServiceBuild(plugin.service, AGAVE_API_PLAYLISTS, api_playlistsGUID);
-	AGAVE_API_PLAYLISTS = plugin.playlists;
+	//ServiceBuild(plugin.service, WASABI_API_ALBUMART, albumArtGUID);
+	WASABI_API_ALBUMART = plugin.albumart;
+	//ServiceBuild(plugin.service, WASABI_API_PLAYLISTS, api_playlistsGUID);
+	WASABI_API_PLAYLISTS = plugin.playlists;
 	//ServiceBuild(plugin.service, WASABI_API_LNG, languageApiGUID);
 	WASABI_API_LNG = plugin.language;
 	WASABI_API_START_LANG(plugin.hDllInstance, GenWin7PlusShellLangGUID);
@@ -230,11 +238,8 @@ int init(void)
 	StringCchPrintf(pluginTitleW, ARRAYSIZE(pluginTitleW), WASABI_API_LNGSTRINGW(IDS_PLUGIN_NAME), PLUGIN_VERSION);
 	plugin.description = (char*)_wcsdup(pluginTitleW);
 
-	// Delay loading mst parts until later on to improve the overall load time
-	delay_ipc = RegisterIPC((WPARAM)&"7+_ipc");
-	PostMessage(plugin.hwndParent, WM_WA_IPC, 0, delay_ipc);
-
-	return GEN_INIT_SUCCESS;
+	return GEN_INIT_SUCCESS;/*/
+	return GEN_INIT_FAILURE;/**/
 }
 
 void config(void)
@@ -253,7 +258,7 @@ void config(void)
 	ListView_GetItemRect(list, ListView_GetSelectionMark(list), &r, LVIR_BOUNDS);
 	ClientToScreen(list, (LPPOINT)&r);
 
-	switch (TrackPopupMenu(popup, TPM_RETURNCMD | TPM_LEFTBUTTON, r.left, r.top, 0, list, NULL))
+	switch (TrackPopupMenu(popup, TPM_RETURNCMD, r.left, r.top, 0, list, NULL))
 	{
 		case 1:
 		{
@@ -281,6 +286,7 @@ void quit(void)
 	KillTimer(plugin.hwndParent, 6668);
 	KillTimer(plugin.hwndParent, 6670);
 	KillTimer(plugin.hwndParent, 6671);
+	KillTimer(plugin.hwndParent, 6672);
 
 	if (updatethread != NULL)
 	{
@@ -311,8 +317,8 @@ void quit(void)
 	}
 
 	//ServiceRelease(plugin.service, WASABI_API_MEMMGR, memMgrApiServiceGuid);
-	//ServiceRelease(plugin.service, AGAVE_API_ALBUMART, albumArtGUID);
-	//ServiceRelease(plugin.service, AGAVE_API_PLAYLISTS, api_playlistsGUID);
+	//ServiceRelease(plugin.service, WASABI_API_ALBUMART, albumArtGUID);
+	//ServiceRelease(plugin.service, WASABI_API_PLAYLISTS, api_playlistsGUID);
 	//ServiceRelease(plugin.service, WASABI_API_LNG, languageApiGUID);
 	//ServiceRelease(plugin.service, WASABI_API_EXPLORERFINDFILE, ExplorerFindFileApiGUID);
 	ServiceRelease(plugin.service, WASABI_API_SKIN, skinApiServiceGuid);
@@ -615,14 +621,18 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					}
 				}
 
-				metadata.reset(filename);
-				if (metadata.CheckPlayCount())
+				MetaData* meta_data = get_metadata();
+				if (meta_data != NULL)
 				{
-					JumpList *JL = new JumpList(GetAppID());
-					if (JL != NULL)
+					meta_data->reset(filename);
+					/*if (meta_data->CheckPlayCount())
 					{
-						delete JL;
-					}
+						JumpList* JL = new JumpList();
+						if (JL != NULL)
+						{
+							delete JL;
+						}
+					}*/
 				}
 
 				Settings.play_total = GetCurrentTrackLengthMilliSeconds();
@@ -634,8 +644,8 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				{
 					__try
 					{
-						const std::wstring title(metadata.getMetadata(L"title") +
-												 L" - " + metadata.getMetadata(L"artist") +
+						const std::wstring title(meta_data->getMetadata(L"title") + L" - " +
+												 meta_data->getMetadata(L"artist") +
 												 ((Settings.play_total > 0) ? L"  (" +
 												 tools::SecToTime(Settings.play_total / 1000) + L")" : L""));
 
@@ -643,9 +653,8 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 						if ((tools::CreateShellLink(filename.c_str(), title.c_str(), &psl) == S_OK) && psl)
 						{
 							const SHARDAPPIDINFOLINK applink = { psl, GetAppID() };
-							time_t rawtime = NULL;
-							time(&rawtime);
-							psl->SetDescription(_wctime(&rawtime));
+							wchar_t temp[32] = { 0 };
+							psl->SetDescription(TimeNow2Str(temp, ARRAYSIZE(temp)));
 							// based on testing, this & things in the
 							// CreateShellLink() sometimes fails :'(
 							// I can't find any reason for it. due to
@@ -784,9 +793,10 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					(wParam == IPC_CB_MISC_ADVANCED_ON_STOP)))
 				{
 					LPCWSTR p = GetPlayingFilename(0);
-					if (p != NULL)
+					MetaData* meta_data = get_metadata();
+					if ((p != NULL) && (meta_data != NULL))
 					{
-						metadata.reset(p);
+						meta_data->reset(p);
 					}
 
 					DwmInvalidateIconicBitmaps(hWnd);
@@ -800,71 +810,9 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				{
 					Settings.play_volume = (int)GetSetVolume((WPARAM)-666, FALSE);
 				}
-				else if (lParam == delay_ipc)
+				else if (lParam == IPC_WACUP_HAS_LOADED)
 				{
-					// we track this instead of re-querying all of the
-					// time so as to minimise blocking of the main wnd
-					// which helps to determine modern vs classic skin
-					dialogParent = GetDialogBoxParent()/*/(HWND)SendMessage(hWnd, WM_WA_IPC, 0, IPC_GETDIALOGBOXPARENT)/*/;
-
-					pladv = !!GetManualAdvance();
-
-					windowShade = !!IsHWNDWndshade((WPARAM)-1)/*/SendMessage(hWnd, WM_WA_IPC, (WPARAM)-1, IPC_IS_WNDSHADE)/**/;
-
-					if (!OnWINE())
-					{
-						// Accept messages even if Winamp was run as Administrator
-						ChangeWindowMessageFilter(WM_COMMAND, 1);
-						ChangeWindowMessageFilter(WM_DWMSENDICONICTHUMBNAIL, 1);
-						ChangeWindowMessageFilter(WM_DWMSENDICONICLIVEPREVIEWBITMAP, 1);
-					}
-
-					// Register taskbarcreated message
-					WM_TASKBARBUTTONCREATED = RegisterWindowMessage(L"TaskbarButtonCreated");
-
-					wchar_t ini_path[MAX_PATH] = { 0 };
-					CombinePath(ini_path, GetPaths()->settings_sub_dir, L"win7shell.ini");
-					SettingsFile = ini_path;
-
-					// Read Settings into struct
-					SettingsManager SManager;
-					SManager.ReadSettings(Settings, TButtons);
-
-					// Timers, settings, icons
-					Settings.play_playlistpos = GetPlaylistPosition();
-					Settings.play_playlistlen = GetPlaylistLength();
-					Settings.play_total = GetCurrentTrackLengthMilliSeconds();
-					Settings.play_volume = (int)GetSetVolume((WPARAM)-666, FALSE);
-
-					LPCWSTR p = GetPlayingFilename(1);
-					if (p != NULL)
-					{
-						metadata.reset(p);
-					}
-
-					// update shuffle and repeat
-					Settings.state_shuffle = GetShuffle();
-
-					Settings.state_repeat = repeat = GetRepeat();
-					if (Settings.state_repeat == 1 && pladv == 1)
-					{
-						Settings.state_repeat = 2;
-					}
-
-#ifdef USE_MOUSE
-					// Set up hook for mouse scroll volume control
-					if (Settings.VolumeControl)
-					{
-						hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, (HOOKPROC) KeyboardEvent, plugin.hDllInstance, NULL);
-						if (hMouseHook == NULL)
-						{
-							MessageBoxEx(plugin.hwndParent,
-											WASABI_API_LNGSTRINGW(IDS_ERROR_REGISTERING_MOUSE_HOOK),
-											(LPWSTR)plugin.description, MB_ICONWARNING, 0);
-						}
-					}
-#endif
-					SetTimer(plugin.hwndParent, 6667, Settings.LowFrameRate ? 400 : 100, TimerProc);
+					SetTimer(plugin.hwndParent, 6672, 100, TimerProc);
 				}
 				break;
 			}
@@ -897,9 +845,10 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					}
 
 					LPCWSTR p = GetPlayingFilename(0);
-					if (p != NULL)
+					MetaData* meta_data = get_metadata();
+					if ((p != NULL) && (meta_data != NULL))
 					{
-						metadata.reset(p);
+						meta_data->reset(p);
 					}
 
 					if (CreateThumbnailDrawer())
@@ -1010,41 +959,45 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				}
 				case TB_OPENEXPLORER:
 				{
-					LPCWSTR filename = metadata.getFileName().c_str();
-					if (filename && *filename)
+					MetaData* meta_data = get_metadata();
+					if (meta_data != NULL)
 					{
-						if (FileExists(filename))
+						LPCWSTR filename = meta_data->getFileName().c_str();
+						if (filename && *filename)
 						{
-							/*if (WASABI_API_EXPLORERFINDFILE == NULL)
+							if (FileExists(filename))
 							{
-								ServiceBuild(plugin.service, WASABI_API_EXPLORERFINDFILE, ExplorerFindFileApiGUID);
-							}
-							if (WASABI_API_EXPLORERFINDFILE != NULL)
-							{
-								WASABI_API_EXPLORERFINDFILE->AddFile(filename);
-								WASABI_API_EXPLORERFINDFILE->ShowFiles();
-							}/*/
-							plugin.explorerfindfile->AddAndShowFile(filename);
-						}
-						else
-						{
-							// TODO it would be useful if there was a common interface
-							//		that allows for determining the real filename when
-							//		there's extras after the extension or custom urls
-							//		so it can just be used where needed without plug-in
-							//		workarounds to fix issues (explorerfindfile is meant
-							//		cope with zip:// but for some reason it fails now &
-							//		it just won't cope with cda:// style entries either)
-							if (!_wcsnicmp(filename, L"zip://", 6))
-							{
-								filename += 6;
-							}
-
-							// if there's an extension then we'll give it another go
-							// as typically no extension means that it won't work...
-							if (FindPathExtension(filename))
-							{
+								/*if (WASABI_API_EXPLORERFINDFILE == NULL)
+								{
+									ServiceBuild(plugin.service, WASABI_API_EXPLORERFINDFILE, ExplorerFindFileApiGUID);
+								}
+								if (WASABI_API_EXPLORERFINDFILE != NULL)
+								{
+									WASABI_API_EXPLORERFINDFILE->AddFile(filename);
+									WASABI_API_EXPLORERFINDFILE->ShowFiles();
+								}/*/
 								plugin.explorerfindfile->AddAndShowFile(filename);
+							}
+							else
+							{
+								// TODO it would be useful if there was a common interface
+								//		that allows for determining the real filename when
+								//		there's extras after the extension or custom urls
+								//		so it can just be used where needed without plug-in
+								//		workarounds to fix issues (explorerfindfile is meant
+								//		cope with zip:// but for some reason it fails now &
+								//		it just won't cope with cda:// style entries either)
+								if (!_wcsnicmp(filename, L"zip://", 6))
+								{
+									filename += 6;
+								}
+
+								// if there's an extension then we'll give it another go
+								// as typically no extension means that it won't work...
+								if (FindPathExtension(filename))
+								{
+									plugin.explorerfindfile->AddAndShowFile(filename);
+								}
 							}
 						}
 					}
@@ -1052,28 +1005,32 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				}
 				case TB_DELETE:
 				{
-					SHFILEOPSTRUCT fileop = { 0 };
-					wchar_t path[MAX_PATH] = { 0 };
-					(void)StringCchCopy(path, ARRAYSIZE(path), metadata.getFileName().c_str());
-
-					fileop.wFunc = FO_DELETE;
-					fileop.pFrom = path;
-					fileop.pTo = L"";
-					fileop.fFlags = FOF_ALLOWUNDO | FOF_FILESONLY;
-					fileop.lpszProgressTitle = L"";
-
-					const int saved_play_state = Settings.play_state;
-					SendMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(40047, 0), 0);
-					Settings.play_state = PLAYSTATE_NOTPLAYING; 
-
-					if (FileAction(&fileop) == 0)
+					MetaData* meta_data = get_metadata();
+					if (meta_data != NULL)
 					{
-						SendMessage(GetPlaylistWnd(), WM_WA_IPC, IPC_PE_DELETEINDEX, GetPlaylistPosition());
-					}
+						SHFILEOPSTRUCT fileop = { 0 };
+						wchar_t path[MAX_PATH] = { 0 };
+						(void)StringCchCopy(path, ARRAYSIZE(path), meta_data->getFileName().c_str());
 
-					if (saved_play_state == PLAYSTATE_PLAYING)
-					{
-						PostMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(40045, 0), 0);
+						fileop.wFunc = FO_DELETE;
+						fileop.pFrom = path;
+						fileop.pTo = L"";
+						fileop.fFlags = FOF_ALLOWUNDO | FOF_FILESONLY;
+						fileop.lpszProgressTitle = L"";
+
+						const int saved_play_state = Settings.play_state;
+						SendMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(40047, 0), 0);
+						Settings.play_state = PLAYSTATE_NOTPLAYING;
+
+						if (FileAction(&fileop) == 0)
+						{
+							SendMessage(GetPlaylistWnd(), WM_WA_IPC, IPC_PE_DELETEINDEX, GetPlaylistPosition());
+						}
+
+						if (saved_play_state == PLAYSTATE_PLAYING)
+						{
+							PostMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(40045, 0), 0);
+						}
 					}
 					break;
 				}
@@ -1184,7 +1141,11 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 							if (count2 == 8)
 							{   
 								count2 = 0;
-								metadata.reset(L"", true);
+								MetaData* meta_data = get_metadata();
+								if (meta_data != NULL)
+								{
+									meta_data->reset(L"", true);
+								}
 							}
 							else
 							{
@@ -1377,6 +1338,76 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 			{
 				SetTimer(plugin.hwndParent, 6671, 30000, TimerProc);
 			}
+			break;
+		}
+		case 6672:
+		{
+			KillTimer(plugin.hwndParent, 6672);
+
+			// we track this instead of re-querying all of the
+			// time so as to minimise blocking of the main wnd
+			// which helps to determine modern vs classic skin
+			dialogParent = GetDialogBoxParent()/*/(HWND)SendMessage(hWnd, WM_WA_IPC, 0, IPC_GETDIALOGBOXPARENT)/*/;
+
+			pladv = !!GetManualAdvance();
+
+			windowShade = !!IsHWNDWndshade((WPARAM)-1)/*/SendMessage(hWnd, WM_WA_IPC, (WPARAM)-1, IPC_IS_WNDSHADE)/**/;
+
+			if (!OnWINE())
+			{
+				// Accept messages even if Winamp was run as Administrator
+				ChangeWindowMessageFilter(WM_COMMAND, 1);
+				ChangeWindowMessageFilter(WM_DWMSENDICONICTHUMBNAIL, 1);
+				ChangeWindowMessageFilter(WM_DWMSENDICONICLIVEPREVIEWBITMAP, 1);
+			}
+
+			// Register taskbarcreated message
+			WM_TASKBARBUTTONCREATED = RegisterWindowMessage(L"TaskbarButtonCreated");
+
+			wchar_t ini_path[MAX_PATH] = { 0 };
+			CombinePath(ini_path, GetPaths()->settings_sub_dir, L"win7shell.ini");
+			SettingsFile = ini_path;
+
+			// Read Settings into struct
+			SettingsManager SManager;
+			SManager.ReadSettings(Settings, TButtons);
+
+			// Timers, settings, icons
+			Settings.play_playlistpos = GetPlaylistPosition();
+			Settings.play_playlistlen = GetPlaylistLength();
+			Settings.play_total = GetCurrentTrackLengthMilliSeconds();
+			Settings.play_volume = (int)GetSetVolume((WPARAM)-666, FALSE);
+
+			LPCWSTR p = GetPlayingFilename(1);
+			MetaData* meta_data = get_metadata();
+			if ((p != NULL) && (meta_data != NULL))
+			{
+				meta_data->reset(p);
+			}
+
+			// update shuffle and repeat
+			Settings.state_shuffle = GetShuffle();
+
+			Settings.state_repeat = repeat = GetRepeat();
+			if (Settings.state_repeat == 1 && pladv == 1)
+			{
+				Settings.state_repeat = 2;
+			}
+
+#ifdef USE_MOUSE
+			// Set up hook for mouse scroll volume control
+			if (Settings.VolumeControl)
+			{
+				hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, (HOOKPROC)KeyboardEvent, plugin.hDllInstance, NULL);
+				if (hMouseHook == NULL)
+				{
+					MessageBoxEx(plugin.hwndParent,
+								 WASABI_API_LNGSTRINGW(IDS_ERROR_REGISTERING_MOUSE_HOOK),
+								 (LPWSTR)plugin.description, MB_ICONWARNING, 0);
+				}
+			}
+#endif
+			SetTimer(plugin.hwndParent, 6667, Settings.LowFrameRate ? 400 : 100, TimerProc);
 			break;
 		}
 	}
@@ -2139,7 +2170,9 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 					IFileDialog *pfd = NULL;
 
 					// CoCreate the dialog object.
-					HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pfd));
+					HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL,
+												  CLSCTX_INPROC_SERVER,
+												  IID_PPV_ARGS(&pfd));
 					if (SUCCEEDED(hr) && pfd)
 					{
 						// Show the dialog
@@ -2307,7 +2340,7 @@ void AddStringtoList(HWND window, const int control_ID)
 
 void SetupJumpList(void)
 {
-	JumpList *jl = new JumpList(GetAppID(), true);
+	JumpList *jl = new JumpList(true);
 	if (jl != NULL)
 	{
 		if (Settings.JLbms || Settings.JLfrequent ||
@@ -2320,28 +2353,28 @@ void SetupJumpList(void)
 			// need an 8.3 style filepath for us
 			if (!pluginPath[0])
 			{
-				GetModuleFileName(plugin.hDllInstance, pluginPath, MAX_PATH);
-				GetShortPathName(pluginPath, pluginPath, MAX_PATH);
+				GetModuleFileName(plugin.hDllInstance, pluginPath, ARRAYSIZE(pluginPath));
+				GetShortPathName(pluginPath, pluginPath, ARRAYSIZE(pluginPath));
 			}
 
 			if (!tmp1[0])
 			{
-				WASABI_API_LNGSTRINGW_BUF(IDS_WINAMP_PREFERENCES, tmp1, 128);
+				WASABI_API_LNGSTRINGW_BUF(IDS_WINAMP_PREFERENCES, tmp1, ARRAYSIZE(tmp1));
 			}
 
 			if (!tmp2[0])
 			{
-				WASABI_API_LNGSTRINGW_BUF(IDS_OPEN_FILE, tmp2, 128);
+				WASABI_API_LNGSTRINGW_BUF(IDS_OPEN_FILE, tmp2, ARRAYSIZE(tmp2));
 			}
 
 			if (!tmp3[0])
 			{
-				WASABI_API_LNGSTRINGW_BUF(IDS_BOOKMARKS, tmp3, 128);
+				WASABI_API_LNGSTRINGW_BUF(IDS_BOOKMARKS, tmp3, ARRAYSIZE(tmp3));
 			}
 
 			if (!tmp4[0])
 			{
-				WASABI_API_LNGSTRINGW_BUF(IDS_PLAYLISTS, tmp4, 128);
+				WASABI_API_LNGSTRINGW_BUF(IDS_PLAYLISTS, tmp4, ARRAYSIZE(tmp4));
 			}
 
 			__try
@@ -2416,7 +2449,7 @@ extern "C" __declspec(dllexport) int winampUninstallPlugin(HINSTANCE hDllInst, H
 			DeleteFile(ini_path);
 		}
 
-		JumpList *jl = new JumpList(GetAppID(), true);
+		JumpList *jl = new JumpList(true);
 		if (jl != NULL)
 		{
 			delete jl;

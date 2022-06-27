@@ -57,8 +57,8 @@ void SettingsManager::WriteInt(const std::wstring &key, const int value,
 {
 	if (value != default_value)
 	{
-		wchar_t str[16] = {0};
-		_itow_s(value, str, ARRAYSIZE(str), 10);
+		wchar_t str[16] = { 0 };
+		I2WStr(value, str, ARRAYSIZE(str));
 		WritePrivateProfileStringW(currentSection.c_str(), key.c_str(),
 								   str, SettingsFile.c_str());
 	}

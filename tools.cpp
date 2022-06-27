@@ -142,7 +142,9 @@ namespace tools
 		if (ppsl && filename && *filename)
 		{
 			IShellLink *psl = NULL;
-			HRESULT hr = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&psl));
+			HRESULT hr = CoCreateInstance(CLSID_ShellLink, NULL,
+										  CLSCTX_INPROC_SERVER,
+										  IID_PPV_ARGS(&psl));
 			if (SUCCEEDED(hr) && psl)
 			{
 				wchar_t fname[MAX_PATH] = { 0 };
