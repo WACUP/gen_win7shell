@@ -7,9 +7,11 @@
 #include "api.h"
 #include "lines.h"
 #include <dwmapi.h>
+#include <loader/loader/paths.h>
+#include <loader/loader/ini.h>
 #include <loader/loader/utils.h>
 
-Gdiplus::Bitmap* ResizeAncCloneBitmap(Gdiplus::Bitmap *bmp, const float width, const float height)
+Gdiplus::Bitmap* ResizeAndCloneBitmap(Gdiplus::Bitmap *bmp, const float width, const float height)
 {
 	const UINT o_height = bmp->GetHeight(),
 			   o_width = bmp->GetWidth();
@@ -120,7 +122,7 @@ void renderer::createArtwork(const int cur_w, const int cur_h, ARGB32 *cur_image
 	// we don't want to keep doing this as it is going
 	// to be very slow especially with >600x600 images
 	// so we cache a re-sized image and then draw that
-	albumart = ResizeAncCloneBitmap(&tmpbmp, new_width, new_height);
+	albumart = ResizeAndCloneBitmap(&tmpbmp, new_width, new_height);
 
 	if (cur_image)
 	{
@@ -391,11 +393,53 @@ HBITMAP renderer::GetThumbnail()
 				// that for some modern skins the preview is better
 				// than it would otherwise be (due to gen_ff loosing
 				// that information when it's put into the hdc *ugg*)
-				RECT rt = { 0 };
-				ScaleArtworkToArea(&rt, m_width, m_height, width, height);
-				Gdiplus::Rect dest(rt.left, rt.top, (rt.right - rt.left), (rt.bottom - rt.top));
-				graphics.DrawImage(&bmp, dest, 0, 0, width, height, Gdiplus::UnitPixel, (doReplace ?
-								   (replace.ToCOLORREF() == queried.ToCOLORREF() ? &ImgAtt : 0) : 0));
+				if (!IsIconic(plugin.hwndParent))
+				{
+					RECT rt = { 0 };
+					ScaleArtworkToArea(&rt, m_width, m_height, width, height);
+					Gdiplus::Rect dest(rt.left, rt.top, (rt.right - rt.left), (rt.bottom - rt.top));
+					graphics.DrawImage(&bmp, dest, 0, 0, width, height, Gdiplus::UnitPixel, (doReplace ?
+									   (replace.ToCOLORREF() == queried.ToCOLORREF() ? &ImgAtt : 0) : 0));
+				}
+				else
+				{
+					graphics.FillRectangle(&Gdiplus::SolidBrush(Gdiplus::Color::MakeARGB(2, 0, 0, 0)),
+											static_cast<Gdiplus::REAL>(0), static_cast<Gdiplus::REAL>(0), 
+											static_cast<Gdiplus::REAL>(m_width), static_cast<Gdiplus::REAL>(m_height));
+
+					// this will either use the custom icon if specified
+					// or the icon related to the loader currently used.
+					// there is a disconnect if using wacup.exe loader &
+					// having set the process icon to be the winamp.exe
+					// but for what's only used if minimised I just cba!
+					HICON win32_icon = NULL;
+					if (GetWinampIniInt(L"tb_icon", 1) == 2)
+					{
+						wchar_t taskbar_tmp[MAX_PATH] = { 0 };
+						CombinePath(taskbar_tmp, GetPaths()->settings_dir, L"taskbar.ico");
+						
+						win32_icon = (HICON)LoadImage(NULL, taskbar_tmp, IMAGE_ICON,
+									 256, 256, LR_LOADTRANSPARENT | LR_LOADFROMFILE);
+					}
+
+					if (win32_icon == NULL)
+					{
+						win32_icon = (HICON)LoadImage(GetModuleHandle(GetPaths()->wacup_loader_exe),
+									 MAKEINTRESOURCE(101), IMAGE_ICON, 256, 256, LR_LOADTRANSPARENT);
+					}
+
+					if (win32_icon != NULL)
+					{
+						Gdiplus::Bitmap icon(win32_icon);
+						const int icon_width = icon.GetWidth(), icon_height = icon.GetHeight();
+						Gdiplus::Rect dest((m_width / 2) - (icon_width / 2), (m_height / 2) -
+										   (icon_height / 2), icon_width, icon_height);
+						dest.Inflate(-(icon_width / 4), -(icon_height / 4));
+						graphics.DrawImage(&icon, dest, 0, 0, icon_width, icon_height, Gdiplus::UnitPixel,
+										   (doReplace ? (replace.ToCOLORREF() == queried.ToCOLORREF() ? &ImgAtt : 0) : 0));
+						DestroyIcon(win32_icon);
+					}
+				}
 				break;
 			}
 			case BG_ALBUMART:

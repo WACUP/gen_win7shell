@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.0.8"
+#define PLUGIN_VERSION L"4.1"
 
 #define NR_BUTTONS 15
 
@@ -236,7 +236,7 @@ int init(void)
 
 	wchar_t pluginTitleW[256] = { 0 };
 	StringCchPrintf(pluginTitleW, ARRAYSIZE(pluginTitleW), WASABI_API_LNGSTRINGW(IDS_PLUGIN_NAME), PLUGIN_VERSION);
-	plugin.description = (char*)_wcsdup(pluginTitleW);
+	plugin.description = (char*)plugin.memmgr->sysDupStr(pluginTitleW);
 
 	return GEN_INIT_SUCCESS;/*/
 	return GEN_INIT_FAILURE;/**/
@@ -732,42 +732,47 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				}
 				break;
 			}
+			case IPC_IS_MINIMISED_OR_RESTORED:
 			case IPC_SKIN_CHANGED_NEW:
 			{
-				// this is needed when the vu mode is enabled to allow the
-				// data to be obtained if the main wnidow mode is disabled
-				static void(*export_sa_setreq)(int) = (void(__cdecl *)(int))GetSADataFunc(1);
-				if (export_sa_setreq)
+				const bool minimised = (lParam == IPC_IS_MINIMISED_OR_RESTORED);
+				if (!minimised)
 				{
-					export_sa_setreq(Settings.VuMeter);
-				}
+					// this is needed when the vu mode is enabled to allow the
+					// data to be obtained if the main wnidow mode is disabled
+					static void(*export_sa_setreq)(int) = (void(__cdecl *)(int))GetSADataFunc(1);
+					if (export_sa_setreq)
+					{
+						export_sa_setreq(Settings.VuMeter);
+					}
 
-				// delay doing this until needed as it then
-				// copes with modern skins being later used
-				if (WASABI_API_SKIN == NULL)
-				{
-					ServiceBuild(plugin.service, WASABI_API_SKIN, skinApiServiceGuid);
-				}
+					// delay doing this until needed as it then
+					// copes with modern skins being later used
+					if (WASABI_API_SKIN == NULL)
+					{
+						ServiceBuild(plugin.service, WASABI_API_SKIN, skinApiServiceGuid);
+					}
 
-				// TODO pull in the localised version from gen_ff
-				//		to ensure the checking will work correctly
-				LPCWSTR skin_name = (WASABI_API_SKIN != NULL ? WASABI_API_SKIN->getSkinName() : NULL);
-				classicSkin = (!WASABI_API_SKIN || WASABI_API_SKIN &&
-							  // TODO pull in the localised version from gen_ff
-							  //		to ensure the checking will work correctly
-							  (skin_name && *skin_name && !_wcsicmp(skin_name, L"No skin loaded")));
+					// TODO pull in the localised version from gen_ff
+					//		to ensure the checking will work correctly
+					LPCWSTR skin_name = (WASABI_API_SKIN != NULL ? WASABI_API_SKIN->getSkinName() : NULL);
+					classicSkin = (!WASABI_API_SKIN || WASABI_API_SKIN &&
+								  // TODO pull in the localised version from gen_ff
+								  //		to ensure the checking will work correctly
+								  (skin_name && *skin_name && !_wcsicmp(skin_name, L"No skin loaded")));
 
-				modernSUI = false;
-				modernFix = (skin_name && *skin_name && !_wcsnicmp(skin_name, L"Winamp Modern", 13));
-				if (!classicSkin)
-				{
-					// see if it's likely to be a SUI or not as
-					// we need it to help determine how we will
-					// capture the main window for the preview 
-					// as WM_PRINTCLIENT is slow for SUI skins
-					// but is needed for others especially if
-					// we're wanting to do support alpha better
-					EnumChildWindows(dialogParent, checkSkinProc, 0);
+					modernSUI = false;
+					modernFix = (skin_name && *skin_name && !_wcsnicmp(skin_name, L"Winamp Modern", 13));
+					if (!classicSkin)
+					{
+						// see if it's likely to be a SUI or not as
+						// we need it to help determine how we will
+						// capture the main window for the preview 
+						// as WM_PRINTCLIENT is slow for SUI skins
+						// but is needed for others especially if
+						// we're wanting to do support alpha better
+						EnumChildWindows(dialogParent, checkSkinProc, 0);
+					}
 				}
 
 				if (itaskbar != NULL)
@@ -813,6 +818,14 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				else if (lParam == IPC_WACUP_HAS_LOADED)
 				{
 					SetTimer(plugin.hwndParent, 6672, 100, TimerProc);
+				}
+				else if (lParam == IPC_WACUP_IS_CLOSING)
+				{
+					// to help avoid anything else being
+					// done when wacup is starting close
+					// then we'll stop responding to any
+					// messages to avoid some crashes...
+					plugin.messages = NULL;
 				}
 				break;
 			}

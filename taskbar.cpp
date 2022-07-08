@@ -8,7 +8,6 @@
 iTaskBar::iTaskBar(sSettings& settings) : pTBL(NULL), progressbarstate(TBPF_NOPROGRESS), m_settings(settings)
 {
 	(void)CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-	SetWindowAttr();
 }
 
 iTaskBar::~iTaskBar()
@@ -71,7 +70,8 @@ void iTaskBar::SetWindowAttr(void)
 	// if we're under a classic skin & to show the main
 	// window then we can just let Windows handle it as
 	// it will do a much better job with less resources
-	BOOL enabled = !(classicSkin && (m_settings.Thumbnailbackground == BG_WINAMP));
+	BOOL enabled = (!IsIconic(plugin.hwndParent) ? !(classicSkin &&
+				   (m_settings.Thumbnailbackground == BG_WINAMP)) : TRUE);
 	DwmSetWindowAttribute(plugin.hwndParent, DWMWA_HAS_ICONIC_BITMAP, &enabled, sizeof(enabled));
 	DwmSetWindowAttribute(plugin.hwndParent, DWMWA_FORCE_ICONIC_REPRESENTATION, &enabled, sizeof(enabled));
 	DwmInvalidateIconicBitmaps(plugin.hwndParent);
