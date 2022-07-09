@@ -8,16 +8,14 @@
 class MetaData
 {
 public:
-	MetaData() : mfilename(L"")/*, m_play_count(0)*/ {}
-	bool reset(const std::wstring &filename, const bool force = false);
+	MetaData() : mfilename(NULL) {}
+	void reset(LPCWSTR filename, const bool force = false);
 	std::wstring getMetadata(const std::wstring &tag);
-	std::wstring getFileName() const;
-	//bool CheckPlayCount();
+	LPCWSTR getFileName(void) const;
 
 private:
 	std::map<std::wstring, std::wstring> cache;
-	std::wstring mfilename;
-	//int m_play_count;
+	wchar_t *mfilename;
 };
 
 #endif // metadata_h__

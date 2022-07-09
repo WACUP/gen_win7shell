@@ -50,7 +50,7 @@ private:
 	std::vector<int> m_textpositions;
 	bool no_icon, fail, scroll_block, no_text;
 
-	bool render();
+	bool render(void);
 };
 
 #endif // renderer_h__

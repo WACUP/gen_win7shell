@@ -1,5 +1,6 @@
 #include <Windows.h>
 #include <string>
+#include <strsafe.h>
 #include <vector>
 #include <gdiplus.h>
 #include "renderer.h"
@@ -136,7 +137,7 @@ int __cdecl preview_sync_callback(const wchar_t *filename, const int w, const in
 	// due to how this might be triggered (e.g. closing action) it's necessary to have it avoid
 	// trying to do anything here so we don't then crash due to accessing a non-existant object
 	renderer* this_renderer = reinterpret_cast<renderer*>(user_data);
-	LPCWSTR fn = (running && this_renderer ? this_renderer->GetMetadata().getFileName().c_str() : NULL);
+	LPCWSTR fn = (running && this_renderer ? this_renderer->GetMetadata().getFileName() : NULL);
 	if (fn && *fn && !_wcsicmp(filename, fn))
 	{
 		this_renderer->createArtwork(w, h, callback_bits);
@@ -178,7 +179,7 @@ bool renderer::getAlbumArt(const std::wstring &fname)
 	return render();
 }
 
-bool renderer::render()
+bool renderer::render(void)
 {
 	if (albumart)
 	{
@@ -318,6 +319,14 @@ HBITMAP renderer::GetThumbnail()
 		background = new Gdiplus::Bitmap(m_width, m_height, PixelFormat32bppPARGB);
 		Gdiplus::Graphics graphics(background);
 
+		// so we've got something irrespective of the mode being used
+		// it's simpler to ensure that the background has been filled
+		// in with something that'll act like it's transparent to not
+		// have it showing as a black rectangle if something fails...
+		graphics.FillRectangle(&Gdiplus::SolidBrush(Gdiplus::Color::MakeARGB(2, 0, 0, 0)),
+								static_cast<Gdiplus::REAL>(0), static_cast<Gdiplus::REAL>(0), 
+								static_cast<Gdiplus::REAL>(m_width), static_cast<Gdiplus::REAL>(m_height));
+
 		switch (tempfail ? m_settings.Revertto : m_settings.Thumbnailbackground)
 		{
 			case BG_TRANSPARENT:
@@ -403,10 +412,6 @@ HBITMAP renderer::GetThumbnail()
 				}
 				else
 				{
-					graphics.FillRectangle(&Gdiplus::SolidBrush(Gdiplus::Color::MakeARGB(2, 0, 0, 0)),
-											static_cast<Gdiplus::REAL>(0), static_cast<Gdiplus::REAL>(0), 
-											static_cast<Gdiplus::REAL>(m_width), static_cast<Gdiplus::REAL>(m_height));
-
 					// this will either use the custom icon if specified
 					// or the icon related to the loader currently used.
 					// there is a disconnect if using wacup.exe loader &
@@ -693,227 +698,223 @@ HBITMAP renderer::GetThumbnail()
 				if (!normal_font || !large_font)
 				{
 					HDC h_gfx = gfx.GetHDC();
-
-					if (!normal_font)
+					if (h_gfx)
 					{
-						normal_font = new Gdiplus::Font(h_gfx, &m_settings.font);
-					}
+						if (!normal_font)
+						{
+							normal_font = new Gdiplus::Font(h_gfx, &m_settings.font);
+						}
 
-					if (!large_font)
-					{
-						LOGFONT _large_font = m_settings.font;
-						LONG large_size = -((m_settings.font.lfHeight * 72) / GetDeviceCaps(h_gfx, LOGPIXELSY));
-						large_size += 4;
-						_large_font.lfHeight = -MulDiv(large_size, GetDeviceCaps(h_gfx, LOGPIXELSY), 72);
-						large_font = new Gdiplus::Font(h_gfx, &_large_font);
-					}
+						if (!large_font)
+						{
+							LOGFONT _large_font = m_settings.font;
+							LONG large_size = -((m_settings.font.lfHeight * 72) /
+												GetDeviceCaps(h_gfx, LOGPIXELSY));
+							large_size += 4;
+							_large_font.lfHeight = -MulDiv(large_size, GetDeviceCaps(h_gfx, LOGPIXELSY), 72);
+							large_font = new Gdiplus::Font(h_gfx, &_large_font);
+						}
 
-					gfx.ReleaseHDC(h_gfx);
+						gfx.ReleaseHDC(h_gfx);
+					}
 				}
 
-				Gdiplus::SolidBrush bgcolor(Gdiplus::Color(GetRValue(m_settings.bgcolor),
-														   GetGValue(m_settings.bgcolor),
-														   GetBValue(m_settings.bgcolor))),
-									fgcolor(Gdiplus::Color(GetRValue(m_settings.text_color),
-														   GetGValue(m_settings.text_color),
-														   GetBValue(m_settings.text_color)));
-
-				Gdiplus::StringFormat sf(Gdiplus::StringFormatFlagsNoWrap);
-				const int text_space = 28;
-
-				for (std::size_t text_index = 0; text_index != text_parser.GetNumberOfLines(); ++text_index)
+				// since its possible for the fonts on the machine
+				// to not be valid then it's better to bail asap &
+				// reduce the hit - gdi+ only likes true type font
+				if ((normal_font && normal_font->IsAvailable()) &&
+					(large_font && large_font->IsAvailable()))
 				{
-					Gdiplus::RectF ret_rect;
-					std::wstring current_text = text_parser.GetLineText(text_index);
-					linesettings current_settings = text_parser.GetLineSettings(text_index);
+					Gdiplus::SolidBrush bgcolor(Gdiplus::Color(GetRValue(m_settings.bgcolor),
+															   GetGValue(m_settings.bgcolor),
+															   GetBValue(m_settings.bgcolor))),
+										fgcolor(Gdiplus::Color(GetRValue(m_settings.text_color),
+															   GetGValue(m_settings.text_color),
+															   GetBValue(m_settings.text_color)));
 
-					// Measure size
-					gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
-					if (current_settings.largefont)
-					{
-						gfx.MeasureString(current_text.c_str(), -1, large_font,
-										  Gdiplus::RectF(0, 0, 2000, 1000), &sf, &ret_rect);
-					}
-					else
-					{
-						gfx.MeasureString(current_text.c_str(), -1, normal_font,
-										  Gdiplus::RectF(0, 0, 2000, 1000), &sf, &ret_rect);
-					}
+					Gdiplus::StringFormat sf(Gdiplus::StringFormatFlagsNoWrap);
+					const int text_space = 28;
 
-					if (ret_rect.GetBottom() == 0)
+					for (std::size_t text_index = 0; text_index != text_parser.GetNumberOfLines(); ++text_index)
 					{
-						if (current_text.empty())
+						Gdiplus::RectF ret_rect;
+						std::wstring current_text = text_parser.GetLineText(text_index);
+						linesettings current_settings = text_parser.GetLineSettings(text_index);
+
+						// Measure size
+						gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
+						Gdiplus::RectF parent_rect(0, 0, static_cast<Gdiplus::REAL>(m_width),
+														 static_cast<Gdiplus::REAL>(m_height));
+						gfx.MeasureString(current_text.c_str(), current_text.size(),
+										  (current_settings.largefont ? large_font :
+										  normal_font), parent_rect, &sf, &ret_rect);
+					
+						if (ret_rect.GetBottom() == 0)
 						{
-							gfx.MeasureString(L"QWEXCyjM", -1, normal_font, Gdiplus::RectF(0, 0,
-											  static_cast<Gdiplus::REAL>(m_width),
-											  static_cast<Gdiplus::REAL>(m_height)), &sf, &ret_rect);
+							gfx.MeasureString(L"QWEXCyjM", -1, normal_font,
+											  parent_rect, &sf, &ret_rect);
 						}
-						else
+
+						Gdiplus::Bitmap text_bitmap(static_cast<INT>(ret_rect.GetRight()),
+													static_cast<INT>(ret_rect.GetBottom() - 1),
+													PixelFormat32bppPARGB);
+
+						Gdiplus::Graphics text_gfx(&text_bitmap);
+
+						// Graphics setup
+						text_gfx.SetSmoothingMode(Gdiplus::SmoothingModeNone);
+						text_gfx.SetInterpolationMode(Gdiplus::InterpolationModeNearestNeighbor);
+						text_gfx.SetPixelOffsetMode(Gdiplus::PixelOffsetModeNone);
+						text_gfx.SetCompositingQuality(Gdiplus::CompositingQualityHighSpeed);
+
+						(m_settings.Antialias) ? text_gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias) : 
+												 text_gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintSingleBitPerPixelGridFit);
+
+						// Draw box if needed
+						if (current_settings.darkbox && !current_text.empty())
 						{
-							gfx.MeasureString(L"QWEXCyjM", -1, &Gdiplus::Font(L"Segoe UI", 14),
-											  Gdiplus::RectF(0, 0, static_cast<Gdiplus::REAL>(m_width),
-											  static_cast<Gdiplus::REAL>(m_height)), &sf, &ret_rect);
+							Gdiplus::SolidBrush boxbrush(Gdiplus::Color::MakeARGB(120, GetRValue(m_settings.bgcolor),
+														 GetGValue(m_settings.bgcolor), GetBValue(m_settings.bgcolor)));
+
+							ret_rect.Height += 2;
+							text_gfx.FillRectangle(&boxbrush, ret_rect);
 						}
-					}
 
-					Gdiplus::Bitmap text_bitmap(static_cast<INT>(ret_rect.GetRight()),
-												static_cast<INT>(ret_rect.GetBottom() - 1),
-												PixelFormat32bppPARGB);
-					Gdiplus::Graphics text_gfx(&text_bitmap);
+						text_gfx.SetTextContrast(120);
 
-					// Graphics setup
-					text_gfx.SetSmoothingMode(Gdiplus::SmoothingModeNone);
-					text_gfx.SetInterpolationMode(Gdiplus::InterpolationModeNearestNeighbor);
-					text_gfx.SetPixelOffsetMode(Gdiplus::PixelOffsetModeNone);
-					text_gfx.SetCompositingQuality(Gdiplus::CompositingQualityHighSpeed);
+						// Draw text to offscreen surface
 
-					(m_settings.Antialias) ? text_gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias) : 
-											 text_gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintSingleBitPerPixelGridFit);
+						//shadow
+						if (current_settings.shadow)
+						{
+							text_gfx.DrawString(current_text.c_str(), current_text.size(),
+												current_settings.largefont ?
+												large_font : normal_font,
+												Gdiplus::PointF(1, -1), &bgcolor);
+						}
 
-					// Draw box if needed
-					if (current_settings.darkbox && !current_text.empty())
-					{
-						Gdiplus::SolidBrush boxbrush(Gdiplus::Color::MakeARGB(120, GetRValue(m_settings.bgcolor),
-													 GetGValue(m_settings.bgcolor), GetBValue(m_settings.bgcolor)));
-
-						ret_rect.Height += 2;
-						text_gfx.FillRectangle(&boxbrush, ret_rect);
-					}
-
-					text_gfx.SetTextContrast(120);
-
-					// Draw text to offscreen surface
-
-					//shadow
-					if (current_settings.shadow)
-					{
-						text_gfx.DrawString(current_text.c_str(), -1, 
+						//text
+						text_gfx.DrawString(current_text.c_str(), current_text.size(),
 											current_settings.largefont ?
 											large_font : normal_font,
-											Gdiplus::PointF(1, -1), &bgcolor);
-					}
+											Gdiplus::PointF(0, -2), &fgcolor);
 
-					//text
-					text_gfx.DrawString(current_text.c_str(), -1, 
-										current_settings.largefont ?
-										large_font : normal_font,
-										Gdiplus::PointF(0, -2), &fgcolor);
+						// Calculate text position
+						int X = 0, CX = m_width;
 
-					// Calculate text position
-					int X = 0, CX = m_width;
-
-					if (m_iconwidth == 0)
-					{
-						m_iconwidth = _iconwidth;
-					}
-
-					if (m_iconheight == 0)
-					{
-						m_iconheight = _iconheight;
-					}
-
-					if (m_settings.AsIcon && !no_icon && !current_settings.forceleft)
-					{
-						if ((iconposition == IP_UPPERLEFT || 
-							iconposition == IP_LOWERLEFT) &&
-							!current_settings.forceleft)
+						if (m_iconwidth == 0)
 						{
-							X += m_iconwidth + 5;
-							CX = m_width - X;
-						}
-						else if (iconposition == IP_UPPERRIGHT || 
-								 iconposition == IP_LOWERRIGHT)
-						{
-							CX = m_width - m_iconwidth - 5;
-						}
-					}
-
-					gfx.SetClip(Gdiplus::RectF(static_cast<Gdiplus::REAL>(X),
-											   static_cast<Gdiplus::REAL>(0),
-											   static_cast<Gdiplus::REAL>(CX),
-											   static_cast<Gdiplus::REAL>(m_width)),
-											   Gdiplus::CombineModeReplace);
-
-					// Draw text bitmap to final bitmap
-					if (text_bitmap.GetWidth() > (UINT)(CX + 2) &&
-						!current_settings.dontscroll)// && m_textpause[text_index] == 0)
-					{
-						// Draw scrolling text
-						int left = m_textpositions[text_index];
-						const int bmp_width = (int)text_bitmap.GetWidth(),
-								  bmp_height = (int)text_bitmap.GetHeight();
-
-						if (left + bmp_width < 0)
-						{
-							// reset text
-							m_textpositions[text_index] = text_space;
-							left = text_space;
-							scroll_block = true;
+							m_iconwidth = _iconwidth;
 						}
 
-						if (left == 0 && m_textpause == 0)
+						if (m_iconheight == 0)
 						{
-							m_textpause = 60; // delay; in steps
+							m_iconheight = _iconheight;
 						}
 
-						if (left + bmp_width >= CX)
+						if (m_settings.AsIcon && !no_icon && !current_settings.forceleft)
 						{
-							gfx.DrawImage(&text_bitmap, X, (int)textheight, -left,
-										  0, CX, bmp_height, Gdiplus::UnitPixel);
+							if ((iconposition == IP_UPPERLEFT || 
+								iconposition == IP_LOWERLEFT) &&
+								!current_settings.forceleft)
+							{
+								X += m_iconwidth + 5;
+								CX = m_width - X;
+							}
+							else if (iconposition == IP_UPPERRIGHT || 
+									 iconposition == IP_LOWERRIGHT)
+							{
+								CX = m_width - m_iconwidth - 5;
+							}
 						}
-						else
-						{
-							gfx.DrawImage(&text_bitmap, X, (int)textheight, -left, 0,
-										  bmp_width + left, bmp_height, Gdiplus::UnitPixel);
 
-							gfx.DrawImage(&text_bitmap, X + text_space + 2 + bmp_width + left,
-										  (int)textheight, 0, 0, -left, bmp_height, Gdiplus::UnitPixel);
-						}
-					}
-					else
-					{
-						// Draw non-scrolling text
-						if (current_settings.center)
+						gfx.SetClip(Gdiplus::RectF(static_cast<Gdiplus::REAL>(X),
+												   static_cast<Gdiplus::REAL>(0),
+												   static_cast<Gdiplus::REAL>(CX),
+												   static_cast<Gdiplus::REAL>(m_width)),
+												   Gdiplus::CombineModeReplace);
+
+						// Draw text bitmap to final bitmap
+						if (text_bitmap.GetWidth() > (UINT)(CX + 2) &&
+							!current_settings.dontscroll)// && m_textpause[text_index] == 0)
 						{
-							// Center text
-							const int newleft = X + ((CX / 2) - (text_bitmap.GetWidth() / 2));
-							gfx.DrawImage(&text_bitmap, newleft, (int)textheight, 0, 0,
-										  text_bitmap.GetWidth(), text_bitmap.GetHeight(),
-										  Gdiplus::UnitPixel);          
+							// Draw scrolling text
+							int left = m_textpositions[text_index];
+							const int bmp_width = (int)text_bitmap.GetWidth(),
+									  bmp_height = (int)text_bitmap.GetHeight();
+
+							if (left + bmp_width < 0)
+							{
+								// reset text
+								m_textpositions[text_index] = text_space;
+								left = text_space;
+								scroll_block = true;
+							}
+
+							if (left == 0 && m_textpause == 0)
+							{
+								m_textpause = 60; // delay; in steps
+							}
+
+							if (left + bmp_width >= CX)
+							{
+								gfx.DrawImage(&text_bitmap, X, (int)textheight, -left,
+											  0, CX, bmp_height, Gdiplus::UnitPixel);
+							}
+							else
+							{
+								gfx.DrawImage(&text_bitmap, X, (int)textheight, -left, 0,
+											  bmp_width + left, bmp_height, Gdiplus::UnitPixel);
+
+								gfx.DrawImage(&text_bitmap, X + text_space + 2 + bmp_width + left,
+											  (int)textheight, 0, 0, -left, bmp_height, Gdiplus::UnitPixel);
+							}
 						}
 						else
 						{
-							gfx.DrawImage(&text_bitmap, X, (int)textheight, 0, 0,
-										  text_bitmap.GetWidth(), text_bitmap.GetHeight(),
-										  Gdiplus::UnitPixel);          
+							// Draw non-scrolling text
+							if (current_settings.center)
+							{
+								// Center text
+								const int newleft = X + ((CX / 2) - (text_bitmap.GetWidth() / 2));
+								gfx.DrawImage(&text_bitmap, newleft, (int)textheight, 0, 0,
+											  text_bitmap.GetWidth(), text_bitmap.GetHeight(),
+											  Gdiplus::UnitPixel);          
+							}
+							else
+							{
+								gfx.DrawImage(&text_bitmap, X, (int)textheight, 0, 0,
+											  text_bitmap.GetWidth(), text_bitmap.GetHeight(),
+											  Gdiplus::UnitPixel);          
+							}
+
+							m_textpositions[text_index] = 2; // Nr. pixels text jumps on each step when scrolling
 						}
 
-						m_textpositions[text_index] = 2; // Nr. pixels text jumps on each step when scrolling
+						gfx.ResetClip();
+
+						textheight += text_bitmap.GetHeight();
 					}
 
-					gfx.ResetClip();
+					if (m_textpause > 0)
+					{
+						--m_textpause;
+					}
 
-					textheight += text_bitmap.GetHeight();
-				}
+					if (!m_settings.Shrinkframe)
+					{
+						textheight = (Gdiplus::REAL)(m_height - 2);
+					}
 
-				if (m_textpause > 0)
-				{
-					--m_textpause;
-				}
+					if (m_settings.Thumbnailpb)
+					{
+						textheight += 25;
+					}
 
-				if (!m_settings.Shrinkframe)
-				{
-					textheight = (Gdiplus::REAL)(m_height - 2);
-				}
-
-				if (m_settings.Thumbnailpb)
-				{
-					textheight += 25;
-				}
-
-				if (textheight > m_height - 2)
-				{
-					textheight = (Gdiplus::REAL)(m_height - 2);
+					if (textheight > m_height - 2)
+					{
+						textheight = (Gdiplus::REAL)(m_height - 2);
+					}
 				}
 			}
 
@@ -957,7 +958,7 @@ HBITMAP renderer::GetThumbnail()
 		// finalize / garbage
 		if (no_text || !m_settings.Shrinkframe)
 		{
-			canvas->GetHBITMAP(NULL, &retbmp);        
+			canvas->GetHBITMAP(NULL, &retbmp);
 		}
 		else
 		{

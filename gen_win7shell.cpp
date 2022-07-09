@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.1"
+#define PLUGIN_VERSION L"4.1.3"
 
 #define NR_BUTTONS 15
 
@@ -624,7 +624,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				MetaData* meta_data = get_metadata();
 				if (meta_data != NULL)
 				{
-					meta_data->reset(filename);
+					meta_data->reset(filename.c_str());
 					/*if (meta_data->CheckPlayCount())
 					{
 						JumpList* JL = new JumpList();
@@ -975,7 +975,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					MetaData* meta_data = get_metadata();
 					if (meta_data != NULL)
 					{
-						LPCWSTR filename = meta_data->getFileName().c_str();
+						LPCWSTR filename = meta_data->getFileName();
 						if (filename && *filename)
 						{
 							if (FileExists(filename))
@@ -1023,7 +1023,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					{
 						SHFILEOPSTRUCT fileop = { 0 };
 						wchar_t path[MAX_PATH] = { 0 };
-						(void)StringCchCopy(path, ARRAYSIZE(path), meta_data->getFileName().c_str());
+						(void)StringCchCopy(path, ARRAYSIZE(path), meta_data->getFileName());
 
 						fileop.wFunc = FO_DELETE;
 						fileop.pFrom = path;
@@ -1987,7 +1987,11 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 					if (PickFont(&cf))
 					{
 						Settings.font = *cf.lpLogFont;
-						thumbnaildrawer->ClearFonts();
+
+						if (thumbnaildrawer != NULL)
+						{
+							thumbnaildrawer->ClearFonts();
+						}
 					}
 					break;
 				}

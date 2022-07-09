@@ -5,16 +5,17 @@
 #include <sdk/winamp/wa_ipc.h>
 #include <loader/loader/utils.h>
 
-bool MetaData::reset(const std::wstring &filename, const bool force)
+void MetaData::reset(LPCWSTR filename, const bool force)
 {
 	if (force || (filename != mfilename))
 	{
 		cache.clear();
-		mfilename = filename;
-		return true;
+		if (mfilename)
+		{
+			free(mfilename);
+		}
+		mfilename = _wcsdup(filename);
 	}
-
-	return false;
 }
 
 std::wstring MetaData::getMetadata(const std::wstring &tag)
@@ -24,11 +25,11 @@ std::wstring MetaData::getMetadata(const std::wstring &tag)
 		return cache.find(tag)->second;
 	}
 
-	if (!mfilename.empty())
+	if (mfilename && *mfilename)
 	{
 		wchar_t buffer[2048] = { 0 };
 		// cache the response as long as we got a valid result
-		if (!!GetExtendedFileInfoW(mfilename.c_str(), tag.c_str(), buffer,
+		if (!!GetExtendedFileInfoW(mfilename, tag.c_str(), buffer,
 								   ARRAYSIZE(buffer), NULL) && buffer[0])
 		{
 			cache[tag] = buffer;
@@ -87,19 +88,7 @@ std::wstring MetaData::getMetadata(const std::wstring &tag)
 	return L"";
 }
 
-std::wstring MetaData::getFileName() const
+LPCWSTR MetaData::getFileName(void) const
 {
-	return mfilename;
+	return (mfilename && *mfilename ? mfilename : L"");
 }
-
-/*bool MetaData::CheckPlayCount()
-{
-	if (m_play_count > 50)
-	{
-		m_play_count = 0;
-		return true;
-	}
-
-	++m_play_count;
-	return false;
-}*/
