@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.1.3"
+#define PLUGIN_VERSION L"4.1.4"
 
 #define NR_BUTTONS 15
 
@@ -19,9 +19,8 @@
 #include <loader/loader/paths.h>
 #include <loader/hook/squash.h>
 #include <loader/hook/plugins.h>
-#include <sdk/winamp/wa_ipc.h>
-#include <sdk/winamp/wa_msgids.h>
 #include <sdk/winamp/wa_cup.h>
+#include <sdk/winamp/wa_msgids.h>
 #include <sdk/Agave/Language/lang.h>
 #include <sdk/winamp/ipc_pe.h>
 #include <sdk/nu/autowide.h>
@@ -2070,6 +2069,21 @@ void UpdateIconControls(HWND hwnd)
 	EnableControl(hwnd, IDC_RADIO8, Settings.AsIcon);
 }
 
+void UpdateThumbnail(void)
+{
+	if (itaskbar != NULL)
+	{
+		if (itaskbar->Reset())
+		{
+			updateToolbar(GetThumbnailIcons(false));
+		}
+
+		itaskbar->SetWindowAttr();
+	}
+
+	ResetThumbnail();
+}
+
 LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 {
 	switch (Message)
@@ -2126,7 +2140,7 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 				StringCchPrintf(text, ARRAYSIZE(text), L"%d%%", Settings.BG_Transparency);
 				SetDlgItemText(hwnd, IDC_TRANSPARENCY_PERCENT, text);
 			}
-			ResetThumbnail();
+			UpdateThumbnail();
 			break;
 		}
 		case WM_COMMAND:
@@ -2162,15 +2176,7 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 
 					EnumChildWindows(hwnd, EnumDialogControls, (Settings.Thumbnailbackground != BG_WINAMP));
 
-					if (itaskbar != NULL)
-					{
-						if (itaskbar->Reset())
-						{
-							updateToolbar(GetThumbnailIcons(false));
-						}
-
-						itaskbar->SetWindowAttr();
-					}
+					UpdateThumbnail();
 
 					SetThumbnailTimer();
 					DwmInvalidateIconicBitmaps(plugin.hwndParent);
@@ -2246,7 +2252,7 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 				{
 					Settings.AsIcon = (Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK25)) == BST_CHECKED);
 					UpdateIconControls(hwnd);
-					ResetThumbnail();
+					UpdateThumbnail();
 					break;
 				}
 				case IDC_RADIO4:
@@ -2275,7 +2281,7 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 						Settings.IconPosition = IP_LOWERRIGHT;
 					}
 
-					ResetThumbnail();
+					UpdateThumbnail();
 					break;
 				}
 				case IDC_CHECK36:
