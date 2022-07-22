@@ -14,6 +14,8 @@
 
 #include <api/memmgr/api_memmgr.h>
 
+#include <Agave/Metadata/api_metadata2.h>
+
 #include <playlist/api_playlists.h>
 
 #include <Agave/Language/api_language.h>

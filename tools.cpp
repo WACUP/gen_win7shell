@@ -477,6 +477,7 @@ namespace tools
 				}
 				case IDI_TBICON17:	// delete
 				{
+					icon = 8;
 					file = L"delete";
 					break;
 				}
@@ -492,8 +493,9 @@ namespace tools
 			{
 				if (hicon == NULL)
 				{
-					const int icons[] = { 203/*prev*/, 204/*play*/, 208/*pause*/, 205/*stop*/,
-										  206/*next*/, 207/*open*/, 209/*voldown*/, 210/*volup*/ };
+					const int icons[] = { 203/*prev*/, 204/*play*/, 208/*pause*/,
+										  205/*stop*/, 206/*next*/, 207/*open*/,
+										  209/*voldown*/, 210/*volup*/, 211/*delete*/ };
 					hicon = (HICON)LoadImage(GetModuleHandle(GetPaths()->wacup_core_dll),
 									   MAKEINTRESOURCE(icons[icon]), IMAGE_ICON, 0, 0, 0);
 				}

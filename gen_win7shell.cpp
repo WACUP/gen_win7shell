@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.1.4"
+#define PLUGIN_VERSION L"4.1.7"
 
 #define NR_BUTTONS 15
 
@@ -788,7 +788,9 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				// make sure if not playing but prev / next is done
 				// that we update the thumbnail for the current one
 				if ((lParam == IPC_FILE_TAG_MAY_HAVE_UPDATEDW) ||
+#ifndef _WIN64
 					(lParam == IPC_FILE_TAG_MAY_HAVE_UPDATED) ||
+#endif
 					(lParam == IPC_CB_MISC) &&
 					((wParam == IPC_CB_MISC_TITLE) ||
 					(wParam == IPC_CB_MISC_AA_OPT_CHANGED) ||
@@ -1026,15 +1028,15 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 
 						fileop.wFunc = FO_DELETE;
 						fileop.pFrom = path;
-						fileop.pTo = L"";
-						fileop.fFlags = FOF_ALLOWUNDO | FOF_FILESONLY;
-						fileop.lpszProgressTitle = L"";
+						fileop.fFlags = ((GetPlaylistRecycleMode() ? FOF_ALLOWUNDO : 0) | FOF_FILESONLY);
 
 						const int saved_play_state = Settings.play_state;
 						SendMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(40047, 0), 0);
 						Settings.play_state = PLAYSTATE_NOTPLAYING;
 
-						if (FileAction(&fileop) == 0)
+						plugin.metadata->ClearCache(NULL);
+
+						if (!FileAction(&fileop))
 						{
 							SendMessage(GetPlaylistWnd(), WM_WA_IPC, IPC_PE_DELETEINDEX, GetPlaylistPosition());
 						}
