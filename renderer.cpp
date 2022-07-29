@@ -745,7 +745,7 @@ HBITMAP renderer::GetThumbnail()
 						gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
 						Gdiplus::RectF parent_rect(0, 0, static_cast<Gdiplus::REAL>(m_width),
 														 static_cast<Gdiplus::REAL>(m_height));
-						gfx.MeasureString(current_text.c_str(), current_text.size(),
+						gfx.MeasureString(current_text.c_str(), (INT)current_text.size(),
 										  (current_settings.largefont ? large_font :
 										  normal_font), parent_rect, &sf, &ret_rect);
 					
@@ -787,17 +787,15 @@ HBITMAP renderer::GetThumbnail()
 						//shadow
 						if (current_settings.shadow)
 						{
-							text_gfx.DrawString(current_text.c_str(), current_text.size(),
-												current_settings.largefont ?
-												large_font : normal_font,
-												Gdiplus::PointF(1, -1), &bgcolor);
+							text_gfx.DrawString(current_text.c_str(), (INT)current_text.size(),
+												current_settings.largefont ? large_font :
+												normal_font, Gdiplus::PointF(1, -1), &bgcolor);
 						}
 
 						//text
-						text_gfx.DrawString(current_text.c_str(), current_text.size(),
-											current_settings.largefont ?
-											large_font : normal_font,
-											Gdiplus::PointF(0, -2), &fgcolor);
+						text_gfx.DrawString(current_text.c_str(), (INT)current_text.size(),
+											current_settings.largefont ? large_font :
+											normal_font, Gdiplus::PointF(0, -2), &fgcolor);
 
 						// Calculate text position
 						int X = 0, CX = m_width;
