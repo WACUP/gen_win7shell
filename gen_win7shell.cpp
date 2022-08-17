@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.1.7"
+#define PLUGIN_VERSION L"4.1.8"
 
 #define NR_BUTTONS 15
 
@@ -1022,13 +1022,8 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					MetaData* meta_data = get_metadata();
 					if (meta_data != NULL)
 					{
-						SHFILEOPSTRUCT fileop = { 0 };
 						wchar_t path[MAX_PATH] = { 0 };
 						(void)StringCchCopy(path, ARRAYSIZE(path), meta_data->getFileName());
-
-						fileop.wFunc = FO_DELETE;
-						fileop.pFrom = path;
-						fileop.fFlags = ((GetPlaylistRecycleMode() ? FOF_ALLOWUNDO : 0) | FOF_FILESONLY);
 
 						const int saved_play_state = Settings.play_state;
 						SendMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(40047, 0), 0);
@@ -1036,6 +1031,9 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 
 						plugin.metadata->ClearCache(NULL);
 
+						SHFILEOPSTRUCT fileop = { 0, FO_DELETE, path, 0, (FILEOP_FLAGS)
+												  ((GetPlaylistRecycleMode() ? FOF_ALLOWUNDO :
+																0) | FOF_FILESONLY), 0, 0, 0 };
 						if (!FileAction(&fileop))
 						{
 							SendMessage(GetPlaylistWnd(), WM_WA_IPC, IPC_PE_DELETEINDEX, GetPlaylistPosition());

@@ -27,10 +27,10 @@ std::wstring MetaData::getMetadata(const std::wstring &tag)
 
 	if (mfilename && *mfilename)
 	{
-		wchar_t buffer[2048] = { 0 };
+		wchar_t buffer[GETFILEINFO_TITLE_LENGTH] = { 0 };
 		// cache the response as long as we got a valid result
-		if (!!GetExtendedFileInfoW(mfilename, tag.c_str(), buffer,
-								   ARRAYSIZE(buffer), NULL) && buffer[0])
+		extendedFileInfoStructW efis = { mfilename, tag.c_str(), buffer, ARRAYSIZE(buffer) };
+		if (GetFileInfoHookable((WPARAM)&efis, TRUE, NULL, NULL) && buffer[0])
 		{
 			cache[tag] = buffer;
 			return buffer;

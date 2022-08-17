@@ -422,15 +422,22 @@ HBITMAP renderer::GetThumbnail()
 					{
 						wchar_t taskbar_tmp[MAX_PATH] = { 0 };
 						CombinePath(taskbar_tmp, GetPaths()->settings_dir, L"taskbar.ico");
-						
+
 						win32_icon = (HICON)LoadImage(NULL, taskbar_tmp, IMAGE_ICON,
 									 256, 256, LR_LOADTRANSPARENT | LR_LOADFROMFILE);
 					}
 
+					bool from_core = false;
 					if (win32_icon == NULL)
 					{
-						win32_icon = (HICON)LoadImage(GetModuleHandle(GetPaths()->wacup_loader_exe),
-									 MAKEINTRESOURCE(101), IMAGE_ICON, 256, 256, LR_LOADTRANSPARENT);
+						// due to how WACUP works a wacup.exe or
+						// winamp.exe or might have been used as
+						// the loader along with running as the
+						// non-legacy or legacy modes so we will
+						// let the core manage working out a big
+						// icon for us to use based on the loader
+						win32_icon = GetLoaderIcon(FALSE);
+						from_core = true;
 					}
 
 					if (win32_icon != NULL)
@@ -442,7 +449,11 @@ HBITMAP renderer::GetThumbnail()
 						dest.Inflate(-(icon_width / 4), -(icon_height / 4));
 						graphics.DrawImage(&icon, dest, 0, 0, icon_width, icon_height, Gdiplus::UnitPixel,
 										   (doReplace ? (replace.ToCOLORREF() == queried.ToCOLORREF() ? &ImgAtt : 0) : 0));
-						DestroyIcon(win32_icon);
+
+						if (!from_core)
+						{
+							DestroyIcon(win32_icon);
+						}
 					}
 				}
 				break;
