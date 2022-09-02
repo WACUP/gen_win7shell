@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.1.8"
+#define PLUGIN_VERSION L"4.1.9"
 
 #define NR_BUTTONS 15
 
@@ -144,7 +144,7 @@ const bool GenerateAppIDFromFolder(const wchar_t *search_path, wchar_t *app_id)
 			{
 				// we now check that things are a match
 				const size_t len = wcslen(path);
-				if (!_wcsnicmp(search_path, path, len))
+				if (SameStrN(search_path, path, len))
 				{
 					// and if they are then we'll merge
 					// the two together to get the final
@@ -197,7 +197,7 @@ LPCWSTR GetAppID(void)
 				{
 					MessageBoxEx(plugin.hwndParent,
 								 WASABI_API_LNGSTRINGW(IDS_ERROR_SETTING_APPID),
-								 (LPWSTR)plugin.description, MB_ICONWARNING | MB_OK, 0);
+								 (LPWSTR)plugin.description, MB_ICONWARNING, 0);
 				}
 				else
 				{
@@ -380,7 +380,7 @@ BOOL CALLBACK checkSkinProc(HWND hwnd, LPARAM lParam)
 {
 	wchar_t cl[24] = { 0 };
 	GetClassName(hwnd, cl, ARRAYSIZE(cl));
-	if (!_wcsnicmp(cl, L"BaseWindow_RootWnd", 18))
+	if (SameStrN(cl, L"BaseWindow_RootWnd", 18))
 	{
 		// if any of these are a child window of
 		// the current skin being used then it's
@@ -391,10 +391,10 @@ BOOL CALLBACK checkSkinProc(HWND hwnd, LPARAM lParam)
 		{
 			cl[0] = 0;
 			GetClassName(child, cl, ARRAYSIZE(cl));
-			if (!_wcsnicmp(cl, L"Winamp EQ", 9) ||
-				!_wcsnicmp(cl, L"Winamp PE", 9) ||
-				!_wcsnicmp(cl, L"Winamp Gen", 10) ||
-				!_wcsnicmp(cl, L"Winamp Video", 12))
+			if (SameStrN(cl, L"Winamp EQ", 9) ||
+				SameStrN(cl, L"Winamp PE", 9) ||
+				SameStrN(cl, L"Winamp Gen", 10) ||
+				SameStrN(cl, L"Winamp Video", 12))
 			{
 				modernSUI = true;
 				return FALSE;
@@ -491,7 +491,7 @@ HIMAGELIST GetThumbnailIcons(const bool force_refresh)
 	{
 		if (theicons)
 		{
-			ImageList_Destroy(theicons);
+			ImageListDestroy(theicons);
 			theicons = NULL;
 		}
 
@@ -507,7 +507,7 @@ HIMAGELIST GetOverlayIcons(const bool force_refresh)
 	{
 		if (overlayicons)
 		{
-			ImageList_Destroy(overlayicons);
+			ImageListDestroy(overlayicons);
 			overlayicons = NULL;
 		}
 
@@ -536,10 +536,10 @@ void UpdateOverlyStatus(const bool force_refresh)
 				if (itaskbar != NULL)
 				{
 					const int index = tools::getBitmap(TB_PLAYPAUSE, 0);
-					icon = ImageList_GetIcon(GetOverlayIcons(force_refresh), (index - 1), 0);
+					icon = ImageListGetIcon(GetOverlayIcons(force_refresh), (index - 1), 0);
 					if (icon == NULL)
 					{
-						icon = ImageList_GetIcon(GetThumbnailIcons(false/*force_refresh*/), index, 0);
+						icon = ImageListGetIcon(GetThumbnailIcons(false/*force_refresh*/), index, 0);
 					}
 					itaskbar->SetIconOverlay(icon, playing_str);
 				}
@@ -550,10 +550,10 @@ void UpdateOverlyStatus(const bool force_refresh)
 				if (itaskbar != NULL)
 				{
 					const int index = tools::getBitmap(TB_PLAYPAUSE, 1);
-					icon = ImageList_GetIcon(GetOverlayIcons(force_refresh), (index - 1), 0);
+					icon = ImageListGetIcon(GetOverlayIcons(force_refresh), (index - 1), 0);
 					if (icon == NULL)
 					{
-						icon = ImageList_GetIcon(GetThumbnailIcons(false/*force_refresh*/), index, 0);
+						icon = ImageListGetIcon(GetThumbnailIcons(false/*force_refresh*/), index, 0);
 					}
 					itaskbar->SetIconOverlay(icon, paused_str);
 				}
@@ -564,10 +564,10 @@ void UpdateOverlyStatus(const bool force_refresh)
 				if (itaskbar != NULL)
 				{
 					const int index = tools::getBitmap(TB_STOP, 1);
-					icon = ImageList_GetIcon(GetOverlayIcons(force_refresh), index, 0);
+					icon = ImageListGetIcon(GetOverlayIcons(force_refresh), index, 0);
 					if (icon == NULL)
 					{
-						icon = ImageList_GetIcon(GetThumbnailIcons(false/*force_refresh*/), index, 0);
+						icon = ImageListGetIcon(GetThumbnailIcons(false/*force_refresh*/), index, 0);
 					}
 
 					if (itaskbar != NULL)
@@ -758,10 +758,10 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					classicSkin = (!WASABI_API_SKIN || WASABI_API_SKIN &&
 								  // TODO pull in the localised version from gen_ff
 								  //		to ensure the checking will work correctly
-								  (skin_name && *skin_name && !_wcsicmp(skin_name, L"No skin loaded")));
+								  (SameStr(skin_name, L"No skin loaded")));
 
 					modernSUI = false;
-					modernFix = (skin_name && *skin_name && !_wcsnicmp(skin_name, L"Winamp Modern", 13));
+					modernFix = (skin_name && *skin_name && SameStrN(skin_name, L"Winamp Modern", 13));
 					if (!classicSkin)
 					{
 						// see if it's likely to be a SUI or not as
@@ -1001,7 +1001,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 								//		workarounds to fix issues (explorerfindfile is meant
 								//		cope with zip:// but for some reason it fails now &
 								//		it just won't cope with cda:// style entries either)
-								if (!_wcsnicmp(filename, L"zip://", 6))
+								if (IsZipEntry(filename))
 								{
 									filename += 6;
 								}
@@ -1716,7 +1716,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 			// Set button icons
 			for (int i = 0; i < NR_BUTTONS; i++)
 			{
-				HICON icon = ImageList_GetIcon(GetThumbnailIcons(false), tools::getBitmap(TB_PREVIOUS + i, i == 10 ? 1 : 0), 0);
+				HICON icon = ImageListGetIcon(GetThumbnailIcons(false), tools::getBitmap(TB_PREVIOUS + i, i == 10 ? 1 : 0), 0);
 				SendDlgItemMessage(hwnd, IDC_PCB1 + i, BM_SETIMAGE, IMAGE_ICON, (LPARAM)icon);
 				DestroyIcon(icon);
 			}
@@ -2127,14 +2127,13 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 		case WM_HSCROLL:
 		{
 			wchar_t text[64] = { 0 };
-			DWORD slider = GetDlgCtrlID((HWND)lParam);
-			if (slider == IDC_SLIDER1)
+			if (HWNDIsCtrl(lParam, hwnd, IDC_SLIDER1))
 			{
 				Settings.IconSize = (int)SendMessage((HWND)lParam, TBM_GETPOS, NULL, NULL);
 				StringCchPrintf(text, ARRAYSIZE(text), WASABI_API_LNGSTRINGW(IDS_ICON_SIZE), Settings.IconSize);
 				SetDlgItemText(hwnd, IDC_ICONSIZE, text);
 			}
-			else if (slider == IDC_SLIDER_TRANSPARENCY)
+			else if (HWNDIsCtrl(lParam, hwnd, IDC_SLIDER_TRANSPARENCY))
 			{
 				Settings.BG_Transparency = (int)SendMessage((HWND)lParam, TBM_GETPOS, NULL, NULL);
 				StringCchPrintf(text, ARRAYSIZE(text), L"%d%%", Settings.BG_Transparency);

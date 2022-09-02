@@ -138,7 +138,7 @@ int __cdecl preview_sync_callback(const wchar_t *filename, const int w, const in
 	// trying to do anything here so we don't then crash due to accessing a non-existant object
 	renderer* this_renderer = reinterpret_cast<renderer*>(user_data);
 	LPCWSTR fn = (running && this_renderer ? this_renderer->GetMetadata().getFileName() : NULL);
-	if (fn && *fn && !_wcsicmp(filename, fn))
+	if (SameStr(filename, fn))
 	{
 		this_renderer->createArtwork(w, h, callback_bits);
 		return TRUE;

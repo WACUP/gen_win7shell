@@ -318,9 +318,9 @@ namespace tools
 
 	HIMAGELIST prepareOverlayIcons(void)
 	{
-		HIMAGELIST himlIcons = ImageList_Create(GetSystemMetrics(SM_CXSMICON),
-												GetSystemMetrics(SM_CYSMICON),
-												ILC_COLOR32, NR_OVERLAY_ICONS, 0);
+		HIMAGELIST himlIcons = ImageListCreate(GetSystemMetrics(SM_CXSMICON),
+											   GetSystemMetrics(SM_CYSMICON),
+											   ILC_COLOR32, NR_OVERLAY_ICONS, 0);
 
 		wchar_t skin_folder[MAX_PATH] = { 0 };
 		GetCurrentSkin(skin_folder, ARRAYSIZE(skin_folder));
@@ -340,17 +340,17 @@ namespace tools
 
 			if (hicon == NULL)
 			{
-				ImageList_Destroy(himlIcons);
+				ImageListDestroy(himlIcons);
 				return NULL;
 			}
 			else
 			{
 				__try
 				{
-					if (ImageList_AddIcon(himlIcons, hicon) == -1)
+					if (ImageListAddIcon(himlIcons, hicon) == -1)
 					{
 						DestroyIcon(hicon);
-						ImageList_Destroy(himlIcons);
+						ImageListDestroy(himlIcons);
 						return NULL;
 					}
 					DestroyIcon(hicon);
@@ -358,7 +358,7 @@ namespace tools
 				__except (EXCEPTION_EXECUTE_HANDLER)
 				{
 					DestroyIcon(hicon);
-					ImageList_Destroy(himlIcons);
+					ImageListDestroy(himlIcons);
 					return NULL;
 				}
 			}
@@ -369,9 +369,9 @@ namespace tools
 
 	HIMAGELIST prepareIcons(void)
 	{
-		HIMAGELIST himlIcons = ImageList_Create(GetSystemMetrics(SM_CXSMICON),
-												GetSystemMetrics(SM_CYSMICON),
-												ILC_COLOR32, NR_THUMB_BUTTONS, 0);
+		HIMAGELIST himlIcons = ImageListCreate(GetSystemMetrics(SM_CXSMICON),
+											   GetSystemMetrics(SM_CYSMICON),
+											   ILC_COLOR32, NR_THUMB_BUTTONS, 0);
 
 		wchar_t skin_folder[MAX_PATH] = { 0 };
 		GetCurrentSkin(skin_folder, ARRAYSIZE(skin_folder));
@@ -512,17 +512,17 @@ namespace tools
 
 			if (hicon == NULL)
 			{
-				ImageList_Destroy(himlIcons);
+				ImageListDestroy(himlIcons);
 				return NULL;
 			}
 			else
 			{
 				__try
 				{
-					if (ImageList_AddIcon(himlIcons, hicon) == -1)
+					if (ImageListAddIcon(himlIcons, hicon) == -1)
 					{
 						DestroyIcon(hicon);
-						ImageList_Destroy(himlIcons);
+						ImageListDestroy(himlIcons);
 						return NULL;
 					}
 					DestroyIcon(hicon);
@@ -530,7 +530,7 @@ namespace tools
 				__except (EXCEPTION_EXECUTE_HANDLER)
 				{
 					DestroyIcon(hicon);
-					ImageList_Destroy(himlIcons);
+					ImageListDestroy(himlIcons);
 					return NULL;
 				}
 			}

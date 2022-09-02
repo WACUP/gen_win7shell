@@ -3,7 +3,11 @@
 #include <ctype.h>
 #include "metadata.h"
 #include <sdk/winamp/wa_ipc.h>
+#include <sdk/winamp/gen.h>
 #include <loader/loader/utils.h>
+#include "api.h"
+
+extern winampGeneralPurposePlugin plugin;
 
 void MetaData::reset(LPCWSTR filename, const bool force)
 {
@@ -12,9 +16,9 @@ void MetaData::reset(LPCWSTR filename, const bool force)
 		cache.clear();
 		if (mfilename)
 		{
-			free(mfilename);
+			plugin.memmgr->sysFree(mfilename);
 		}
-		mfilename = _wcsdup(filename);
+		mfilename = plugin.memmgr->sysDupStr((wchar_t*)filename);
 	}
 }
 

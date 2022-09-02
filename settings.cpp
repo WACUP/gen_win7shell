@@ -157,8 +157,8 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	if (!GetPrivateProfileStructW(SECTION_NAME_FONT, L"font", &Destination_struct.font,
 								  sizeof(Destination_struct.font), SettingsFile.c_str()))
 	{
-		wcsncpy_s(Destination_struct.font.lfFaceName, L"Segoe UI",
-				  ARRAYSIZE(Destination_struct.font.lfFaceName));
+		StringCchCopy(Destination_struct.font.lfFaceName,
+					  ARRAYSIZE(Destination_struct.font.lfFaceName), L"Segoe UI");
 		Destination_struct.font.lfHeight = -13;
 		Destination_struct.font.lfWeight = FW_NORMAL;
 	}
