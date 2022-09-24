@@ -2465,8 +2465,7 @@ extern "C" __declspec(dllexport) int winampUninstallPlugin(HINSTANCE hDllInst, H
 		no_uninstall = false;
 
 		wchar_t ini_path[MAX_PATH] = { 0 };
-		CombinePath(ini_path, GetPaths()->settings_sub_dir, L"win7shell.ini");
-		if (FileExists(ini_path))
+		if (CheckForPath(ini_path, GetPaths()->settings_sub_dir, L"win7shell.ini"))
 		{
 			DeleteFile(ini_path);
 		}
