@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.1.9"
+#define PLUGIN_VERSION L"4.1.10"
 
 #define NR_BUTTONS 15
 
@@ -195,9 +195,9 @@ LPCWSTR GetAppID(void)
 				// TODO: auto-pin icon (?)
 				if (SetCurrentProcessExplicitAppUserModelID(app_id) != S_OK)
 				{
-					MessageBoxEx(plugin.hwndParent,
-								 WASABI_API_LNGSTRINGW(IDS_ERROR_SETTING_APPID),
-								 (LPWSTR)plugin.description, MB_ICONWARNING, 0);
+					MessageBox(plugin.hwndParent,
+							   WASABI_API_LNGSTRINGW(IDS_ERROR_SETTING_APPID),
+							   (LPWSTR)plugin.description, MB_ICONWARNING);
 				}
 				else
 				{
@@ -1413,9 +1413,9 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 				hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, (HOOKPROC)KeyboardEvent, plugin.hDllInstance, NULL);
 				if (hMouseHook == NULL)
 				{
-					MessageBoxEx(plugin.hwndParent,
-								 WASABI_API_LNGSTRINGW(IDS_ERROR_REGISTERING_MOUSE_HOOK),
-								 (LPWSTR)plugin.description, MB_ICONWARNING, 0);
+					MessageBox(plugin.hwndParent,
+							   WASABI_API_LNGSTRINGW(IDS_ERROR_REGISTERING_MOUSE_HOOK),
+							   (LPWSTR)plugin.description, MB_ICONWARNING);
 				}
 			}
 #endif
@@ -1631,9 +1631,9 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 							hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, (HOOKPROC) KeyboardEvent, plugin.hDllInstance, NULL);
 							if (hMouseHook == NULL)
 							{
-								MessageBoxEx(plugin.hwndParent,
-											 WASABI_API_LNGSTRINGW(IDS_ERROR_REGISTERING_MOUSE_HOOK),
-											 (LPWSTR)plugin.description, MB_ICONWARNING, 0);
+								MessageBox(plugin.hwndParent,
+										   WASABI_API_LNGSTRINGW(IDS_ERROR_REGISTERING_MOUSE_HOOK),
+										   (LPWSTR)plugin.description, MB_ICONWARNING);
 							}
 						}
 					}
@@ -1952,12 +1952,14 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 				case IDC_BUTTON_HELP:
 				{
 					DWORD data_size = 0;
-					unsigned char *data = (unsigned char *)WASABI_API_LOADRESFROMFILEW(L"GZ", MAKEINTRESOURCEW(IDR_HELP_GZ), &data_size),
+					unsigned char *data = (unsigned char *)WASABI_API_LOADRESFROMFILEW(L"GZ",
+												   MAKEINTRESOURCEW(IDR_HELP_GZ), &data_size),
 								  *output = NULL;
 
 					DecompressResource(data, data_size, &output, 0);
-					MessageBoxEx(GetPrefsHWND(), AutoWide((LPCSTR)output, CP_UTF8),
-								 WASABI_API_LNGSTRINGW(IDS_INFORMATION), MB_ICONINFORMATION, 0);
+					MessageBox(GetPrefsHWND(), AutoWide((LPCSTR)output, CP_UTF8),
+							   WASABI_API_LNGSTRINGW(IDS_INFORMATION),
+												  MB_ICONINFORMATION);
 					DecompressResourceFree(output);
 					break;
 				}
@@ -2459,8 +2461,8 @@ extern "C" __declspec(dllexport) winampGeneralPurposePlugin * winampGetGeneralPu
 
 extern "C" __declspec(dllexport) int winampUninstallPlugin(HINSTANCE hDllInst, HWND hwndDlg, int param)
 {
-	if (MessageBoxEx(hwndDlg, WASABI_API_LNGSTRINGW(IDS_UNINSTALL_PROMPT),
-					 (LPWSTR)plugin.description, MB_YESNO, 0) == IDYES)
+	if (MessageBox(hwndDlg, WASABI_API_LNGSTRINGW(IDS_UNINSTALL_PROMPT),
+							(LPWSTR)plugin.description, MB_YESNO) == IDYES)
 	{
 		no_uninstall = false;
 
