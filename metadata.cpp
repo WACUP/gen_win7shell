@@ -22,7 +22,7 @@ void MetaData::reset(LPCWSTR filename, const bool force)
 	}
 }
 
-std::wstring MetaData::getMetadata(const std::wstring &tag)
+std::wstring MetaData::getMetadata(const std::wstring &tag, void **token, INT_PTR *db_error)
 {
 	if (!cache.empty() && cache.find(tag) != cache.end())
 	{
@@ -34,7 +34,7 @@ std::wstring MetaData::getMetadata(const std::wstring &tag)
 		wchar_t buffer[GETFILEINFO_TITLE_LENGTH] = { 0 };
 		// cache the response as long as we got a valid result
 		extendedFileInfoStructW efis = { mfilename, tag.c_str(), buffer, ARRAYSIZE(buffer) };
-		if (GetFileInfoHookable((WPARAM)&efis, TRUE, NULL, NULL) && buffer[0])
+		if (GetFileInfoHookable((WPARAM)&efis, TRUE, token, db_error) && buffer[0])
 		{
 			cache[tag] = buffer;
 			return buffer;

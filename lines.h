@@ -19,7 +19,7 @@ public:
 
 private:
 	void ProcessLine(int index);
-	std::wstring MetaWord(const std::wstring &word, linesettings &current_line_settings);
+	std::wstring MetaWord(const std::wstring &word, linesettings&current_line_settings, void **token, INT_PTR *db_error);
 
 	std::vector<std::wstring> m_texts;
 	std::vector<linesettings> m_linesettings;

@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.1.10"
+#define PLUGIN_VERSION L"4.2"
 
 #define NR_BUTTONS 15
 
@@ -40,6 +40,8 @@
 static const GUID GenWin7PlusShellLangGUID = 
 { 0xb1e9802, 0xca15, 0x4939, { 0x84, 0x45, 0xfd, 0x80, 0xe, 0x8b, 0xff, 0x9a } };
 
+SETUP_API_LNG_VARS;
+
 UINT WM_TASKBARBUTTONCREATED = (UINT)-1;
 std::wstring AppID,	// this is updated on loading to what the
 					// running WACUP install has generated as
@@ -68,10 +70,6 @@ api_albumart *WASABI_API_ALBUMART = 0;
 api_playlists *WASABI_API_PLAYLISTS = 0;
 //api_explorerfindfile *WASABI_API_EXPLORERFINDFILE = 0;
 api_skin *WASABI_API_SKIN = 0;
-api_language *WASABI_API_LNG = 0;
-// these two must be declared as they're used by the language api's
-// when the system is comparing/loading the different resources
-HINSTANCE WASABI_API_LNG_HINST = 0, WASABI_API_ORIG_HINST = 0;
 
 // CALLBACKS
 VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime);
@@ -641,10 +639,16 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				if ((Settings.JLrecent || Settings.JLfrequent)/* && !tools::is_in_recent(filename)*/ &&
 					(Settings.play_state == PLAYSTATE_PLAYING) && Settings.Add2RecentDocs)
 				{
+					// these are used to help minimise the impact of directly
+					// querying the file for multiple pieces of metadata &/or
+					// if there's an issue with the local library db handling
+					INT_PTR db_error = FALSE;
+					void *token = NULL;
+
 					__try
 					{
-						const std::wstring title(meta_data->getMetadata(L"title") + L" - " +
-												 meta_data->getMetadata(L"artist") +
+						const std::wstring title(meta_data->getMetadata(L"title", &token, &db_error) + L" - " +
+												 meta_data->getMetadata(L"artist", &token, &db_error) +
 												 ((Settings.play_total > 0) ? L"  (" +
 												 tools::SecToTime(Settings.play_total / 1000) + L")" : L""));
 
@@ -672,6 +676,8 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					__except (EXCEPTION_EXECUTE_HANDLER)
 					{
 					}
+
+					plugin.metadata->FreeExtendedFileInfoToken(&token);
 				}
 
 				DwmInvalidateIconicBitmaps(hWnd);
