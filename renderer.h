@@ -19,12 +19,12 @@ public:
 	typedef unsigned long ARGB32;
 	void createArtwork(const int cur_w, const int cur_h, ARGB32 *cur_image);
 
-	HBITMAP GetThumbnail();
-	void ClearAlbumart();
-	void ClearBackground();
-	void ClearCustomBackground();
-	void ClearFonts();
-	void ThumbnailPopup();
+	HBITMAP GetThumbnail(void);
+	void ClearAlbumart(void);
+	void ClearBackground(void);
+	void ClearCustomBackground(void);
+	void ClearFonts(void);
+	void ThumbnailPopup(void);
 	void SetDimensions(const int new_w, const int new_h);
 
 	MetaData GetMetadata(void) { return m_metadata; }

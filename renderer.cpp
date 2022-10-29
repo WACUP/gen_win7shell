@@ -256,7 +256,7 @@ bool renderer::render(void)
 	return false;
 }
 
-HBITMAP renderer::GetThumbnail()
+HBITMAP renderer::GetThumbnail(void)
 {
 	ClearBackground();
 
@@ -676,7 +676,7 @@ HBITMAP renderer::GetThumbnail()
 					{
 						if (m_textpositions[i] != 0)
 						{
-							m_textpositions[i] -= 2;
+							m_textpositions[i] -= (m_settings.LowFrameRate ? 3 : 2);
 						}
 						else
 						{
@@ -694,12 +694,12 @@ HBITMAP renderer::GetThumbnail()
 								}
 
 								scroll_block = !unblock;
-								m_textpause = 60;
+								m_textpause = (m_settings.LowFrameRate ? 4 : 1);
 							}
 
 							if (!scroll_block && m_textpause == 0)
 							{
-								m_textpositions[i] -= 2;
+								m_textpositions[i] -= (m_settings.LowFrameRate ? 3 : 2);
 							}
 						}
 					}
@@ -754,16 +754,19 @@ HBITMAP renderer::GetThumbnail()
 
 						// Measure size
 						gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
-						Gdiplus::RectF parent_rect(0, 0, static_cast<Gdiplus::REAL>(m_width),
-														 static_cast<Gdiplus::REAL>(m_height));
+
+						const Gdiplus::PointF origin(0, 0);
+						// this used to apply a parent_rect set to the size of the area
+						// to be drawn into by the OS but that then messed up the check
+						// for how long the string actually is which is needed when the
+						// line is going to be scrolled to prevent being clipped short!
 						gfx.MeasureString(current_text.c_str(), (INT)current_text.size(),
 										  (current_settings.largefont ? large_font :
-										  normal_font), parent_rect, &sf, &ret_rect);
+										  normal_font), origin, &sf, &ret_rect);
 					
 						if (ret_rect.GetBottom() == 0)
 						{
-							gfx.MeasureString(L"QWEXCyjM", -1, normal_font,
-											  parent_rect, &sf, &ret_rect);
+							gfx.MeasureString(L"QWEXCyjM", -1, normal_font, origin, &sf, &ret_rect);
 						}
 
 						Gdiplus::Bitmap text_bitmap(static_cast<INT>(ret_rect.GetRight()),
@@ -800,13 +803,13 @@ HBITMAP renderer::GetThumbnail()
 						{
 							text_gfx.DrawString(current_text.c_str(), (INT)current_text.size(),
 												current_settings.largefont ? large_font :
-												normal_font, Gdiplus::PointF(1, -1), &bgcolor);
+												normal_font, Gdiplus::PointF(1, -1), &sf, &bgcolor);
 						}
 
 						//text
 						text_gfx.DrawString(current_text.c_str(), (INT)current_text.size(),
 											current_settings.largefont ? large_font :
-											normal_font, Gdiplus::PointF(0, -2), &fgcolor);
+											normal_font, Gdiplus::PointF(0, -2), &sf, &fgcolor);
 
 						// Calculate text position
 						int X = 0, CX = m_width;
@@ -836,6 +839,10 @@ HBITMAP renderer::GetThumbnail()
 								CX = m_width - m_iconwidth - 5;
 							}
 						}
+						else
+						{
+							CX *= 0.96f;
+						}
 
 						gfx.SetClip(Gdiplus::RectF(static_cast<Gdiplus::REAL>(X),
 												   static_cast<Gdiplus::REAL>(0),
@@ -843,9 +850,10 @@ HBITMAP renderer::GetThumbnail()
 												   static_cast<Gdiplus::REAL>(m_width)),
 												   Gdiplus::CombineModeReplace);
 
-						// Draw text bitmap to final bitmap
-						if (text_bitmap.GetWidth() > (UINT)(CX + 2) &&
-							!current_settings.dontscroll)// && m_textpause[text_index] == 0)
+						// Draw text bitmap to final bitmap with scrolling as needed
+						// based on the icon vs background image mode where the area
+						// can vary depending on the size of things vs overall image
+						if ((text_bitmap.GetWidth() > (UINT)(CX + 2)) && !current_settings.dontscroll)
 						{
 							// Draw scrolling text
 							int left = m_textpositions[text_index];
@@ -862,7 +870,7 @@ HBITMAP renderer::GetThumbnail()
 
 							if (left == 0 && m_textpause == 0)
 							{
-								m_textpause = 60; // delay; in steps
+								m_textpause = (m_settings.LowFrameRate ? 4 : 1); // delay; in steps
 							}
 
 							if (left + bmp_width >= CX)
@@ -897,7 +905,7 @@ HBITMAP renderer::GetThumbnail()
 											  Gdiplus::UnitPixel);          
 							}
 
-							m_textpositions[text_index] = 2; // Nr. pixels text jumps on each step when scrolling
+							m_textpositions[text_index] = (m_settings.LowFrameRate ? 3 : 2); // Nr. pixels text jumps on each step when scrolling
 						}
 
 						gfx.ResetClip();
@@ -992,8 +1000,8 @@ renderer::renderer(sSettings& settings, MetaData &metadata) :
 	background(NULL), albumart(NULL), normal_font(NULL),
 	large_font(NULL), m_settings(settings), m_metadata(metadata),
 	m_width(-1), m_height(-1), m_iconwidth(0), m_iconheight(0),
-	m_textpause(30), _iconwidth(0), _iconheight(0), no_icon(false),
-	fail(false), scroll_block(false), no_text(false) { }
+	m_textpause((m_settings.LowFrameRate ? 4 : 1)), _iconwidth(0),
+	_iconheight(0), no_icon(false), fail(false), scroll_block(false), no_text(false) { }
 
 renderer::~renderer()
 {
@@ -1016,7 +1024,7 @@ void renderer::SetDimensions(const int new_w, const int new_h)
 	m_height = new_h;
 }
 
-void renderer::ClearAlbumart()
+void renderer::ClearAlbumart(void)
 {
 	if (albumart)
 	{
@@ -1025,7 +1033,7 @@ void renderer::ClearAlbumart()
 	}
 }
 
-void renderer::ClearBackground()
+void renderer::ClearBackground(void)
 {
 	if (background)
 	{
@@ -1034,7 +1042,7 @@ void renderer::ClearBackground()
 	}
 }
 
-void renderer::ClearFonts()
+void renderer::ClearFonts(void)
 {
 	if (normal_font)
 	{
@@ -1049,13 +1057,13 @@ void renderer::ClearFonts()
 	}
 }
 
-void renderer::ThumbnailPopup()
+void renderer::ThumbnailPopup(void)
 { 
 	m_textpositions.clear();
-	m_textpause = 60;
+	m_textpause = (m_settings.LowFrameRate ? 4 : 1);
 }
 
-void renderer::ClearCustomBackground()
+void renderer::ClearCustomBackground(void)
 {
 	if (custom_img)
 	{
