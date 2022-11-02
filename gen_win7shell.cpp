@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.2.2"
+#define PLUGIN_VERSION L"4.2.3"
 
 #define NR_BUTTONS 15
 
@@ -279,6 +279,8 @@ void config(void)
 
 void quit(void)
 {
+	running = false;
+
 	KillTimer(plugin.hwndParent, 6667);
 	KillTimer(plugin.hwndParent, 6668);
 	KillTimer(plugin.hwndParent, 6670);
@@ -287,7 +289,6 @@ void quit(void)
 
 	if (updatethread != NULL)
 	{
-		running = false;
 
 		WaitForSingleObject(updatethread, INFINITE);
 		CloseHandle(updatethread);
@@ -421,17 +422,16 @@ void updateRepeatButton(void)
 
 DWORD WINAPI UpdateThread(LPVOID lp)
 {
-	while (CreateThumbnailDrawer() && running)
+	while (running && CreateThumbnailDrawer())
 	{
-		HBITMAP thumbnail = thumbnaildrawer->GetThumbnail();
+		const HBITMAP thumbnail = thumbnaildrawer->GetThumbnail();
 		if (thumbnail != NULL)
 		{
 			const HRESULT hr = DwmSetIconicThumbnail(plugin.hwndParent, thumbnail, 0);
 
 			DeleteObject(thumbnail);
-			thumbnail = NULL;
 
-			if (FAILED(hr))
+			if (FAILED(hr) || !running)
 			{
 				KillTimer(plugin.hwndParent, 6670);
 				KillTimer(plugin.hwndParent, 6671);
@@ -440,9 +440,9 @@ DWORD WINAPI UpdateThread(LPVOID lp)
 			}
 		}
 
-		Sleep((Settings.Thumbnailbackground == BG_WINAMP) ?
-			  (!Settings.LowFrameRate ? Settings.MFT : Settings.MST) :
-			  (!Settings.LowFrameRate ? Settings.TFT : Settings.TST));
+		SleepEx((Settings.Thumbnailbackground == BG_WINAMP) ?
+				(!Settings.LowFrameRate ? Settings.MFT : Settings.MST) :
+				(!Settings.LowFrameRate ? Settings.TFT : Settings.TST), TRUE);
 	}
 
 	if (updatethread != NULL)
