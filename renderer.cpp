@@ -421,9 +421,9 @@ HBITMAP renderer::GetThumbnail(void)
 					if (GetWinampIniInt(L"tb_icon", 1) == 2)
 					{
 						wchar_t taskbar_tmp[MAX_PATH] = { 0 };
-						CombinePath(taskbar_tmp, GetPaths()->settings_dir, L"taskbar.ico");
 
-						win32_icon = (HICON)LoadImage(NULL, taskbar_tmp, IMAGE_ICON,
+						win32_icon = (HICON)LoadImage(NULL, CombinePath(taskbar_tmp,
+									 GetPaths()->settings_dir, L"taskbar.ico"), IMAGE_ICON,
 									 256, 256, LR_LOADTRANSPARENT | LR_LOADFROMFILE);
 					}
 

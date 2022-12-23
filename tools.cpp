@@ -302,9 +302,8 @@ namespace tools
 			if (hicon == NULL)
 			{
 				wchar_t folder[MAX_PATH] = { 0 };
-				CombinePath(folder, GetPaths()->settings_dir, L"Taskbar");
-				StringCchPrintf(test_path, ARRAYSIZE(test_path),
-								L"%s\\%s.ico", folder, file);
+				StringCchPrintf(test_path, ARRAYSIZE(test_path), L"%s\\%s.ico",
+				CombinePath(folder, GetPaths()->settings_dir, L"Taskbar"), file);
 
 				if (FileExists(test_path))
 				{

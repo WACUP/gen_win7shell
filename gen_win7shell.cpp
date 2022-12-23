@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.2.3"
+#define PLUGIN_VERSION L"4.2.4"
 
 #define NR_BUTTONS 15
 
@@ -33,6 +33,7 @@
 #include "settings.h"
 #include "taskbar.h"
 #include "renderer.h"
+#include <../wacup_version.h>
 
 // TODO add to lang.h
 // Taskbar Integration plugin (gen_win7shell.dll)
@@ -242,7 +243,6 @@ int init(void)
 void config(void)
 {
 	HMENU popup = CreatePopupMenu();
-	RECT r = {0};
 
 	AddItemToMenu(popup, 128, (LPWSTR)plugin.description);
 	EnableMenuItem(popup, 128, MF_BYCOMMAND | MF_GRAYED | MF_DISABLED);
@@ -251,17 +251,15 @@ void config(void)
 	AddItemToMenu(popup, (UINT)-1, 0);
 	AddItemToMenu(popup, 1, WASABI_API_LNGSTRINGW(IDS_ABOUT));
 
-	HWND list =	FindWindowEx(GetParent(GetFocus()), 0, L"SysListView32",0);
-	ListView_GetItemRect(list, ListView_GetSelectionMark(list), &r, LVIR_BOUNDS);
-	ClientToScreen(list, (LPPOINT)&r);
-
-	switch (TrackPopupMenu(popup, TPM_RETURNCMD, r.left, r.top, 0, list, NULL))
+	POINT pt = { 0 };
+	HWND list = GetPrefsListPos(&pt);
+	switch (TrackPopupMenu(popup, TPM_RETURNCMD, pt.x, pt.y, 0, list, NULL))
 	{
 		case 1:
 		{
-			wchar_t text[512] = {0};
+			wchar_t text[512] = { 0 };
 			StringCchPrintf(text, ARRAYSIZE(text), WASABI_API_LNGSTRINGW(IDS_ABOUT_MESSAGE),
-							L"Darren Owen aka DrO (2018-2022)", TEXT(__DATE__));
+							L"Darren Owen aka DrO (2018-" WACUP_COPYRIGHT L")", TEXT(__DATE__));
 			AboutMessageBox(list, text, (LPWSTR)plugin.description);
 			break;
 		}
@@ -1088,6 +1086,19 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 	}
 }
 
+void setup_settings(void)
+{
+	if (SettingsFile.empty())
+	{
+		wchar_t ini_path[MAX_PATH] = { 0 };
+		SettingsFile = CombinePath(ini_path, GetPaths()->settings_sub_dir, L"win7shell.ini");
+
+		// Read Settings into struct
+		SettingsManager SManager;
+		SManager.ReadSettings(Settings, TButtons);
+	}
+}
+
 VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 {
 	switch (idEvent)
@@ -1382,13 +1393,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 			// Register taskbarcreated message
 			WM_TASKBARBUTTONCREATED = RegisterWindowMessage(L"TaskbarButtonCreated");
 
-			wchar_t ini_path[MAX_PATH] = { 0 };
-			CombinePath(ini_path, GetPaths()->settings_sub_dir, L"win7shell.ini");
-			SettingsFile = ini_path;
-
-			// Read Settings into struct
-			SettingsManager SManager;
-			SManager.ReadSettings(Settings, TButtons);
+			setup_settings();
 
 			// Timers, settings, icons
 			Settings.play_playlistpos = GetPlaylistPosition();
@@ -1491,6 +1496,8 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 	{
 		case WM_INITDIALOG:
 		{
+			setup_settings();
+
 			SettingsManager::WriteSettings_ToForm(hwnd, plugin.hwndParent, Settings);
 
 			const BOOL enabled = GetTaskbarMode();
@@ -1688,13 +1695,15 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 	{
 		case WM_INITDIALOG:
 		{
+			setup_settings();
+
+			SettingsManager::WriteSettings_ToForm(hwnd, plugin.hwndParent, Settings);
+
 			// Reset buttons
 			for (int i = IDC_PCB1; i <= IDC_PCB15; i++)
 			{
 				SendDlgItemMessage(hwnd, i, BM_SETCHECK, BST_UNCHECKED, NULL);
 			}
-
-			SettingsManager::WriteSettings_ToForm(hwnd, plugin.hwndParent, Settings);
 
 			// disable the 'text' section if needed
 			if (Settings.Thumbnailbackground == BG_WINAMP)
@@ -2098,7 +2107,10 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 	{
 		case WM_INITDIALOG:
 		{
+			setup_settings();
+
 			SettingsManager::WriteSettings_ToForm(hwnd, plugin.hwndParent, Settings);
+
 			SendDlgItemMessage(hwnd, IDC_EDIT2, EM_SETREADONLY, TRUE, NULL);
 			SendDlgItemMessage(hwnd, IDC_SLIDER1, TBM_SETRANGE, FALSE, MAKELPARAM(30, 100));
 			SendDlgItemMessage(hwnd, IDC_SLIDER_TRANSPARENCY, TBM_SETRANGE, FALSE, MAKELPARAM(0, 100));

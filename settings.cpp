@@ -123,7 +123,7 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	(void)StringCchCopy(Destination_struct.Text, ARRAYSIZE(Destination_struct.Text),
 						GetString(L"Text", L"‡").c_str());
 
-	if (!wcscmp(Destination_struct.Text, L"‡"))
+	if (SameStr(Destination_struct.Text, L"‡"))
 	{
 		(void)StringCchCopy(Destination_struct.Text, ARRAYSIZE(Destination_struct.Text),
 							L"%c%%s%%curpl% of %totalpl%.\\r%c%%s%%title%"
@@ -444,7 +444,7 @@ void SettingsManager::WriteButtons(std::vector<int> &tba)
 	std::wstring button_Text = button_TextStream.str();
 	button_Text.erase(button_Text.length() - 1, 1);
 
-	if (wcscmp(button_Text.c_str(), L"1300,1301,1302,1303,1308,1314"))
+	if (!SameStr(button_Text.c_str(), L"1300,1301,1302,1303,1308,1314"))
 	{
 		WritePrivateProfileString(SECTION_NAME_GENERAL, L"ThumbButtons",
 								  button_Text.c_str(), SettingsFile.c_str());
