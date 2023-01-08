@@ -128,7 +128,6 @@ enum ThumbButtonID
 #define PLAYSTATE_NOTPLAYING 0
 
 extern winampGeneralPurposePlugin plugin;
-extern std::wstring SettingsFile;
 extern bool windowShade, classicSkin, modernSUI, modernFix, running;
 extern HWND dialogParent;
 extern int repeat;

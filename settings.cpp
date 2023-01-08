@@ -16,12 +16,14 @@
 
 int SettingsManager::GetInt(const std::wstring &key, const int default_value) const
 {
-	return GetPrivateProfileIntW(currentSection.c_str(), key.c_str(), default_value, SettingsFile.c_str());
+	return GetPrivateProfileIntW(currentSection.c_str(), key.c_str(),
+								 default_value, settingsFile.c_str());
 }
 
 bool SettingsManager::GetBool(const std::wstring &key, const bool default_value) const
 {
-	return !!GetPrivateProfileIntW(currentSection.c_str(), key.c_str(), default_value, SettingsFile.c_str());
+	return !!GetPrivateProfileIntW(currentSection.c_str(), key.c_str(),
+								   default_value, settingsFile.c_str());
 }
 
 std::wstring SettingsManager::GetString(const std::wstring &key,
@@ -31,7 +33,7 @@ std::wstring SettingsManager::GetString(const std::wstring &key,
 	LPCSTR _section = AutoCharDup((LPWSTR)currentSection.c_str(), CP_UTF8),
 		   _key = AutoCharDup((LPWSTR)key.c_str(), CP_UTF8),
 		   _default = AutoCharDup((LPWSTR)default_value.c_str(), CP_UTF8),
-		   _file = ConvertPathToA((LPWSTR)SettingsFile.c_str(), NULL, 0, CP_ACP);
+		   _file = ConvertPathToA((LPWSTR)settingsFile.c_str(), NULL, 0, CP_ACP);
 
 	std::string buffer;
 	buffer.resize(max_size);
@@ -60,12 +62,12 @@ void SettingsManager::WriteInt(const std::wstring &key, const int value,
 		wchar_t str[16] = { 0 };
 		I2WStr(value, str, ARRAYSIZE(str));
 		WritePrivateProfileStringW(currentSection.c_str(), key.c_str(),
-								   str, SettingsFile.c_str());
+								   str, settingsFile.c_str());
 	}
 	else
 	{
 		WritePrivateProfileStringW(currentSection.c_str(), key.c_str(),
-								   NULL, SettingsFile.c_str());
+								   NULL, settingsFile.c_str());
 	}
 }
 
@@ -73,7 +75,7 @@ void SettingsManager::WriteBool(const std::wstring &key, const bool value,
 								const bool default_value) const
 {
 	WritePrivateProfileStringW(currentSection.c_str(), key.c_str(), ((value != default_value) ?
-							   (value ? L"1" : L"0") : NULL), SettingsFile.c_str());
+							   (value ? L"1" : L"0") : NULL), settingsFile.c_str());
 }
 
 void SettingsManager::WriteString(const std::wstring &key, const std::wstring &value,
@@ -81,7 +83,7 @@ void SettingsManager::WriteString(const std::wstring &key, const std::wstring &v
 {
 	LPCSTR _section = AutoCharDup((LPWSTR)currentSection.c_str(), CP_UTF8),
 		   _key = AutoCharDup((LPWSTR)key.c_str(), CP_UTF8),
-		   _file = ConvertPathToA((LPWSTR)SettingsFile.c_str(), NULL, 0, CP_ACP);
+		   _file = ConvertPathToA((LPWSTR)settingsFile.c_str(), NULL, 0, CP_ACP);
 	if (value != default_value)
 	{
 		LPCSTR _value = AutoCharDup((LPWSTR)value.c_str(), CP_UTF8);
@@ -155,7 +157,7 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	currentSection = SECTION_NAME_FONT;
 
 	if (!GetPrivateProfileStructW(SECTION_NAME_FONT, L"font", &Destination_struct.font,
-								  sizeof(Destination_struct.font), SettingsFile.c_str()))
+								  sizeof(Destination_struct.font), settingsFile.c_str()))
 	{
 		StringCchCopy(Destination_struct.font.lfFaceName,
 					  ARRAYSIZE(Destination_struct.font.lfFaceName), L"Segoe UI");
@@ -175,8 +177,8 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	std::wstring text;
 	text.resize(100);
 	const DWORD len = GetPrivateProfileString(SECTION_NAME_GENERAL, L"ThumbButtons",
-											  L"1300,1301,1302,1303,1308,1314", &text[0],
-											  99, SettingsFile.c_str());
+											  L"1300,1301,1302,1303,1308,1314",
+											  &text[0], 99, settingsFile.c_str());
 	if (len > 0)
 	{
 		text.resize(len);
@@ -265,12 +267,12 @@ void SettingsManager::WriteSettings(const sSettings &Source_struct)
 	if (memcmp(&ft, &Source_struct.font, sizeof(LOGFONT)))
 	{
 		WritePrivateProfileStructW(currentSection.c_str(), L"font", (LPVOID)(&Source_struct.font),
-								   sizeof(Source_struct.font), SettingsFile.c_str());
+								   sizeof(Source_struct.font), settingsFile.c_str());
 	}
 	else
 	{
 		WritePrivateProfileStructW(currentSection.c_str(), L"font",
-								   NULL, 0, SettingsFile.c_str());
+								   NULL, 0, settingsFile.c_str());
 	}
 
 	WriteInt(L"color", Source_struct.text_color, RGB(255, 255, 255));
@@ -278,10 +280,10 @@ void SettingsManager::WriteSettings(const sSettings &Source_struct)
 
 	// now we see if the file remaining is empty as
 	// there's no point in keeping an empty file...
-	if (FileExists(SettingsFile.c_str()) &&
-		!GetFileSizeByPath(SettingsFile.c_str()))
+	LPCWSTR fn = settingsFile.c_str();
+	if (FileExists(fn) && !GetFileSizeByPath(fn))
 	{
-		DeleteFile(SettingsFile.c_str());
+		DeleteFile(fn);
 	}
 }
 
@@ -447,11 +449,11 @@ void SettingsManager::WriteButtons(std::vector<int> &tba)
 	if (!SameStr(button_Text.c_str(), L"1300,1301,1302,1303,1308,1314"))
 	{
 		WritePrivateProfileString(SECTION_NAME_GENERAL, L"ThumbButtons",
-								  button_Text.c_str(), SettingsFile.c_str());
+								  button_Text.c_str(), settingsFile.c_str());
 	}
 	else
 	{
 		WritePrivateProfileStringW(SECTION_NAME_GENERAL, L"ThumbButtons",
-								   NULL, SettingsFile.c_str());
+								   NULL, settingsFile.c_str());
 	}
 }

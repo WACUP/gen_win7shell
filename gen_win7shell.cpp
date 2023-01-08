@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.2.4"
+#define PLUGIN_VERSION L"4.2.5"
 
 #define NR_BUTTONS 15
 
@@ -16,7 +16,6 @@
 
 #include "gen_win7shell.h"
 #include <loader/loader/utils.h>
-#include <loader/loader/paths.h>
 #include <loader/hook/squash.h>
 #include <loader/hook/plugins.h>
 #include <sdk/winamp/wa_cup.h>
@@ -44,11 +43,10 @@ static const GUID GenWin7PlusShellLangGUID =
 SETUP_API_LNG_VARS;
 
 UINT WM_TASKBARBUTTONCREATED = (UINT)-1;
-std::wstring AppID,	// this is updated on loading to what the
+std::wstring AppID;	// this is updated on loading to what the
 					// running WACUP install has generated as
 					// it otherwise makes multiple instances
 					// tricky to work with independently
-			 SettingsFile;
 
 bool thumbshowing = false, no_uninstall = true,
 	 classicSkin = true, windowShade = false,
@@ -59,7 +57,7 @@ int pladv = 1, repeat = 0;
 #ifdef USE_MOUSE
 HHOOK hMouseHook = NULL;
 #endif
-COLORREF acrCustClr[16] = { 0 };	// array of custom colors
+SettingsManager *SManager = NULL;
 sSettings Settings = { 0 };
 std::vector<int> TButtons;
 iTaskBar *itaskbar = NULL;
@@ -1088,14 +1086,15 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 
 void setup_settings(void)
 {
-	if (SettingsFile.empty())
+	if (!SManager)
 	{
-		wchar_t ini_path[MAX_PATH] = { 0 };
-		SettingsFile = CombinePath(ini_path, GetPaths()->settings_sub_dir, L"win7shell.ini");
+		SManager = new SettingsManager();
 
-		// Read Settings into struct
-		SettingsManager SManager;
-		SManager.ReadSettings(Settings, TButtons);
+		if (SManager != NULL)
+		{
+			// Read Settings into struct
+			SManager->ReadSettings(Settings, TButtons);
+		}
 	}
 }
 
@@ -1666,9 +1665,9 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 		}
 		case WM_DESTROY:
 		{
-			// save the settings only when changed instead of always on closing
-			SettingsManager SManager;
-			SManager.WriteSettings(Settings);
+			// save the settings only when changed
+			// instead of always applying on close
+			SManager->WriteSettings(Settings);
 			break;
 		}
 	}
@@ -2014,11 +2013,12 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 				case IDC_BUTTON6:
 				case IDC_BUTTON9:
 				{
+					static COLORREF acrCustClr[16] = { 0 };	// array of custom colors
 					const bool text = (LOWORD(wParam) == IDC_BUTTON9);
 					CHOOSECOLOR cc = { 0 };			// common dialog box structure
 					cc.lStructSize = sizeof(cc);
 					cc.hwndOwner = GetPrefsHWND();
-					cc.lpCustColors = (LPDWORD)acrCustClr;
+					cc.lpCustColors = acrCustClr;
 					cc.rgbResult = (!text ? Settings.bgcolor : Settings.text_color);
 					cc.Flags = CC_FULLOPEN | CC_RGBINIT;
 
@@ -2049,10 +2049,10 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 		}
 		case WM_DESTROY:
 		{
-			// save the settings only when changed instead of always on closing
-			SettingsManager SManager;
-			SManager.WriteButtons(TButtons);
-			SManager.WriteSettings(Settings);
+			// save the settings only when changed
+			// instead of always applying on close
+			SManager->WriteButtons(TButtons);
+			SManager->WriteSettings(Settings);
 			break;
 		}
 	}
@@ -2314,9 +2314,9 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 		}
 		case WM_DESTROY:
 		{
-			// save the settings only when changed instead of always on closing
-			SettingsManager SManager;
-			SManager.WriteSettings(Settings);
+			// save the settings only when changed
+			// instead of always applying on close
+			SManager->WriteSettings(Settings);
 			break;
 		}
 	}

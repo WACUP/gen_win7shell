@@ -6,11 +6,16 @@
 #include <sstream>
 #include <vector>
 #include "gen_win7shell.h"
+#include <loader/loader/paths.h>
 
 class SettingsManager
 {
 public:
-	explicit SettingsManager() : currentSection(SECTION_NAME_GENERAL) {};
+	explicit SettingsManager() : currentSection(SECTION_NAME_GENERAL)
+	{
+		wchar_t ini_path[MAX_PATH] = { 0 };
+		settingsFile = CombinePath(ini_path, GetPaths()->settings_sub_dir, L"win7shell.ini");
+	}
 
 	void ReadSettings(sSettings &Destination_struct, std::vector<int> &tba);
 	void WriteSettings(const sSettings &Source_struct);
@@ -29,7 +34,7 @@ public:
 	void WriteString(const std::wstring &key, const std::wstring &value, const std::wstring &default_value) const;
 
 private:
-	std::wstring currentSection;
+	std::wstring settingsFile, currentSection;
 };
 
 #endif // settings_h__
