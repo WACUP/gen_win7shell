@@ -10,7 +10,7 @@
 class iTaskBar
 {
 public:
-	iTaskBar(sSettings& settings);
+	explicit iTaskBar(sSettings& settings);
 	~iTaskBar();
 
 	bool Reset();

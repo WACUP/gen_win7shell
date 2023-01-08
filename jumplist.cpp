@@ -270,14 +270,14 @@ HRESULT JumpList::_AddTasksToList(const std::wstring &pluginpath, const std::wst
 			hr = _CreateShellLink(pluginpath, L"/COMMAND=40012", pref.c_str(), &psl, 0, 2);
 			if (SUCCEEDED(hr))
 			{
-				hr = poc->AddObject(psl);
+				poc->AddObject(psl);
 				psl->Release();
 			}
 
 			hr = _CreateShellLink(pluginpath, L"/COMMAND=40029", openfile.c_str(), &psl, 1, 2);
 			if (SUCCEEDED(hr))
 			{
-				hr = poc->AddObject(psl);
+				poc->AddObject(psl);
 				psl->Release();
 			}
 
@@ -287,9 +287,10 @@ HRESULT JumpList::_AddTasksToList(const std::wstring &pluginpath, const std::wst
 			{
 				if (poa)
 				{
-					// Add the tasks to the Jump List. Tasks always appear in the canonical "Tasks"
-					// category that is displayed at the bottom of the Jump List, after all other
-					// categories.
+					// Add the tasks to the Jump List. Tasks
+					// always appear in the canonical "Tasks"
+					// category that is displayed at the bottom
+					// of the Jump List, after other categories
 					hr = pcdl->AddUserTasks(poa);
 					poa->Release();
 				}
@@ -301,7 +302,7 @@ HRESULT JumpList::_AddTasksToList(const std::wstring &pluginpath, const std::wst
 }
 
 // Determines if the provided IShellItem is listed in the array of items that the user has removed
-bool JumpList::_IsItemInArray(std::wstring path, IObjectArray *poaRemoved)
+bool JumpList::_IsItemInArray(const std::wstring &path, IObjectArray *poaRemoved)
 {
 	bool fRet = false;
 	UINT cItems = 0;
@@ -314,8 +315,8 @@ bool JumpList::_IsItemInArray(std::wstring path, IObjectArray *poaRemoved)
 			{
 				if (psiCompare)
 				{
-					wchar_t removedpath[MAX_PATH] = {0};
-					/*fRet = */(psiCompare->GetArguments(removedpath, MAX_PATH) == S_OK);
+					wchar_t removedpath[MAX_PATH] = { 0 };
+					psiCompare->GetArguments(removedpath, ARRAYSIZE(removedpath));
 					fRet = !path.compare(removedpath);
 					psiCompare->Release();
 				}
@@ -377,7 +378,7 @@ HRESULT JumpList::_AddCategoryToList2(const std::wstring &pluginpath, const std:
 					if (psl)
 					{
 						psl->SetDescription(WASABI_API_PLAYLISTS->GetFilename(i));
-						hr = poc->AddObject(psl);
+						poc->AddObject(psl);
 						psl->Release();
 					}
 				}

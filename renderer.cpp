@@ -54,28 +54,6 @@ void renderer::createArtwork(const int cur_w, const int cur_h, ARGB32 *cur_image
 
 	Gdiplus::Bitmap tmpbmp(&bmi, cur_image);
 
-	int iconleft = 0, icontop = 0;
-
-	switch (m_settings.IconPosition)
-	{
-		case IP_LOWERLEFT:
-		{
-			icontop = m_height - _iconheight - 2;
-			break;
-		}
-		case IP_UPPERRIGHT:
-		{
-			iconleft = m_width - _iconheight - 2;
-			break;
-		}
-		case IP_LOWERRIGHT:
-		{
-			iconleft = m_width - _iconheight - 2;
-			icontop = m_height - _iconheight - 2;
-			break;
-		}
-	}
-
 	float new_height = 0.f, new_width = 0.f, anchor = (m_height * 1.f);
 
 	if (!m_settings.AsIcon)
@@ -827,8 +805,7 @@ HBITMAP renderer::GetThumbnail(void)
 						if (m_settings.AsIcon && !no_icon && !current_settings.forceleft)
 						{
 							if ((iconposition == IP_UPPERLEFT || 
-								iconposition == IP_LOWERLEFT) &&
-								!current_settings.forceleft)
+								iconposition == IP_LOWERLEFT))
 							{
 								X += m_iconwidth + 5;
 								CX = m_width - X;

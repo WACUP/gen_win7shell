@@ -27,7 +27,7 @@ public:
 	void ThumbnailPopup(void);
 	void SetDimensions(const int new_w, const int new_h);
 
-	MetaData GetMetadata(void) { return m_metadata; }
+	MetaData GetMetadata(void) const { return m_metadata; }
 
 private:
 	ULONG_PTR gdiplusToken, gdiplusBgThreadToken;

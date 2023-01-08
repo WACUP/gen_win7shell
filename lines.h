@@ -23,8 +23,8 @@ private:
 
 	std::vector<std::wstring> m_texts;
 	std::vector<linesettings> m_linesettings;
-	MetaData &m_metadata;
 	sSettings &m_settings;
+	MetaData &m_metadata;
 };
 
 #endif // lines_h__

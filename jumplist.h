@@ -26,7 +26,7 @@ private:
 	HRESULT _CreateShellLink(const std::wstring &path, PCWSTR pszArguments,
 							 PCWSTR pszTitle, IShellLink **ppsl,
 							 const int iconindex, const int mode = 0);
-	bool _IsItemInArray(std::wstring path, IObjectArray *poaRemoved);
+	bool _IsItemInArray(const std::wstring &path, IObjectArray *poaRemoved);
 	HRESULT _AddTasksToList(const std::wstring &pluginpath, const std::wstring &pref,
 							const std::wstring &openfile);
 	HRESULT _AddCategoryToList(IObjectCollection *poc, const std::wstring &bookmarks);

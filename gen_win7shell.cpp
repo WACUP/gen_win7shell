@@ -757,7 +757,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					// TODO pull in the localised version from gen_ff
 					//		to ensure the checking will work correctly
 					LPCWSTR skin_name = (WASABI_API_SKIN != NULL ? WASABI_API_SKIN->getSkinName() : NULL);
-					classicSkin = (!WASABI_API_SKIN || WASABI_API_SKIN &&
+					classicSkin = (!WASABI_API_SKIN || //WASABI_API_SKIN &&
 								  // TODO pull in the localised version from gen_ff
 								  //		to ensure the checking will work correctly
 								  (SameStr(skin_name, L"No skin loaded")));
@@ -1273,7 +1273,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 					{
 						itaskbar->SetProgressState(TBPF_NORMAL);
 					}
-					else if (audiodata > 150 && audiodata < 210)
+					else if (audiodata < 210)
 					{
 						itaskbar->SetProgressState(TBPF_PAUSED);
 					}
