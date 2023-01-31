@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.2.5"
+#define PLUGIN_VERSION L"4.2.6"
 
 #define NR_BUTTONS 15
 
@@ -285,7 +285,6 @@ void quit(void)
 
 	if (updatethread != NULL)
 	{
-
 		WaitForSingleObject(updatethread, INFINITE);
 		CloseHandle(updatethread);
 		updatethread = NULL;
@@ -736,53 +735,55 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 			case IPC_IS_MINIMISED_OR_RESTORED:
 			case IPC_SKIN_CHANGED_NEW:
 			{
-				const bool minimised = (lParam == IPC_IS_MINIMISED_OR_RESTORED);
-				if (!minimised)
+				if (plugin.messages)
 				{
-					// this is needed when the vu mode is enabled to allow the
-					// data to be obtained if the main wnidow mode is disabled
-					static void(*export_sa_setreq)(int) = (void(__cdecl *)(int))GetSADataFunc(1);
-					if (export_sa_setreq)
+					const bool minimised = (lParam == IPC_IS_MINIMISED_OR_RESTORED);
+					if (!minimised)
 					{
-						export_sa_setreq(Settings.VuMeter);
+						// this is needed when the vu mode is enabled to allow the
+						// data to be obtained if the main wnidow mode is disabled
+						static void(*export_sa_setreq)(int) = (void(__cdecl *)(int))GetSADataFunc(1);
+						if (export_sa_setreq)
+						{
+							export_sa_setreq(Settings.VuMeter);
+						}
+
+						// delay doing this until needed as it then
+						// copes with modern skins being later used
+						if (WASABI_API_SKIN == NULL)
+						{
+							ServiceBuild(plugin.service, WASABI_API_SKIN, skinApiServiceGuid);
+						}
+
+						// TODO pull in the localised version from gen_ff
+						//		to ensure the checking will work correctly
+						LPCWSTR skin_name = (WASABI_API_SKIN != NULL ? WASABI_API_SKIN->getSkinName() : NULL);
+						classicSkin = (!WASABI_API_SKIN || //WASABI_API_SKIN &&
+									  // TODO pull in the localised version from gen_ff
+									  //		to ensure the checking will work correctly
+									  (SameStr(skin_name, L"No skin loaded")));
+
+						modernSUI = false;
+						modernFix = (skin_name && *skin_name && SameStrN(skin_name, L"Winamp Modern", 13));
+						if (!classicSkin)
+						{
+							// see if it's likely to be a SUI or not as
+							// we need it to help determine how we will
+							// capture the main window for the preview 
+							// as WM_PRINTCLIENT is slow for SUI skins
+							// but is needed for others especially if
+							// we're wanting to do support alpha better
+							EnumChildWindows(dialogParent, checkSkinProc, 0);
+						}
 					}
 
-					// delay doing this until needed as it then
-					// copes with modern skins being later used
-					if (WASABI_API_SKIN == NULL)
+					if (itaskbar != NULL)
 					{
-						ServiceBuild(plugin.service, WASABI_API_SKIN, skinApiServiceGuid);
+						itaskbar->SetWindowAttr();
 					}
 
-					// TODO pull in the localised version from gen_ff
-					//		to ensure the checking will work correctly
-					LPCWSTR skin_name = (WASABI_API_SKIN != NULL ? WASABI_API_SKIN->getSkinName() : NULL);
-					classicSkin = (!WASABI_API_SKIN || //WASABI_API_SKIN &&
-								  // TODO pull in the localised version from gen_ff
-								  //		to ensure the checking will work correctly
-								  (SameStr(skin_name, L"No skin loaded")));
-
-					modernSUI = false;
-					modernFix = (skin_name && *skin_name && SameStrN(skin_name, L"Winamp Modern", 13));
-					if (!classicSkin)
-					{
-						// see if it's likely to be a SUI or not as
-						// we need it to help determine how we will
-						// capture the main window for the preview 
-						// as WM_PRINTCLIENT is slow for SUI skins
-						// but is needed for others especially if
-						// we're wanting to do support alpha better
-						EnumChildWindows(dialogParent, checkSkinProc, 0);
-					}
+					UpdateOverlyStatus(true);
 				}
-
-				if (itaskbar != NULL)
-				{
-					itaskbar->SetWindowAttr();
-				}
-
-				UpdateOverlyStatus(true);
-
 				// fall-through for the other handling needed
 			}
 			default:
