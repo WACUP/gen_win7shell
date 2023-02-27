@@ -4,10 +4,11 @@
 #include <fstream>
 #include "gen_win7shell.h"
 #include "taskbar.h"
+#include <loader/loader/utils.h>
 
 iTaskBar::iTaskBar(sSettings& settings) : pTBL(NULL), progressbarstate(TBPF_NOPROGRESS), m_settings(settings)
 {
-	(void)CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+	CreateCOM();
 }
 
 iTaskBar::~iTaskBar()

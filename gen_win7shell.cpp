@@ -123,7 +123,7 @@ bool CreateThumbnailDrawer(const bool always_create = true)
 
 const bool GenerateAppIDFromFolder(const wchar_t *search_path, wchar_t *app_id)
 {
-	(void)CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+	CreateCOM();
 
 	IKnownFolderManager* pkfm = NULL;
 	HRESULT hr = CoCreateInstance(CLSID_KnownFolderManager, NULL,
