@@ -18,9 +18,8 @@ public:
 
 	void CreateJumpList(const std::wstring &pluginpath, const std::wstring &pref,
 						const std::wstring &openfile, const std::wstring &bookmarks,
-						const std::wstring &pltext, const bool recent,
-						const bool frequent, const bool tasks, const bool addbm,
-						const bool playlist, const std::wstring &bms);
+						const std::wstring &pltext, const bool recent, const bool frequent,
+						const bool tasks, const bool addbm, const bool playlist);
 
 private:
 	HRESULT _CreateShellLink(const std::wstring &path, PCWSTR pszArguments,

@@ -10,12 +10,11 @@
 #include <strsafe.h>
 #include "jumplist.h"
 #include "api.h"
+#include "tools.h"
 #ifdef _WIN64
 #include <loader/loader/paths.h>
 #endif
 #include <loader/loader/utils.h>
-
-LPCWSTR GetAppID(void);
 
 JumpList::JumpList(const bool delete_now) : pcdl(NULL)
 {
@@ -164,9 +163,8 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 
 void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring &pref,
 							  const std::wstring &openfile, const std::wstring &bookmarks,
-							  const std::wstring &pltext, const bool recent,
-							  const bool frequent, const bool tasks, const bool addbm,
-							  const bool playlist, const std::wstring &bms)
+							  const std::wstring &pltext, const bool recent, const bool frequent,
+							  const bool tasks, const bool addbm, const bool playlist)
 {
 	UINT cMinSlots = 0;
 	IObjectArray *poaRemoved = NULL;
@@ -176,11 +174,14 @@ void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring
 	CoCreateInstance(CLSID_EnumerableObjectCollection, NULL,
 					 CLSCTX_INPROC, IID_PPV_ARGS(&poc));
 
-	if (!bms.empty() && addbm && hr == S_OK)
+	bool has_bm = false;
+	if (addbm && (hr == S_OK))
 	{
+		const std::wstring& bms = tools::getBookmarks();
 		std::wstringstream ss(bms);
 		std::wstring line1, line2;
 		bool b = false;
+		has_bm = !bms.empty();
 		while (getline(ss, line1))
 		{
 			if (b)
@@ -226,7 +227,7 @@ void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring
 			pcdl->AppendKnownCategory(KDC_FREQUENT);
 		}
 		
-		if (addbm && !bms.empty())
+		if (addbm && has_bm)
 		{
 			_AddCategoryToList(poc, bookmarks);
 		}
@@ -421,9 +422,9 @@ bool JumpList::CleanJL(LPCWSTR AppID, IApplicationDocumentLists *padl, APPDOCLIS
 
 	if (SUCCEEDED(hr))
 	{
-		UINT *count = new UINT;
-		hr = poa->GetCount(count);
-		if (SUCCEEDED(hr) && (*count) > 100)
+		UINT count = 0;
+		hr = poa->GetCount(&count);
+		if (SUCCEEDED(hr) && (count > 100))
 		{
 			IApplicationDestinations *pad = NULL;
 			hr = CoCreateInstance(CLSID_ApplicationDestinations, NULL,
@@ -432,7 +433,7 @@ bool JumpList::CleanJL(LPCWSTR AppID, IApplicationDocumentLists *padl, APPDOCLIS
 
 			if (SUCCEEDED(hr))
 			{
-				for (UINT i = (*count)-1; i > 100; --i)
+				for (UINT i = (count-1); i > 100; --i)
 				{
 					IShellLink *psi = NULL;
 					hr = poa->GetAt(i, IID_PPV_ARGS(&psi));
@@ -450,7 +451,11 @@ bool JumpList::CleanJL(LPCWSTR AppID, IApplicationDocumentLists *padl, APPDOCLIS
 					}
 				}
 			}
+
+			pad->Release();
 		}
+
+		poa->Release();
 	}
 	else
 	{

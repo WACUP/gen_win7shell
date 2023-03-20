@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.2.6"
+#define PLUGIN_VERSION L"4.2.8"
 
 #define NR_BUTTONS 15
 
@@ -121,6 +121,7 @@ bool CreateThumbnailDrawer(const bool always_create = true)
 	return (thumbnaildrawer != NULL);
 }
 
+#if 0
 const bool GenerateAppIDFromFolder(const wchar_t *search_path, wchar_t *app_id)
 {
 	CreateCOM();
@@ -205,6 +206,7 @@ LPCWSTR GetAppID(void)
 		else
 		{
 			AppID = id;
+			CoTaskMemFree(id);
 		}
 
 		if (AppID.empty())
@@ -214,6 +216,7 @@ LPCWSTR GetAppID(void)
 	}
 	return AppID.c_str();
 }
+#endif
 
 // event functions follow
 int init(void)
@@ -2427,9 +2430,10 @@ void SetupJumpList(void)
 				// I can't find any reason for it. due to
 				// that it is necessary to try & catch it
 				// so we don't take down the entire thing
-				jl->CreateJumpList(pluginPath, tmp1, tmp2, tmp3, tmp4, Settings.JLrecent,
-								   Settings.JLfrequent, Settings.JLtasks, Settings.JLbms,
-								   Settings.JLpl, tools::getBookmarks());
+				jl->CreateJumpList(pluginPath, tmp1, tmp2,
+								   tmp3, tmp4, Settings.JLrecent,
+								   Settings.JLfrequent, Settings.JLtasks,
+								   Settings.JLbms, Settings.JLpl);
 			}
 			__except (EXCEPTION_EXECUTE_HANDLER)
 			{

@@ -210,7 +210,7 @@ namespace tools
 					}
 				}
 
-				wchar_t shortfname[MAX_PATH] = {0};
+				wchar_t shortfname[MAX_PATH] = { 0 };
 				GetShortPathName(fname, shortfname, ARRAYSIZE(shortfname));
 
 				fname[0] = 0;
@@ -270,7 +270,7 @@ namespace tools
 
 	/*bool is_in_recent(std::wstring &filename)
 	{
-		wchar_t path[MAX_PATH] = {0};
+		wchar_t path[MAX_PATH] = { 0 };
 		ExpandEnvironmentStrings(L"%appdata%\\Microsoft\\Windows\\Recent", path, ARRAYSIZE(path));
 		PathAppend(path, filename.c_str());
 		PathAddExtension(path, L".lnk");
@@ -580,7 +580,7 @@ namespace tools
 
 	std::wstring getBookmarks(void)
 	{
-		std::wifstream is(GetPaths()->winamp_bm_path/*(wchar_t*)SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_ADDBOOKMARKW)/**/);
+		std::wifstream is(GetPaths()->winamp_bm8_path/*(wchar_t*)SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_ADDBOOKMARKW)/**/);
 		if (is.fail())
 		{
 			return L"";
