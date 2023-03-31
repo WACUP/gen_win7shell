@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.2.8"
+#define PLUGIN_VERSION L"4.2.9"
 
 #define NR_BUTTONS 15
 
@@ -1307,7 +1307,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 			// provides to determine once we have done showing the preview so
 			// we'll try & see if the preview taskbar window is visible & the
 			// win+tab task view & the alt+tab overlay to avoid drawing mode.
-			static HWND previewlist = FindWindow(L"TaskListThumbnailWnd", L"");
+			static HWND previewlist = FindWindowEx(NULL, NULL, L"TaskListThumbnailWnd", L"");
 			if (IsWindow(previewlist))
 			{
 				running = (GetWindowLongPtr(previewlist, GWL_STYLE) & WS_VISIBLE);
@@ -1315,7 +1315,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 
 			if (!running)
 			{
-				const HWND taskview = FindWindow(L"Windows.UI.Core.CoreWindow", L"Task View");
+				const HWND taskview = FindWindowEx(NULL, NULL, L"Windows.UI.Core.CoreWindow", L"Task View");
 				if (IsWindow(taskview) && (GetForegroundWindow() == taskview))
 				{
 					running = true;
@@ -1324,7 +1324,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 
 			/*if (!running)
 			{
-				const HWND win7taskview = FindWindow(L"Flip3D", L"");
+				const HWND win7taskview = FindWindowEx(NULL, NULL, L"Flip3D", L"");
 				if (IsWindow(win7taskview) && (GetForegroundWindow() == win7taskview))
 				{
 					running = true;
@@ -1334,14 +1334,14 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 			if (!running)
 			{
 				// this is ok for Windows 10 afaict & then reverts to the older version
-				HWND alttab = FindWindow(L"MultitaskingViewFrame", L"Task Switching");
+				HWND alttab = FindWindowEx(NULL, NULL, L"MultitaskingViewFrame", L"Task Switching");
 				if (IsWindow(alttab) && (GetForegroundWindow() == alttab))
 				{
 					running = true;
 				}
 				else
 				{
-					alttab = FindWindow(L"TaskSwitcherWnd", L"Task Switching");
+					alttab = FindWindowEx(NULL, NULL, L"TaskSwitcherWnd", L"Task Switching");
 					if (IsWindow(alttab) && (GetForegroundWindow() == alttab))
 					{
 						running = true;
