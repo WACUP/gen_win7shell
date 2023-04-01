@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.2.9"
+#define PLUGIN_VERSION L"4.3"
 
 #define NR_BUTTONS 15
 
@@ -63,7 +63,7 @@ std::vector<int> TButtons;
 iTaskBar *itaskbar = NULL;
 MetaData *metadata = NULL;
 renderer *thumbnaildrawer = NULL;
-HANDLE updatethread = NULL;
+HANDLE updatethread = NULL, setupthread = NULL;
 
 api_albumart *WASABI_API_ALBUMART = 0;
 api_playlists *WASABI_API_PLAYLISTS = 0;
@@ -291,6 +291,13 @@ void quit(void)
 		WaitForSingleObject(updatethread, INFINITE);
 		CloseHandle(updatethread);
 		updatethread = NULL;
+	}
+
+	if (setupthread != NULL)
+	{
+		WaitForSingleObject(setupthread, INFINITE);
+		CloseHandle(setupthread);
+		setupthread = NULL;
 	}
 
 #ifdef USE_MOUSE
@@ -1102,6 +1109,32 @@ void setup_settings(void)
 	}
 }
 
+DWORD WINAPI SetupJumpListThread(LPVOID lp)
+{
+	CreateCOM();
+
+	SetupJumpList();
+
+	// Create the taskbar interface
+	itaskbar = new iTaskBar(Settings);
+	if ((itaskbar != NULL) && itaskbar->Reset())
+	{
+		updateToolbar(GetThumbnailIcons(false));
+	}
+
+	if (Settings.VuMeter)
+	{
+		SetTimer(plugin.hwndParent, 6668, 66, TimerProc);
+	}
+
+	if (setupthread != NULL)
+	{
+		CloseHandle(setupthread);
+		setupthread = NULL;
+	}
+	return 0;
+}
+
 VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 {
 	switch (idEvent)
@@ -1113,19 +1146,16 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 			if (!setup)
 			{
 				setup = true;
-				SetupJumpList();
 
-				// Create the taskbar interface
-				itaskbar = new iTaskBar(Settings);
-				if ((itaskbar != NULL) && itaskbar->Reset())
+				if (setupthread == NULL)
 				{
-					updateToolbar(GetThumbnailIcons(false));
+					setupthread = CreateThread(0, 0, SetupJumpListThread, 0, 0, NULL);
 				}
+			}
 
-				if (Settings.VuMeter)
-				{
-					SetTimer(hwnd, 6668, 66, TimerProc);
-				}
+			if (setupthread != NULL)
+			{
+				break;
 			}
 
 			if (!(Settings.Progressbar || Settings.VuMeter) && (itaskbar != NULL))
