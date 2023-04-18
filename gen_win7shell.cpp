@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.3"
+#define PLUGIN_VERSION L"4.3.2"
 
 #define NR_BUTTONS 15
 
@@ -903,15 +903,17 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				case TB_RATE:
 				{
 					ratewnd = WASABI_API_CREATEDIALOGW(IDD_RATEDLG, plugin.hwndParent, rateWndProc);
-
-					RECT rc = {0};
-					POINT point = {0};
-					GetCursorPos(&point);
-					GetWindowRect(ratewnd, &rc);
-					MoveWindow(ratewnd, point.x - 155, point.y - 15, rc.right - rc.left, rc.bottom - rc.top, false);
-					KillTimer(plugin.hwndParent, 6669);
-					SetTimer(plugin.hwndParent, 6669, 5000, TimerProc);
-					ShowWindow(ratewnd, SW_SHOWNA);
+					if (IsWindow(ratewnd))
+					{
+						RECT rc = { 0 };
+						POINT point = { 0 };
+						GetCursorPos(&point);
+						GetWindowRect(ratewnd, &rc);
+						MoveWindow(ratewnd, (point.x - 245), (point.y - 15), (rc.right - rc.left), (rc.bottom - rc.top), false);
+						KillTimer(plugin.hwndParent, 6669);
+						SetTimer(plugin.hwndParent, 6669, 8000, TimerProc);
+						ShowWindow(ratewnd, SW_SHOWNA);
+					}
 					break;
 				}
 				case TB_VOLDOWN:
@@ -1111,9 +1113,10 @@ void setup_settings(void)
 
 DWORD WINAPI SetupJumpListThread(LPVOID lp)
 {
-	CreateCOM();
-
-	SetupJumpList();
+	if (SUCCEEDED(CreateCOM()))
+	{
+		SetupJumpList();
+	}
 
 	// Create the taskbar interface
 	itaskbar = new iTaskBar(Settings);
@@ -1473,48 +1476,20 @@ LRESULT CALLBACK rateWndProc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lPara
 {
 	switch (msg)
 	{
+		case WM_INITDIALOG:
+		{
+			DarkModeSetup(hwndDlg);
+
+			// give an indication of the current rating for the item
+			const int rating = GetSetMainRating(0, IPC_GETRATING);
+			wchar_t rating_text[8] = { 0 };
+			StringCchPrintf(rating_text, ARRAYSIZE(rating_text), L"[%d]", rating);
+			SetDlgItemText(hwndDlg, IDC_RATE1 + rating, rating_text);
+			break;
+		}
 		case WM_COMMAND:
 		{
-			WPARAM value = (WPARAM)-1;
-			switch (LOWORD(wParam))
-			{
-				case IDC_RATE1:
-				{
-					value = 0;
-					break;
-				}
-				case IDC_RATE2:
-				{
-					value = 1;
-					break;
-				}
-				case IDC_RATE3:
-				{
-					value = 2;
-					break;
-				}
-				case IDC_RATE4:
-				{
-					value = 3;
-					break;
-				}
-				case IDC_RATE5:
-				{
-					value = 4;
-					break;
-				}
-				case IDC_RATE6:
-				{
-					value = 5;
-					break;
-				}
-			}
-
-			if (value != (WPARAM)-1)
-			{
-				GetSetMainRating(value, IPC_SETRATING);
-			}
-
+			GetSetMainRating((LOWORD(wParam) - IDC_RATE1), IPC_SETRATING);
 			DestroyWindow(hwndDlg);
 			break;
 		}
