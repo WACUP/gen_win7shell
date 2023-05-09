@@ -242,13 +242,17 @@ HBITMAP renderer::GetThumbnail(void)
 	// preview to be generated so we will wait
 	// until its needed to load gdiplus as its
 	// a relatively slow to close down on exit
-	if (!gdiplusToken)
+	/*if (!gdiplusToken)
 	{
 		gdiplusStartupInput.SuppressBackgroundThread = TRUE;
 		Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput,
 								&gdiplusStartupOutput);
 		gdiplusStartupOutput.NotificationHook(&gdiplusBgThreadToken);
-	}
+	}/*/
+	if (!SetupGDIplus())
+	{
+		return NULL;
+	}/**/
 
 	//Calculate icon size
 	_iconwidth = m_iconwidth;
@@ -973,7 +977,7 @@ HBITMAP renderer::GetThumbnail(void)
 }
 
 renderer::renderer(sSettings& settings, MetaData &metadata) : 
-	gdiplusToken(0), gdiplusBgThreadToken(0), custom_img(NULL),
+	/*gdiplusToken(0), gdiplusBgThreadToken(0),*/ custom_img(NULL),
 	background(NULL), albumart(NULL), normal_font(NULL),
 	large_font(NULL), m_settings(settings), m_metadata(metadata),
 	m_width(-1), m_height(-1), m_iconwidth(0), m_iconheight(0),
@@ -987,12 +991,12 @@ renderer::~renderer()
 	ClearCustomBackground();
 	ClearFonts();
 
-	if (gdiplusToken != 0)
+	/*if (gdiplusToken != 0)
 	{
 		gdiplusStartupOutput.NotificationUnhook(gdiplusToken);
 		Gdiplus::GdiplusShutdown(gdiplusToken);
 		gdiplusToken = gdiplusBgThreadToken = 0;
-	}
+	}*/
 }
 
 void renderer::SetDimensions(const int new_w, const int new_h) 

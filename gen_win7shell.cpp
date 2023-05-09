@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.3.2"
+#define PLUGIN_VERSION L"4.3.4"
 
 #define NR_BUTTONS 15
 
@@ -83,6 +83,7 @@ extern "C" __declspec(dllexport) LRESULT CALLBACK TabHandler_ThumbnailImage(HWND
 
 void updateToolbar(HIMAGELIST ImageList = NULL);
 void SetupJumpList(void);
+void SetThumbnailTimer(void);
 void AddStringtoList(HWND window, const int control_ID);
 
 // Winamp EVENTS
@@ -438,9 +439,8 @@ DWORD WINAPI UpdateThread(LPVOID lp)
 
 			if (FAILED(hr) || !running)
 			{
-				KillTimer(plugin.hwndParent, 6670);
-				KillTimer(plugin.hwndParent, 6671);
 				running = false;
+				SetThumbnailTimer();
 				break;
 			}
 		}
@@ -461,9 +461,9 @@ DWORD WINAPI UpdateThread(LPVOID lp)
 void SetThumbnailTimer(void)
 {
 	KillTimer(plugin.hwndParent, 6670);
-	SetTimer(plugin.hwndParent, 6670, (Settings.Thumbnailbackground == BG_WINAMP) ?
+	SetTimer(plugin.hwndParent, 6670, (running ? (Settings.Thumbnailbackground == BG_WINAMP) ?
 			 (!Settings.LowFrameRate ? Settings.MFT : Settings.MST) :
-			 (!Settings.LowFrameRate ? Settings.TFT : Settings.TST), TimerProc);
+			 (!Settings.LowFrameRate ? Settings.TFT : Settings.TST) : 1000), TimerProc);
 
 	KillTimer(plugin.hwndParent, 6671);
 
@@ -1336,6 +1336,8 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 		}
 		case 6670:	//scroll redraw
 		{
+			const bool old_running = running;
+
 			// this is far from ideal as there's nothing obvious that windows
 			// provides to determine once we have done showing the preview so
 			// we'll try & see if the preview taskbar window is visible & the
@@ -1355,14 +1357,15 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 				}
 			}
 
-			/*if (!running)
+			if (!running)
 			{
+				// is the Win+Tab dialog on at least Win10
 				const HWND win7taskview = FindWindowEx(NULL, NULL, L"Flip3D", L"");
 				if (IsWindow(win7taskview) && (GetForegroundWindow() == win7taskview))
 				{
 					running = true;
 				}
-			}*/
+			}
 
 			if (!running)
 			{
@@ -1381,27 +1384,26 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 					}
 				}
 			}
+
+			// if we've found something then use the
+			// faster update timer as needed other &
+			// if not then we can drop it down so we
+			// minimise any re-checking that is done
+			if (running != old_running)
+			{
+				SetThumbnailTimer();
+			}
 			break;
 		}
 		case 6671:	// long running check mostly for Windows 11
 		{
-			KillTimer(plugin.hwndParent, 6671);
-
-			// TODO until above is updated to correctly deal with
-			//		Windows 11 (not touching the beta preview for
-			//		now) it's necessary to see if there's a long
-			//		running instance running & manually kill it &
-			//		hope that it's not going to clash with others
-			const bool was_running = running;
+			// it's necessary to see if there's still a long
+			// running instance running & manually kill it &
+			// hope that it's not going to clash with others
 			if (running)
 			{
 				running = false;
-				KillTimer(plugin.hwndParent, 6670);
-			}
-
-			if (was_running)
-			{
-				SetTimer(plugin.hwndParent, 6671, 30000, TimerProc);
+				SetThumbnailTimer();
 			}
 			break;
 		}
@@ -1418,13 +1420,10 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 
 			windowShade = !!IsHWNDWndshade((WPARAM)-1)/*/SendMessage(hWnd, WM_WA_IPC, (WPARAM)-1, IPC_IS_WNDSHADE)/**/;
 
-			if (!OnWINE())
-			{
-				// Accept messages even if Winamp was run as Administrator
-				ChangeWindowMessageFilter(WM_COMMAND, 1);
-				ChangeWindowMessageFilter(WM_DWMSENDICONICTHUMBNAIL, 1);
-				ChangeWindowMessageFilter(WM_DWMSENDICONICLIVEPREVIEWBITMAP, 1);
-			}
+			// Accept messages even if Winamp was run as Administrator
+			ChangeWindowMessageFilter(WM_COMMAND, 1);
+			ChangeWindowMessageFilter(WM_DWMSENDICONICTHUMBNAIL, 1);
+			ChangeWindowMessageFilter(WM_DWMSENDICONICLIVEPREVIEWBITMAP, 1);
 
 			// Register taskbarcreated message
 			WM_TASKBARBUTTONCREATED = RegisterWindowMessage(L"TaskbarButtonCreated");

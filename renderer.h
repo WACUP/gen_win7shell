@@ -30,10 +30,10 @@ public:
 	MetaData GetMetadata(void) const { return m_metadata; }
 
 private:
-	ULONG_PTR gdiplusToken, gdiplusBgThreadToken;
+	/*ULONG_PTR gdiplusToken, gdiplusBgThreadToken;
 
 	Gdiplus::GdiplusStartupInput gdiplusStartupInput;
-	Gdiplus::GdiplusStartupOutput gdiplusStartupOutput;
+	Gdiplus::GdiplusStartupOutput gdiplusStartupOutput;*/
 
 	Gdiplus::Image *custom_img;
 	Gdiplus::Bitmap *background;
