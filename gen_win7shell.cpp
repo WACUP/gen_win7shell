@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.3.4"
+#define PLUGIN_VERSION L"4.3.5"
 
 #define NR_BUTTONS 15
 
@@ -289,14 +289,14 @@ void quit(void)
 
 	if (updatethread != NULL)
 	{
-		WaitForSingleObject(updatethread, INFINITE);
+		WaitForSingleObject(updatethread, 10000);
 		CloseHandle(updatethread);
 		updatethread = NULL;
 	}
 
 	if (setupthread != NULL)
 	{
-		WaitForSingleObject(setupthread, INFINITE);
+		WaitForSingleObject(setupthread, 10000);
 		CloseHandle(setupthread);
 		setupthread = NULL;
 	}
@@ -430,7 +430,8 @@ DWORD WINAPI UpdateThread(LPVOID lp)
 {
 	while (running && CreateThumbnailDrawer())
 	{
-		const HBITMAP thumbnail = thumbnaildrawer->GetThumbnail();
+		const HBITMAP thumbnail = (running && (thumbnaildrawer != NULL) ?
+								   thumbnaildrawer->GetThumbnail() : NULL);
 		if (thumbnail != NULL)
 		{
 			const HRESULT hr = DwmSetIconicThumbnail(plugin.hwndParent, thumbnail, 0);
