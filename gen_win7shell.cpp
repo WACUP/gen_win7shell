@@ -330,7 +330,7 @@ void quit(void)
 
 void updateToolbar(HIMAGELIST ImageList)
 {
-	if ((itaskbar != NULL) && Settings.Thumbnailbuttons)
+	if ((itaskbar != NULL) && Settings.Thumbnailbuttons && plugin.messages)
 	{
 		std::vector<THUMBBUTTON> thbButtons;
 		const size_t count = TButtons.size();
@@ -376,7 +376,13 @@ void updateToolbar(HIMAGELIST ImageList)
 
 		if (itaskbar != NULL)
 		{
-			itaskbar->ThumbBarUpdateButtons(thbButtons, ImageList);
+			__try
+			{
+				itaskbar->ThumbBarUpdateButtons(thbButtons, ImageList);
+			}
+			__except (EXCEPTION_EXECUTE_HANDLER)
+			{
+			}
 		}
 	}
 }
@@ -753,7 +759,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					{
 						// this is needed when the vu mode is enabled to allow the
 						// data to be obtained if the main wnidow mode is disabled
-						static void(*export_sa_setreq)(int) = (void(__cdecl *)(int))GetSADataFunc(1);
+						static void(*export_sa_setreq)(int) = (void(__cdecl*)(int))GetSADataFunc(1);
 						if (export_sa_setreq)
 						{
 							export_sa_setreq(Settings.VuMeter);
@@ -772,7 +778,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 						classicSkin = (!WASABI_API_SKIN || //WASABI_API_SKIN &&
 									  // TODO pull in the localised version from gen_ff
 									  //		to ensure the checking will work correctly
-									  (SameStr(skin_name, L"No skin loaded")));
+							(SameStr(skin_name, L"No skin loaded")));
 
 						modernSUI = false;
 						modernFix = (skin_name && *skin_name && SameStrN(skin_name, L"Winamp Modern", 13));
@@ -791,9 +797,9 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					if (itaskbar != NULL)
 					{
 						itaskbar->SetWindowAttr();
-					}
 
-					UpdateOverlyStatus(true);
+						UpdateOverlyStatus(true);
+					}
 				}
 				// fall-through for the other handling needed
 			}
@@ -1758,7 +1764,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 				RECT rect = {0};
 
 				// button1
-				GetWindowRect(GetDlgItem(hwnd, IDC_BUTTON9), &rect);
+				GetDlgItemRect(hwnd, IDC_BUTTON9, &rect);
 
 				// top right	// 0
 				points[0].x = points[1].x = rect.right;
@@ -1768,7 +1774,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 				points[1].y = rect.bottom;
 
 				// button2
-				GetWindowRect(GetDlgItem(hwnd, IDC_BUTTON6), &rect);
+				GetDlgItemRect(hwnd, IDC_BUTTON6, &rect);
 
 				// top right	// 2
 				points[2].x = points[3].x = rect.right;
@@ -1778,7 +1784,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 				points[3].y = rect.bottom;
 
 				// editbox
-				GetWindowRect(GetDlgItem(hwnd, IDC_EDIT3), &rect);
+				GetDlgItemRect(hwnd, IDC_EDIT3, &rect);
 
 				// bottom right	// 4
 				points[4].x = rect.right;
