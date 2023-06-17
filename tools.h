@@ -27,7 +27,8 @@ namespace tools
 	HIMAGELIST prepareIcons(void);
 	std::wstring SecToTime(const int sec);
 	LPCWSTR getToolTip(const WPARAM button, const int mode = -1);
-	int getBitmap(const int button, const int mode);
+	const int getBitmapCount(void);
+	const int getBitmap(const int button, const int mode);
 }
 
 #endif // tools_h__

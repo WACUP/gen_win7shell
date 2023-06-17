@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.3.5"
+#define PLUGIN_VERSION L"4.3.8"
 
 #define NR_BUTTONS 15
 
@@ -64,6 +64,10 @@ iTaskBar *itaskbar = NULL;
 MetaData *metadata = NULL;
 renderer *thumbnaildrawer = NULL;
 HANDLE updatethread = NULL, setupthread = NULL;
+CRITICAL_SECTION background_cs = { 0 },
+				 overlay_icons_cs = { 0 },
+				 thumbnai_icons_cs = { 0 };
+HIMAGELIST theicons = NULL, overlayicons = NULL;
 
 api_albumart *WASABI_API_ALBUMART = 0;
 api_playlists *WASABI_API_PLAYLISTS = 0;
@@ -238,6 +242,10 @@ int init(void)
 	StringCchPrintf(pluginTitleW, ARRAYSIZE(pluginTitleW), WASABI_API_LNGSTRINGW(IDS_PLUGIN_NAME), PLUGIN_VERSION);
 	plugin.description = (char*)plugin.memmgr->sysDupStr(pluginTitleW);
 
+	InitializeCriticalSectionEx(&background_cs, 400, CRITICAL_SECTION_NO_DEBUG_INFO);
+	InitializeCriticalSectionEx(&overlay_icons_cs, 400, CRITICAL_SECTION_NO_DEBUG_INFO);
+	InitializeCriticalSectionEx(&thumbnai_icons_cs, 400, CRITICAL_SECTION_NO_DEBUG_INFO);
+
 	return GEN_INIT_SUCCESS;/*/
 	return GEN_INIT_FAILURE;/**/
 }
@@ -326,6 +334,10 @@ void quit(void)
 	//ServiceRelease(plugin.service, WASABI_API_LNG, languageApiGUID);
 	//ServiceRelease(plugin.service, WASABI_API_EXPLORERFINDFILE, ExplorerFindFileApiGUID);
 	ServiceRelease(plugin.service, WASABI_API_SKIN, skinApiServiceGuid);
+
+	DeleteCriticalSection(&background_cs);
+	DeleteCriticalSection(&overlay_icons_cs);
+	DeleteCriticalSection(&thumbnai_icons_cs);
 }
 
 void updateToolbar(HIMAGELIST ImageList)
@@ -496,7 +508,8 @@ void ResetThumbnail(void)
 
 HIMAGELIST GetThumbnailIcons(const bool force_refresh)
 {
-	static HIMAGELIST theicons;
+	EnterCriticalSection(&thumbnai_icons_cs);
+
 	if (!theicons || force_refresh)
 	{
 		if (theicons)
@@ -507,12 +520,15 @@ HIMAGELIST GetThumbnailIcons(const bool force_refresh)
 
 		theicons = tools::prepareIcons();
 	}
+
+	LeaveCriticalSection(&thumbnai_icons_cs);
 	return theicons;
 }
 
 HIMAGELIST GetOverlayIcons(const bool force_refresh)
 {
-	static HIMAGELIST overlayicons;
+	EnterCriticalSection(&overlay_icons_cs);
+
 	if (!overlayicons || force_refresh)
 	{
 		if (overlayicons)
@@ -523,6 +539,8 @@ HIMAGELIST GetOverlayIcons(const bool force_refresh)
 
 		overlayicons = tools::prepareOverlayIcons();
 	}
+
+	LeaveCriticalSection(&overlay_icons_cs);
 	return overlayicons;
 }
 
@@ -542,30 +560,25 @@ void UpdateOverlyStatus(const bool force_refresh)
 		switch (Settings.play_state)
 		{
 			case PLAYSTATE_PLAYING:
-			{
-				if (itaskbar != NULL)
-				{
-					const int index = tools::getBitmap(TB_PLAYPAUSE, 0);
-					icon = ImageListGetIcon(GetOverlayIcons(force_refresh), (index - 1), 0);
-					if (icon == NULL)
-					{
-						icon = ImageListGetIcon(GetThumbnailIcons(false/*force_refresh*/), index, 0);
-					}
-					itaskbar->SetIconOverlay(icon, playing_str);
-				}
-				break;
-			}
 			case PLAYSTATE_PAUSED:
 			{
 				if (itaskbar != NULL)
 				{
-					const int index = tools::getBitmap(TB_PLAYPAUSE, 1);
-					icon = ImageListGetIcon(GetOverlayIcons(force_refresh), (index - 1), 0);
-					if (icon == NULL)
+					const bool paused = (Settings.play_state == PLAYSTATE_PAUSED);
+					const int index = tools::getBitmap(TB_PLAYPAUSE, paused);
+					if ((index >= 0) && (index < tools::getBitmapCount()))
 					{
-						icon = ImageListGetIcon(GetThumbnailIcons(false/*force_refresh*/), index, 0);
+						icon = ImageListGetIcon(GetOverlayIcons(force_refresh), (index - 1), 0);
+						if (icon == NULL)
+						{
+							icon = ImageListGetIcon(GetThumbnailIcons(false), index, 0);
+						}
+
+						if (itaskbar != NULL)
+						{
+							itaskbar->SetIconOverlay(icon, (!paused ? playing_str : paused_str));
+						}
 					}
-					itaskbar->SetIconOverlay(icon, paused_str);
 				}
 				break;
 			}
@@ -574,15 +587,18 @@ void UpdateOverlyStatus(const bool force_refresh)
 				if (itaskbar != NULL)
 				{
 					const int index = tools::getBitmap(TB_STOP, 1);
-					icon = ImageListGetIcon(GetOverlayIcons(force_refresh), index, 0);
-					if (icon == NULL)
+					if ((index >= 0) && (index < tools::getBitmapCount()))
 					{
-						icon = ImageListGetIcon(GetThumbnailIcons(false/*force_refresh*/), index, 0);
-					}
+						icon = ImageListGetIcon(GetOverlayIcons(force_refresh), index, 0);
+						if (icon == NULL)
+						{
+							icon = ImageListGetIcon(GetThumbnailIcons(false/*force_refresh*/), index, 0);
+						}
 
-					if (itaskbar != NULL)
-					{
-						itaskbar->SetIconOverlay(icon, paused_str);
+						if (itaskbar != NULL)
+						{
+							itaskbar->SetIconOverlay(icon, paused_str);
+						}
 					}
 				}
 				break;

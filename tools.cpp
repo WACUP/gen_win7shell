@@ -591,7 +591,12 @@ namespace tools
 		return data;
 	}
 
-	int getBitmap(const int button, const int mode)
+	const int getBitmapCount(void)
+	{
+		return 19;
+	}
+
+	const int getBitmap(const int button, const int mode)
 	{
 		switch (button)
 		{

@@ -12,6 +12,8 @@
 #include <loader/loader/ini.h>
 #include <loader/loader/utils.h>
 
+extern CRITICAL_SECTION background_cs;
+
 Gdiplus::Bitmap* ResizeAndCloneBitmap(Gdiplus::Bitmap *bmp, const float width, const float height)
 {
 	const UINT o_height = bmp->GetHeight(),
@@ -282,6 +284,8 @@ HBITMAP renderer::GetThumbnail(void)
 	bool tempfail = fail;
 	int iconposition = m_settings.IconPosition;
 
+	EnterCriticalSection(&background_cs);
+
 	// Draw background if not valid
 	if (!background)
 	{
@@ -298,7 +302,11 @@ HBITMAP renderer::GetThumbnail(void)
 		}
 
 		no_icon = no_text = fail = false;
+
 		background = new Gdiplus::Bitmap(m_width, m_height, PixelFormat32bppPARGB);
+
+		LeaveCriticalSection(&background_cs);
+
 		Gdiplus::Graphics graphics(background);
 
 		// so we've got something irrespective of the mode being used
@@ -429,8 +437,10 @@ HBITMAP renderer::GetThumbnail(void)
 						Gdiplus::Rect dest((m_width / 2) - (icon_width / 2), (m_height / 2) -
 										   (icon_height / 2), icon_width, icon_height);
 						dest.Inflate(-(icon_width / 4), -(icon_height / 4));
-						graphics.DrawImage(&icon, dest, 0, 0, icon_width, icon_height, Gdiplus::UnitPixel,
-										   (doReplace ? (replace.ToCOLORREF() == queried.ToCOLORREF() ? &ImgAtt : 0) : 0));
+						graphics.DrawImage(&icon, dest, 0, 0, icon_width,
+										   icon_height, Gdiplus::UnitPixel,
+										   (doReplace ? (replace.ToCOLORREF() ==
+											queried.ToCOLORREF() ? &ImgAtt : 0) : 0));
 
 						if (!from_core)
 						{
@@ -528,11 +538,13 @@ HBITMAP renderer::GetThumbnail(void)
 								else
 								{
 									Gdiplus::ImageAttributes ImgAttr;
-									ImgAttr.SetColorMatrix(&BitmapMatrix, Gdiplus::ColorMatrixFlagsDefault, Gdiplus::ColorAdjustTypeBitmap);
+									ImgAttr.SetColorMatrix(&BitmapMatrix, Gdiplus::ColorMatrixFlagsDefault,
+																		  Gdiplus::ColorAdjustTypeBitmap);
 
 									// Draw icon shadow
 									gfx.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
-									gfx.FillRectangle(&Gdiplus::SolidBrush(Gdiplus::Color::MakeARGB((BYTE)(110 - m_settings.BG_Transparency), 0, 0, 0)),
+									gfx.FillRectangle(&Gdiplus::SolidBrush(Gdiplus::Color::MakeARGB((BYTE)(110 -
+																		   m_settings.BG_Transparency), 0, 0, 0)),
 													  static_cast<Gdiplus::REAL>(iconleft + 1),
 													  static_cast<Gdiplus::REAL>(icontop + 1), 
 													  static_cast<Gdiplus::REAL>(new_width + 1),
@@ -607,8 +619,13 @@ HBITMAP renderer::GetThumbnail(void)
 						}
 					}
 
+					EnterCriticalSection(&background_cs);
+
 					delete background;
+
 					background = (Gdiplus::Bitmap*)custom_img->Clone();
+
+					LeaveCriticalSection(&background_cs);
 				}
 				else if (m_settings.Revertto != BG_CUSTOM)
 				{
@@ -625,354 +642,356 @@ HBITMAP renderer::GetThumbnail(void)
 			}
 		}
 	}
-
-	if (tempfail)
+	else
 	{
-		return NULL;
+		LeaveCriticalSection(&background_cs);
 	}
 
 	HBITMAP retbmp = NULL;
-	Gdiplus::REAL textheight = 0;
-	Gdiplus::Bitmap *canvas = (background ? background->Clone(0, 0, background->GetWidth(),
-															  background->GetHeight(),
-															  PixelFormat32bppPARGB) : NULL);
-	if (canvas)
+	if (!tempfail)
 	{
-		Gdiplus::Graphics gfx(canvas);
-
-		if (!no_text)
+		Gdiplus::REAL textheight = 0;
+		Gdiplus::Bitmap *canvas = (background ? background->Clone(0, 0, background->GetWidth(),
+									   background->GetHeight(), PixelFormat32bppPARGB) : NULL);
+		if (canvas)
 		{
-			if (m_settings.Text[0])
+			Gdiplus::Graphics gfx(canvas);
+
+			if (!no_text)
 			{
-				// Draw text
-				static lines text_parser(m_settings, m_metadata);
-				text_parser.Parse();
+				if (m_settings.Text[0])
+				{
+					// Draw text
+					static lines text_parser(m_settings, m_metadata);
+					text_parser.Parse();
 
-				if (m_textpositions.empty())
-				{
-					m_textpositions.resize(text_parser.GetNumberOfLines(), 0);
-				}
-				else
-				{
-					for (std::vector<int>::size_type i = 0; i != m_textpositions.size(); ++i)
+					if (m_textpositions.empty())
 					{
-						if (m_textpositions[i] != 0)
+						m_textpositions.resize(text_parser.GetNumberOfLines(), 0);
+					}
+					else
+					{
+						for (std::vector<int>::size_type i = 0; i != m_textpositions.size(); ++i)
 						{
-							m_textpositions[i] -= (m_settings.LowFrameRate ? 3 : 2);
-						}
-						else
-						{
-							if (scroll_block)
-							{
-								bool unblock = true;
-
-								for (std::vector<int>::size_type j = 0; j != m_textpositions.size(); ++j)
-								{
-									if (m_textpositions[j] < 0)
-									{
-										unblock = false;
-										break;
-									}
-								}
-
-								scroll_block = !unblock;
-								m_textpause = (m_settings.LowFrameRate ? 4 : 1);
-							}
-
-							if (!scroll_block && m_textpause == 0)
+							if (m_textpositions[i] != 0)
 							{
 								m_textpositions[i] -= (m_settings.LowFrameRate ? 3 : 2);
 							}
+							else
+							{
+								if (scroll_block)
+								{
+									bool unblock = true;
+
+									for (std::vector<int>::size_type j = 0; j != m_textpositions.size(); ++j)
+									{
+										if (m_textpositions[j] < 0)
+										{
+											unblock = false;
+											break;
+										}
+									}
+
+									scroll_block = !unblock;
+									m_textpause = (m_settings.LowFrameRate ? 4 : 1);
+								}
+
+								if (!scroll_block && m_textpause == 0)
+								{
+									m_textpositions[i] -= (m_settings.LowFrameRate ? 3 : 2);
+								}
+							}
 						}
 					}
-				}
 
-				// Setup fonts
-				if (!normal_font || !large_font)
-				{
-					HDC h_gfx = gfx.GetHDC();
-					if (h_gfx)
+					// Setup fonts
+					if (!normal_font || !large_font)
 					{
-						if (!normal_font)
+						HDC h_gfx = gfx.GetHDC();
+						if (h_gfx)
 						{
-							normal_font = new Gdiplus::Font(h_gfx, &m_settings.font);
-						}
+							if (!normal_font)
+							{
+								normal_font = new Gdiplus::Font(h_gfx, &m_settings.font);
+							}
 
-						if (!large_font)
-						{
-							LOGFONT _large_font = m_settings.font;
-							LONG large_size = -((m_settings.font.lfHeight * 72) /
-												GetDeviceCaps(h_gfx, LOGPIXELSY));
-							large_size += 4;
-							_large_font.lfHeight = -MulDiv(large_size, GetDeviceCaps(h_gfx, LOGPIXELSY), 72);
-							large_font = new Gdiplus::Font(h_gfx, &_large_font);
-						}
+							if (!large_font)
+							{
+								LOGFONT _large_font = m_settings.font;
+								LONG large_size = -((m_settings.font.lfHeight * 72) /
+													GetDeviceCaps(h_gfx, LOGPIXELSY));
+								large_size += 4;
+								_large_font.lfHeight = -MulDiv(large_size, GetDeviceCaps(h_gfx, LOGPIXELSY), 72);
+								large_font = new Gdiplus::Font(h_gfx, &_large_font);
+							}
 
-						gfx.ReleaseHDC(h_gfx);
+							gfx.ReleaseHDC(h_gfx);
+						}
 					}
-				}
 
-				// since its possible for the fonts on the machine
-				// to not be valid then it's better to bail asap &
-				// reduce the hit - gdi+ only likes true type font
-				if ((normal_font && normal_font->IsAvailable()) &&
-					(large_font && large_font->IsAvailable()))
-				{
-					Gdiplus::SolidBrush bgcolor(Gdiplus::Color(GetRValue(m_settings.bgcolor),
-															   GetGValue(m_settings.bgcolor),
-															   GetBValue(m_settings.bgcolor))),
-										fgcolor(Gdiplus::Color(GetRValue(m_settings.text_color),
-															   GetGValue(m_settings.text_color),
-															   GetBValue(m_settings.text_color)));
-
-					Gdiplus::StringFormat sf(Gdiplus::StringFormatFlagsNoWrap);
-					const int text_space = 28;
-
-					for (std::size_t text_index = 0; text_index != text_parser.GetNumberOfLines(); ++text_index)
+					// since its possible for the fonts on the machine
+					// to not be valid then it's better to bail asap &
+					// reduce the hit - gdi+ only likes true type font
+					if ((normal_font && normal_font->IsAvailable()) &&
+						(large_font && large_font->IsAvailable()))
 					{
-						Gdiplus::RectF ret_rect;
-						std::wstring current_text = text_parser.GetLineText(text_index);
-						linesettings current_settings = text_parser.GetLineSettings(text_index);
+						Gdiplus::SolidBrush bgcolor(Gdiplus::Color(GetRValue(m_settings.bgcolor),
+																   GetGValue(m_settings.bgcolor),
+																   GetBValue(m_settings.bgcolor))),
+											fgcolor(Gdiplus::Color(GetRValue(m_settings.text_color),
+																   GetGValue(m_settings.text_color),
+																   GetBValue(m_settings.text_color)));
 
-						// Measure size
-						gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
+						Gdiplus::StringFormat sf(Gdiplus::StringFormatFlagsNoWrap);
+						const int text_space = 28;
 
-						const Gdiplus::PointF origin(0, 0);
-						// this used to apply a parent_rect set to the size of the area
-						// to be drawn into by the OS but that then messed up the check
-						// for how long the string actually is which is needed when the
-						// line is going to be scrolled to prevent being clipped short!
-						gfx.MeasureString(current_text.c_str(), (INT)current_text.size(),
-										  (current_settings.largefont ? large_font :
-										  normal_font), origin, &sf, &ret_rect);
+						for (std::size_t text_index = 0; text_index != text_parser.GetNumberOfLines(); ++text_index)
+						{
+							Gdiplus::RectF ret_rect;
+							std::wstring current_text = text_parser.GetLineText(text_index);
+							linesettings current_settings = text_parser.GetLineSettings(text_index);
+
+							// Measure size
+							gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
+
+							const Gdiplus::PointF origin(0, 0);
+							// this used to apply a parent_rect set to the size of the area
+							// to be drawn into by the OS but that then messed up the check
+							// for how long the string actually is which is needed when the
+							// line is going to be scrolled to prevent being clipped short!
+							gfx.MeasureString(current_text.c_str(), (INT)current_text.size(),
+											  (current_settings.largefont ? large_font :
+											  normal_font), origin, &sf, &ret_rect);
 					
-						if (ret_rect.GetBottom() == 0)
-						{
-							gfx.MeasureString(L"QWEXCyjM", -1, normal_font, origin, &sf, &ret_rect);
-						}
+							if (ret_rect.GetBottom() == 0)
+							{
+								gfx.MeasureString(L"QWEXCyjM", -1, normal_font, origin, &sf, &ret_rect);
+							}
 
-						Gdiplus::Bitmap text_bitmap(static_cast<INT>(ret_rect.GetRight()),
-													static_cast<INT>(ret_rect.GetBottom() - 1),
-													PixelFormat32bppPARGB);
+							Gdiplus::Bitmap text_bitmap(static_cast<INT>(ret_rect.GetRight()),
+														static_cast<INT>(ret_rect.GetBottom() - 1),
+														PixelFormat32bppPARGB);
 
-						Gdiplus::Graphics text_gfx(&text_bitmap);
+							Gdiplus::Graphics text_gfx(&text_bitmap);
 
-						// Graphics setup
-						text_gfx.SetSmoothingMode(Gdiplus::SmoothingModeNone);
-						text_gfx.SetInterpolationMode(Gdiplus::InterpolationModeNearestNeighbor);
-						text_gfx.SetPixelOffsetMode(Gdiplus::PixelOffsetModeNone);
-						text_gfx.SetCompositingQuality(Gdiplus::CompositingQualityHighSpeed);
+							// Graphics setup
+							text_gfx.SetSmoothingMode(Gdiplus::SmoothingModeNone);
+							text_gfx.SetInterpolationMode(Gdiplus::InterpolationModeNearestNeighbor);
+							text_gfx.SetPixelOffsetMode(Gdiplus::PixelOffsetModeNone);
+							text_gfx.SetCompositingQuality(Gdiplus::CompositingQualityHighSpeed);
 
-						(m_settings.Antialias) ? text_gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias) : 
-												 text_gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintSingleBitPerPixelGridFit);
+							(m_settings.Antialias) ? text_gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias) : 
+													 text_gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintSingleBitPerPixelGridFit);
 
-						// Draw box if needed
-						if (current_settings.darkbox && !current_text.empty())
-						{
-							Gdiplus::SolidBrush boxbrush(Gdiplus::Color::MakeARGB(120, GetRValue(m_settings.bgcolor),
-														 GetGValue(m_settings.bgcolor), GetBValue(m_settings.bgcolor)));
+							// Draw box if needed
+							if (current_settings.darkbox && !current_text.empty())
+							{
+								Gdiplus::SolidBrush boxbrush(Gdiplus::Color::MakeARGB(120, GetRValue(m_settings.bgcolor),
+															 GetGValue(m_settings.bgcolor), GetBValue(m_settings.bgcolor)));
 
-							ret_rect.Height += 2;
-							text_gfx.FillRectangle(&boxbrush, ret_rect);
-						}
+								ret_rect.Height += 2;
+								text_gfx.FillRectangle(&boxbrush, ret_rect);
+							}
 
-						text_gfx.SetTextContrast(120);
+							text_gfx.SetTextContrast(120);
 
-						// Draw text to offscreen surface
+							// Draw text to offscreen surface
 
-						//shadow
-						if (current_settings.shadow)
-						{
+							//shadow
+							if (current_settings.shadow)
+							{
+								text_gfx.DrawString(current_text.c_str(), (INT)current_text.size(),
+													current_settings.largefont ? large_font :
+													normal_font, Gdiplus::PointF(1, -1), &sf, &bgcolor);
+							}
+
+							//text
 							text_gfx.DrawString(current_text.c_str(), (INT)current_text.size(),
 												current_settings.largefont ? large_font :
-												normal_font, Gdiplus::PointF(1, -1), &sf, &bgcolor);
-						}
+												normal_font, Gdiplus::PointF(0, -2), &sf, &fgcolor);
 
-						//text
-						text_gfx.DrawString(current_text.c_str(), (INT)current_text.size(),
-											current_settings.largefont ? large_font :
-											normal_font, Gdiplus::PointF(0, -2), &sf, &fgcolor);
+							// Calculate text position
+							int X = 0, CX = m_width;
 
-						// Calculate text position
-						int X = 0, CX = m_width;
-
-						if (m_iconwidth == 0)
-						{
-							m_iconwidth = _iconwidth;
-						}
-
-						if (m_iconheight == 0)
-						{
-							m_iconheight = _iconheight;
-						}
-
-						if (m_settings.AsIcon && !no_icon && !current_settings.forceleft)
-						{
-							if ((iconposition == IP_UPPERLEFT || 
-								iconposition == IP_LOWERLEFT))
+							if (m_iconwidth == 0)
 							{
-								X += m_iconwidth + 5;
-								CX = m_width - X;
-							}
-							else if (iconposition == IP_UPPERRIGHT || 
-									 iconposition == IP_LOWERRIGHT)
-							{
-								CX = m_width - m_iconwidth - 5;
-							}
-						}
-						else
-						{
-							CX *= 0.96f;
-						}
-
-						gfx.SetClip(Gdiplus::RectF(static_cast<Gdiplus::REAL>(X),
-												   static_cast<Gdiplus::REAL>(0),
-												   static_cast<Gdiplus::REAL>(CX),
-												   static_cast<Gdiplus::REAL>(m_width)),
-												   Gdiplus::CombineModeReplace);
-
-						// Draw text bitmap to final bitmap with scrolling as needed
-						// based on the icon vs background image mode where the area
-						// can vary depending on the size of things vs overall image
-						if ((text_bitmap.GetWidth() > (UINT)(CX + 2)) && !current_settings.dontscroll)
-						{
-							// Draw scrolling text
-							int left = m_textpositions[text_index];
-							const int bmp_width = (int)text_bitmap.GetWidth(),
-									  bmp_height = (int)text_bitmap.GetHeight();
-
-							if (left + bmp_width < 0)
-							{
-								// reset text
-								m_textpositions[text_index] = text_space;
-								left = text_space;
-								scroll_block = true;
+								m_iconwidth = _iconwidth;
 							}
 
-							if (left == 0 && m_textpause == 0)
+							if (m_iconheight == 0)
 							{
-								m_textpause = (m_settings.LowFrameRate ? 4 : 1); // delay; in steps
+								m_iconheight = _iconheight;
 							}
 
-							if (left + bmp_width >= CX)
+							if (m_settings.AsIcon && !no_icon && !current_settings.forceleft)
 							{
-								gfx.DrawImage(&text_bitmap, X, (int)textheight, -left,
-											  0, CX, bmp_height, Gdiplus::UnitPixel);
+								if ((iconposition == IP_UPPERLEFT) || 
+									(iconposition == IP_LOWERLEFT))
+								{
+									X += m_iconwidth + 5;
+									CX = m_width - X;
+								}
+								else if ((iconposition == IP_UPPERRIGHT) || 
+										 (iconposition == IP_LOWERRIGHT))
+								{
+									CX = m_width - m_iconwidth - 5;
+								}
 							}
 							else
 							{
-								gfx.DrawImage(&text_bitmap, X, (int)textheight, -left, 0,
-											  bmp_width + left, bmp_height, Gdiplus::UnitPixel);
-
-								gfx.DrawImage(&text_bitmap, X + text_space + 2 + bmp_width + left,
-											  (int)textheight, 0, 0, -left, bmp_height, Gdiplus::UnitPixel);
+								CX *= 0.96f;
 							}
-						}
-						else
-						{
-							// Draw non-scrolling text
-							if (current_settings.center)
+
+							gfx.SetClip(Gdiplus::RectF(static_cast<Gdiplus::REAL>(X),
+													   static_cast<Gdiplus::REAL>(0),
+													   static_cast<Gdiplus::REAL>(CX),
+													   static_cast<Gdiplus::REAL>(m_width)),
+													   Gdiplus::CombineModeReplace);
+
+							// Draw text bitmap to final bitmap with scrolling as needed
+							// based on the icon vs background image mode where the area
+							// can vary depending on the size of things vs overall image
+							if ((text_bitmap.GetWidth() > (UINT)(CX + 2)) && !current_settings.dontscroll)
 							{
-								// Center text
-								const int newleft = X + ((CX / 2) - (text_bitmap.GetWidth() / 2));
-								gfx.DrawImage(&text_bitmap, newleft, (int)textheight, 0, 0,
-											  text_bitmap.GetWidth(), text_bitmap.GetHeight(),
-											  Gdiplus::UnitPixel);          
+								// Draw scrolling text
+								int left = m_textpositions[text_index];
+								const int bmp_width = (int)text_bitmap.GetWidth(),
+										  bmp_height = (int)text_bitmap.GetHeight();
+
+								if (left + bmp_width < 0)
+								{
+									// reset text
+									m_textpositions[text_index] = text_space;
+									left = text_space;
+									scroll_block = true;
+								}
+
+								if (left == 0 && m_textpause == 0)
+								{
+									m_textpause = (m_settings.LowFrameRate ? 4 : 1); // delay; in steps
+								}
+
+								if (left + bmp_width >= CX)
+								{
+									gfx.DrawImage(&text_bitmap, X, (int)textheight, -left,
+												  0, CX, bmp_height, Gdiplus::UnitPixel);
+								}
+								else
+								{
+									gfx.DrawImage(&text_bitmap, X, (int)textheight, -left, 0,
+												  bmp_width + left, bmp_height, Gdiplus::UnitPixel);
+
+									gfx.DrawImage(&text_bitmap, X + text_space + 2 + bmp_width + left,
+												  (int)textheight, 0, 0, -left, bmp_height, Gdiplus::UnitPixel);
+								}
 							}
 							else
 							{
-								gfx.DrawImage(&text_bitmap, X, (int)textheight, 0, 0,
-											  text_bitmap.GetWidth(), text_bitmap.GetHeight(),
-											  Gdiplus::UnitPixel);          
+								// Draw non-scrolling text
+								if (current_settings.center)
+								{
+									// Center text
+									const int newleft = X + ((CX / 2) - (text_bitmap.GetWidth() / 2));
+									gfx.DrawImage(&text_bitmap, newleft, (int)textheight, 0, 0,
+												  text_bitmap.GetWidth(), text_bitmap.GetHeight(),
+												  Gdiplus::UnitPixel);          
+								}
+								else
+								{
+									gfx.DrawImage(&text_bitmap, X, (int)textheight, 0, 0,
+												  text_bitmap.GetWidth(), text_bitmap.GetHeight(),
+												  Gdiplus::UnitPixel);          
+								}
+
+								// Nr. pixels text jumps on each step when scrolling
+								m_textpositions[text_index] = (m_settings.LowFrameRate ? 3 : 2);
 							}
 
-							m_textpositions[text_index] = (m_settings.LowFrameRate ? 3 : 2); // Nr. pixels text jumps on each step when scrolling
+							gfx.ResetClip();
+
+							textheight += text_bitmap.GetHeight();
 						}
 
-						gfx.ResetClip();
+						if (m_textpause > 0)
+						{
+							--m_textpause;
+						}
 
-						textheight += text_bitmap.GetHeight();
-					}
+						if (!m_settings.Shrinkframe)
+						{
+							textheight = (Gdiplus::REAL)(m_height - 2);
+						}
 
-					if (m_textpause > 0)
-					{
-						--m_textpause;
-					}
+						if (m_settings.Thumbnailpb)
+						{
+							textheight += 25;
+						}
 
-					if (!m_settings.Shrinkframe)
-					{
-						textheight = (Gdiplus::REAL)(m_height - 2);
-					}
-
-					if (m_settings.Thumbnailpb)
-					{
-						textheight += 25;
-					}
-
-					if (textheight > m_height - 2)
-					{
-						textheight = (Gdiplus::REAL)(m_height - 2);
+						if (textheight > m_height - 2)
+						{
+							textheight = (Gdiplus::REAL)(m_height - 2);
+						}
 					}
 				}
-			}
 
-			// Draw progressbar (only if there's a need to do so)
-			if (m_settings.Thumbnailpb && (m_settings.play_total > 0) &&
-				(m_settings.play_current > 0))
-			{
-				gfx.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
-				int Y = canvas->GetHeight() - 10;
-				if (m_settings.Shrinkframe)
+				// Draw progressbar (only if there's a need to do so)
+				if (m_settings.Thumbnailpb &&
+					(m_settings.play_total > 0) &&
+					(m_settings.play_current > 0))
 				{
-					Y = (int)(textheight - 10);
+					gfx.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+
+					int Y = canvas->GetHeight() - 10;
+					if (m_settings.Shrinkframe)
+					{
+						Y = (int)(textheight - 10);
+					}
+
+					Gdiplus::Pen p1(Gdiplus::Color::MakeARGB(0xFF, 0xFF, 0xFF, 0xFF), 1);
+					Gdiplus::Pen p2(Gdiplus::Color::MakeARGB(80, 0, 0, 0), 1);
+
+					Gdiplus::SolidBrush b1(Gdiplus::Color::MakeARGB(50, 0, 0, 0));
+					Gdiplus::SolidBrush b2(Gdiplus::Color::MakeARGB(220, 255, 255, 255));
+
+					Gdiplus::RectF R1(44, (Gdiplus::REAL)Y, 10, 9);
+					Gdiplus::RectF R2((Gdiplus::REAL)m_width - 56, (Gdiplus::REAL)Y, 10, 9);
+
+					gfx.FillRectangle(&b1, 46, Y, m_width - 94, 9);
+					gfx.DrawLine(&p2, 46, Y + 2, 46, Y + 6);
+					gfx.DrawLine(&p2, m_width - 48, Y + 2, m_width - 48, Y + 6);
+
+					gfx.DrawArc(&p1, R1, -90.0f, -180.0f);
+					gfx.DrawArc(&p1, R2, 90.0f, -180.0f);
+
+					gfx.DrawLine(&p1, 48, Y, m_width - 49, Y);
+					gfx.DrawLine(&p1, 48, Y + 9, m_width - 49, Y + 9);
+
+					gfx.SetSmoothingMode(Gdiplus::SmoothingModeDefault);
+					gfx.FillRectangle(&b2, 48, Y + 3, (m_settings.play_current *
+									  (m_width - 96)) / m_settings.play_total, 4);
 				}
-
-				//Pen p1(Color::White, 1);
-				Gdiplus::Pen p1(Gdiplus::Color::MakeARGB(0xFF, 0xFF, 0xFF, 0xFF), 1);
-				Gdiplus::Pen p2(Gdiplus::Color::MakeARGB(80, 0, 0, 0), 1);
-
-				Gdiplus::SolidBrush b1(Gdiplus::Color::MakeARGB(50, 0, 0, 0));
-				Gdiplus::SolidBrush b2(Gdiplus::Color::MakeARGB(220, 255, 255, 255));
-
-				Gdiplus::RectF R1(44, (Gdiplus::REAL)Y, 10, 9);
-				Gdiplus::RectF R2((Gdiplus::REAL)m_width - 56, (Gdiplus::REAL)Y, 10, 9);
-
-				gfx.FillRectangle(&b1, 46, Y, m_width - 94, 9);
-				gfx.DrawLine(&p2, 46, Y + 2, 46, Y + 6);
-				gfx.DrawLine(&p2, m_width - 48, Y + 2, m_width - 48, Y + 6);
-
-				gfx.DrawArc(&p1, R1, -90.0f, -180.0f);
-				gfx.DrawArc(&p1, R2, 90.0f, -180.0f);
-
-				gfx.DrawLine(&p1, 48, Y, m_width - 49, Y);
-				gfx.DrawLine(&p1, 48, Y + 9, m_width - 49, Y + 9);
-
-				gfx.SetSmoothingMode(Gdiplus::SmoothingModeDefault);
-				gfx.FillRectangle(&b2, 48, Y + 3, (m_settings.play_current *
-								  (m_width - 96)) / m_settings.play_total, 4);
 			}
-		}
 
-		// finalize / garbage
-		if (no_text || !m_settings.Shrinkframe)
-		{
-			canvas->GetHBITMAP(NULL, &retbmp);
-		}
-		else
-		{
-			Gdiplus::Bitmap *shrink = canvas->Clone(0, 0, m_width, textheight > m_iconheight ?
-													(int)textheight : (int)m_iconheight,
-													PixelFormat32bppPARGB);
-			if (shrink)
+			// finalize / garbage
+			if (no_text || !m_settings.Shrinkframe)
 			{
-				shrink->GetHBITMAP(NULL, &retbmp);
-				delete shrink;
+				canvas->GetHBITMAP(NULL, &retbmp);
 			}
+			else
+			{
+				Gdiplus::Bitmap *shrink = canvas->Clone(0, 0, m_width, textheight > m_iconheight ?
+														(int)textheight : (int)m_iconheight,
+														PixelFormat32bppPARGB);
+				if (shrink)
+				{
+					shrink->GetHBITMAP(NULL, &retbmp);
+					delete shrink;
+				}
+			}
+
+			delete canvas;
 		}
-
-		delete canvas;
 	}
-
 	return retbmp;
 }
 
@@ -1016,11 +1035,15 @@ void renderer::ClearAlbumart(void)
 
 void renderer::ClearBackground(void)
 {
+	EnterCriticalSection(&background_cs);
+
 	if (background)
 	{
 		delete background;
 		background = NULL;
 	}
+
+	LeaveCriticalSection(&background_cs);
 }
 
 void renderer::ClearFonts(void)
