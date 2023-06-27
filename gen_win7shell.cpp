@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.3.8"
+#define PLUGIN_VERSION L"4.4"
 
 #define NR_BUTTONS 15
 
@@ -452,11 +452,18 @@ DWORD WINAPI UpdateThread(LPVOID lp)
 								   thumbnaildrawer->GetThumbnail() : NULL);
 		if (thumbnail != NULL)
 		{
-			const HRESULT hr = DwmSetIconicThumbnail(plugin.hwndParent, thumbnail, 0);
+			HRESULT hr = S_OK;
+			__try
+			{
+				hr = DwmSetIconicThumbnail(plugin.hwndParent, thumbnail, 0);
+			}
+			__except (EXCEPTION_EXECUTE_HANDLER)
+			{
+			}
 
 			DeleteObject(thumbnail);
 
-			if (FAILED(hr) || !running)
+			if (!running || FAILED(hr))
 			{
 				running = false;
 				SetThumbnailTimer();
@@ -612,6 +619,16 @@ void UpdateOverlyStatus(const bool force_refresh)
 	}
 }
 
+MetaData* reset_metadata(LPCWSTR filename, const bool force = false)
+{
+	MetaData* meta_data = get_metadata();
+	if (meta_data != NULL)
+	{
+		meta_data->reset(filename, force);
+	}
+	return meta_data;
+}
+
 void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM lParam)
 {
 	if ((uMsg == WM_DWMSENDICONICTHUMBNAIL) ||
@@ -646,25 +663,13 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					}
 				}
 
-				MetaData* meta_data = get_metadata();
-				if (meta_data != NULL)
-				{
-					meta_data->reset(filename.c_str());
-					/*if (meta_data->CheckPlayCount())
-					{
-						JumpList* JL = new JumpList();
-						if (JL != NULL)
-						{
-							delete JL;
-						}
-					}*/
-				}
+				MetaData* meta_data = reset_metadata(filename.c_str());
 
 				Settings.play_total = GetCurrentTrackLengthMilliSeconds();
 				Settings.play_current = 0;
 				Settings.play_state = GetPlayingState();
 
-				if ((Settings.JLrecent || Settings.JLfrequent)/* && !tools::is_in_recent(filename)*/ &&
+				if ((meta_data != NULL) && (Settings.JLrecent || Settings.JLfrequent) &&
 					(Settings.play_state == PLAYSTATE_PLAYING) && Settings.Add2RecentDocs)
 				{
 					// these are used to help minimise the impact of directly
@@ -835,10 +840,9 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					(wParam == IPC_CB_MISC_ADVANCED_ON_STOP)))
 				{
 					LPCWSTR p = GetPlayingFilename(0);
-					MetaData* meta_data = get_metadata();
-					if ((p != NULL) && (meta_data != NULL))
+					if (p != NULL)
 					{
-						meta_data->reset(p);
+						reset_metadata(p);
 					}
 
 					DwmInvalidateIconicBitmaps(hWnd);
@@ -895,10 +899,9 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					}
 
 					LPCWSTR p = GetPlayingFilename(0);
-					MetaData* meta_data = get_metadata();
-					if ((p != NULL) && (meta_data != NULL))
+					if (p != NULL)
 					{
-						meta_data->reset(p);
+						reset_metadata(p);
 					}
 
 					if (CreateThumbnailDrawer())
@@ -1011,7 +1014,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				}
 				case TB_OPENEXPLORER:
 				{
-					MetaData* meta_data = get_metadata();
+					const MetaData* meta_data = get_metadata();
 					if (meta_data != NULL)
 					{
 						LPCWSTR filename = meta_data->getFileName();
@@ -1057,7 +1060,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				}
 				case TB_DELETE:
 				{
-					MetaData* meta_data = get_metadata();
+					const MetaData* meta_data = get_metadata();
 					if (meta_data != NULL)
 					{
 						wchar_t path[MAX_PATH] = { 0 };
@@ -1229,11 +1232,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 							if (count2 == 8)
 							{   
 								count2 = 0;
-								MetaData* meta_data = get_metadata();
-								if (meta_data != NULL)
-								{
-									meta_data->reset(L"", true);
-								}
+								reset_metadata(L"", true);
 							}
 							else
 							{
@@ -1460,10 +1459,9 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 			Settings.play_volume = (int)GetSetVolume((WPARAM)-666, FALSE);
 
 			LPCWSTR p = GetPlayingFilename(1);
-			MetaData* meta_data = get_metadata();
-			if ((p != NULL) && (meta_data != NULL))
+			if (p != NULL)
 			{
-				meta_data->reset(p);
+				reset_metadata(p);
 			}
 
 			// update shuffle and repeat
@@ -1528,7 +1526,7 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 		{
 			setup_settings();
 
-			SettingsManager::WriteSettings_ToForm(hwnd, plugin.hwndParent, Settings);
+			SettingsManager::WriteSettings_ToForm(hwnd, Settings);
 
 			const BOOL enabled = GetTaskbarMode();
 			CheckDlgButton(hwnd, IDC_SHOW_IN_TASKBAR, (enabled ? BST_CHECKED : BST_UNCHECKED));
@@ -1727,7 +1725,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 		{
 			setup_settings();
 
-			SettingsManager::WriteSettings_ToForm(hwnd, plugin.hwndParent, Settings);
+			SettingsManager::WriteSettings_ToForm(hwnd, Settings);
 
 			// Reset buttons
 			for (int i = IDC_PCB1; i <= IDC_PCB15; i++)
@@ -1759,9 +1757,10 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 			}
 			
 			// Set button icons
+			//		better when dark mode is used!
 			for (int i = 0; i < NR_BUTTONS; i++)
 			{
-				HICON icon = ImageListGetIcon(GetThumbnailIcons(false), tools::getBitmap(TB_PREVIOUS + i, i == 10 ? 1 : 0), 0);
+				HICON icon = ImageListGetIcon(GetThumbnailIcons(false), tools::getBitmap((TB_PREVIOUS + i), !!(i == 10)), 0);
 				SendDlgItemMessage(hwnd, IDC_PCB1 + i, BM_SETIMAGE, IMAGE_ICON, (LPARAM)icon);
 				DestroyIcon(icon);
 			}
@@ -2140,7 +2139,7 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 		{
 			setup_settings();
 
-			SettingsManager::WriteSettings_ToForm(hwnd, plugin.hwndParent, Settings);
+			SettingsManager::WriteSettings_ToForm(hwnd, Settings);
 
 			SendDlgItemMessage(hwnd, IDC_EDIT2, EM_SETREADONLY, TRUE, NULL);
 			SendDlgItemMessage(hwnd, IDC_SLIDER1, TBM_SETRANGE, FALSE, MAKELPARAM(30, 100));

@@ -60,13 +60,13 @@ void iTaskBar::ThumbBarUpdateButtons(std::vector<THUMBBUTTON>& buttons, HIMAGELI
 
 void iTaskBar::SetIconOverlay(HICON icon, const std::wstring &text)
 {
-	if (pTBL)
+	if (pTBL != NULL)
 	{
 		pTBL->SetOverlayIcon(plugin.hwndParent, icon, text.c_str());
 	}
 }
 
-void iTaskBar::SetWindowAttr(void)
+void iTaskBar::SetWindowAttr(void) const
 {
 	// if we're under a classic skin & to show the main
 	// window then we can just let Windows handle it as
@@ -80,7 +80,7 @@ void iTaskBar::SetWindowAttr(void)
 
 void iTaskBar::SetProgressValue(ULONGLONG completed, ULONGLONG total)
 {
-	if (pTBL)
+	if (pTBL != NULL)
 	{
 		pTBL->SetProgressValue(plugin.hwndParent, completed, total);
 	}
@@ -90,7 +90,7 @@ void iTaskBar::SetProgressState(TBPFLAG newstate)
 {
 	if (newstate != progressbarstate)
 	{
-		if (pTBL)
+		if (pTBL != NULL)
 		{
 			pTBL->SetProgressState(plugin.hwndParent, newstate);
 		}

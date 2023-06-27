@@ -19,7 +19,7 @@ public:
 	void SetIconOverlay(HICON icon, const std::wstring &text);
 	void SetProgressValue(ULONGLONG completed, ULONGLONG total);    
 
-	void SetWindowAttr(void);
+	void SetWindowAttr(void) const;
 
 private:
 	ITaskbarList4* pTBL;

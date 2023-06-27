@@ -130,11 +130,7 @@ namespace tools
 			}
 		}
 
-		if (strID != -1)
-		{
-			return WASABI_API_LNGSTRINGW(strID);
-		}
-		return L"";
+		return ((strID != -1) ? WASABI_API_LNGSTRINGW(strID) : L"");
 	}
 
 	HRESULT CreateShellLink(LPCWSTR filename, LPCWSTR pszTitle, IShellLink **ppsl)
@@ -268,15 +264,6 @@ namespace tools
 		return S_FALSE;
 	}
 
-	/*bool is_in_recent(std::wstring &filename)
-	{
-		wchar_t path[MAX_PATH] = { 0 };
-		ExpandEnvironmentStrings(L"%appdata%\\Microsoft\\Windows\\Recent", path, ARRAYSIZE(path));
-		PathAppend(path, filename.c_str());
-		PathAddExtension(path, L".lnk");
-		return !!FileExists(path);
-	}*/
-
 	HICON getCustomIcon(LPCWSTR file, LPCWSTR skin_folder)
 	{
 		HICON hicon = NULL;
@@ -326,15 +313,13 @@ namespace tools
 
 		for (int i = 0; i < NR_OVERLAY_ICONS; ++i)
 		{
-			int icon[] = { 2, 1, 0 };
 			LPCWSTR file[] = { L"overlay_stop", L"overlay_pause", L"overlay_play" };
 			HICON hicon = getCustomIcon(file[i], (skin_folder[0] ? skin_folder : NULL));
 			if (hicon == NULL)
 			{
-				const int icons[] = { 204/*play*/, 208/*pause*/, 205/*stop*/ };
+				const int icons[] = { 205/*stop*/, 208/*pause*/, 204/*play*/ };
 				hicon = (HICON)LoadImage(GetModuleHandle(GetPaths()->wacup_core_dll),
-									MAKEINTRESOURCE(icons[(NR_OVERLAY_ICONS - i)]),
-														   IMAGE_ICON, 0, 0, 0);
+									 MAKEINTRESOURCE(icons[i]), IMAGE_ICON, 0, 0, 0);
 			}
 
 			if (hicon == NULL)

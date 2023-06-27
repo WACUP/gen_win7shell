@@ -14,7 +14,7 @@ void MetaData::reset(LPCWSTR filename, const bool force)
 	if (force || (filename != mfilename))
 	{
 		cache.clear();
-		mfilename = plugin.memmgr->sysDupStr((wchar_t*)filename, mfilename);
+		mfilename = plugin.memmgr->sysDupStr(filename, mfilename);
 	}
 }
 

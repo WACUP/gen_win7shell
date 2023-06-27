@@ -16,14 +16,14 @@
 
 int SettingsManager::GetInt(const std::wstring &key, const int default_value) const
 {
-	return GetPrivateProfileIntW(currentSection.c_str(), key.c_str(),
-								 default_value, settingsFile.c_str());
+	return GetPrivateProfileInt(currentSection.c_str(), key.c_str(),
+								default_value, settingsFile.c_str());
 }
 
 bool SettingsManager::GetBool(const std::wstring &key, const bool default_value) const
 {
-	return !!GetPrivateProfileIntW(currentSection.c_str(), key.c_str(),
-								   default_value, settingsFile.c_str());
+	return !!GetPrivateProfileInt(currentSection.c_str(), key.c_str(),
+								  default_value, settingsFile.c_str());
 }
 
 std::wstring SettingsManager::GetString(const std::wstring &key,
@@ -60,22 +60,22 @@ void SettingsManager::WriteInt(const std::wstring &key, const int value,
 	if (value != default_value)
 	{
 		wchar_t str[16] = { 0 };
-		I2WStr(value, str, ARRAYSIZE(str));
-		WritePrivateProfileStringW(currentSection.c_str(), key.c_str(),
-								   str, settingsFile.c_str());
+		WritePrivateProfileString(currentSection.c_str(), key.c_str(),
+								  I2WStr(value, str, ARRAYSIZE(str)),
+												settingsFile.c_str());
 	}
 	else
 	{
-		WritePrivateProfileStringW(currentSection.c_str(), key.c_str(),
-								   NULL, settingsFile.c_str());
+		WritePrivateProfileString(currentSection.c_str(), key.c_str(),
+								  NULL, settingsFile.c_str());
 	}
 }
 
 void SettingsManager::WriteBool(const std::wstring &key, const bool value,
 								const bool default_value) const
 {
-	WritePrivateProfileStringW(currentSection.c_str(), key.c_str(), ((value != default_value) ?
-							   (value ? L"1" : L"0") : NULL), settingsFile.c_str());
+	WritePrivateProfileString(currentSection.c_str(), key.c_str(), ((value != default_value) ?
+							  (value ? L"1" : L"0") : NULL), settingsFile.c_str());
 }
 
 void SettingsManager::WriteString(const std::wstring &key, const std::wstring &value,
@@ -110,7 +110,7 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	Destination_struct.Antialias = GetBool(L"AntiAlias", true);
 	Destination_struct.AsIcon = GetBool(L"AsIcon", true);
 	(void)StringCchCopy(Destination_struct.BGPath, ARRAYSIZE(Destination_struct.BGPath),
-						GetString(L"BGPath", L"", MAX_PATH).c_str());
+										   GetString(L"BGPath", L"", MAX_PATH).c_str());
 	Destination_struct.JLbms = GetBool(L"JLBookMarks", true);
 	Destination_struct.JLfrequent = GetBool(L"Frequent", false);
 	Destination_struct.JLpl = GetBool(L"JLPlayList", true);
@@ -123,7 +123,7 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	Destination_struct.Stoppedstatus = GetBool(L"StoppedStatusOn", true);
 	Destination_struct.Streamstatus = GetBool(L"StreamStatusOn", true);
 	(void)StringCchCopy(Destination_struct.Text, ARRAYSIZE(Destination_struct.Text),
-						GetString(L"Text", L"‡").c_str());
+												 GetString(L"Text", L"‡").c_str());
 
 	if (SameStr(Destination_struct.Text, L"‡"))
 	{
@@ -263,15 +263,15 @@ void SettingsManager::WriteSettings(const sSettings &Source_struct)
 	// Font
 	currentSection = SECTION_NAME_FONT;
 
-	const LOGFONT ft = {-13, 0, 0, FW_NORMAL, 0, 0, 0, 0, 0, 0, 0, 0, 0, L"Segoe UI"};
+	const LOGFONT ft = { -13, 0, 0, FW_NORMAL, 0, 0, 0, 0, 0, 0, 0, 0, 0, L"Segoe UI" };
 	if (memcmp(&ft, &Source_struct.font, sizeof(LOGFONT)))
 	{
-		WritePrivateProfileStructW(currentSection.c_str(), L"font", (LPVOID)(&Source_struct.font),
-								   sizeof(Source_struct.font), settingsFile.c_str());
+		WritePrivateProfileStruct(currentSection.c_str(), L"font", (LPVOID)(&Source_struct.font),
+								  sizeof(Source_struct.font), settingsFile.c_str());
 	}
 	else
 	{
-		WritePrivateProfileStructW(currentSection.c_str(), L"font",
+		WritePrivateProfileStruct(currentSection.c_str(), L"font",
 								   NULL, 0, settingsFile.c_str());
 	}
 
@@ -287,7 +287,7 @@ void SettingsManager::WriteSettings(const sSettings &Source_struct)
 	}
 }
 
-void SettingsManager::WriteSettings_ToForm(HWND hwnd, HWND WinampWnd, const sSettings &Settings)
+void SettingsManager::WriteSettings_ToForm(HWND hwnd, const sSettings &Settings)
 {
 	//Aero peek settings
 	switch (Settings.Thumbnailbackground)
@@ -453,7 +453,7 @@ void SettingsManager::WriteButtons(std::vector<int> &tba)
 	}
 	else
 	{
-		WritePrivateProfileStringW(SECTION_NAME_GENERAL, L"ThumbButtons",
-								   NULL, settingsFile.c_str());
+		WritePrivateProfileString(SECTION_NAME_GENERAL, L"ThumbButtons",
+								  NULL, settingsFile.c_str());
 	}
 }

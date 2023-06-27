@@ -20,7 +20,7 @@ public:
 	void ReadSettings(sSettings &Destination_struct, std::vector<int> &tba);
 	void WriteSettings(const sSettings &Source_struct);
 
-	static void WriteSettings_ToForm(HWND hwnd, HWND WinampWnd, const sSettings &Settings);
+	static void WriteSettings_ToForm(HWND hwnd, const sSettings &Settings);
 	void WriteButtons(std::vector<int> &tba);
 
 	int GetInt(const std::wstring &key, const int default_value) const;

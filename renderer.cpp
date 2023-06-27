@@ -238,8 +238,6 @@ bool renderer::render(void)
 
 HBITMAP renderer::GetThumbnail(void)
 {
-	ClearBackground();
-
 	// not everyone is going to even cause the
 	// preview to be generated so we will wait
 	// until its needed to load gdiplus as its
@@ -251,10 +249,12 @@ HBITMAP renderer::GetThumbnail(void)
 								&gdiplusStartupOutput);
 		gdiplusStartupOutput.NotificationHook(&gdiplusBgThreadToken);
 	}/*/
-	if (!SetupGDIplus())
+	if (!running || !SetupGDIplus())
 	{
 		return NULL;
 	}/**/
+
+	ClearBackground();
 
 	//Calculate icon size
 	_iconwidth = m_iconwidth;
@@ -272,7 +272,7 @@ HBITMAP renderer::GetThumbnail(void)
 	//Calculate Alpha blend based on Transparency
 	const float fBlend = (100.f - m_settings.BG_Transparency) / 100.0f;
 
-	Gdiplus::ColorMatrix BitmapMatrix =
+	const Gdiplus::ColorMatrix BitmapMatrix =
 	{
 		1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
 		0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
@@ -601,7 +601,8 @@ HBITMAP renderer::GetThumbnail(void)
 								else
 								{
 									Gdiplus::ImageAttributes ImgAttr;
-									ImgAttr.SetColorMatrix(&BitmapMatrix, Gdiplus::ColorMatrixFlagsDefault, Gdiplus::ColorAdjustTypeBitmap);
+									ImgAttr.SetColorMatrix(&BitmapMatrix, Gdiplus::ColorMatrixFlagsDefault,
+																		  Gdiplus::ColorAdjustTypeBitmap);
 
 									gfx.SetSmoothingMode(Gdiplus::SmoothingModeNone);
 									gfx.DrawImage(&img, Gdiplus::RectF((m_width / 2) - (new_width / 2), 0,

@@ -25,13 +25,13 @@ private:
 	HRESULT _CreateShellLink(const std::wstring &path, PCWSTR pszArguments,
 							 PCWSTR pszTitle, IShellLink **ppsl,
 							 const int iconindex, const int mode = 0);
-	bool _IsItemInArray(const std::wstring &path, IObjectArray *poaRemoved);
+	static bool _IsItemInArray(const std::wstring &path, IObjectArray *poaRemoved);
 	HRESULT _AddTasksToList(const std::wstring &pluginpath, const std::wstring &pref,
 							const std::wstring &openfile);
 	HRESULT _AddCategoryToList(IObjectCollection *poc, const std::wstring &bookmarks);
 	HRESULT _AddCategoryToList2(const std::wstring &pluginpath, const std::wstring &pltext);
 
-	bool CleanJL(LPCWSTR AppID, IApplicationDocumentLists *padl, APPDOCLISTTYPE type);
+	static bool CleanJL(LPCWSTR AppID, IApplicationDocumentLists *padl, APPDOCLISTTYPE type);
 
 	ICustomDestinationList *pcdl;
 };
