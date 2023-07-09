@@ -307,6 +307,11 @@ HBITMAP renderer::GetThumbnail(void)
 
 		LeaveCriticalSection(&background_cs);
 
+		if (!background)
+		{
+			return NULL;
+		}
+
 		Gdiplus::Graphics graphics(background);
 
 		// so we've got something irrespective of the mode being used
@@ -1040,7 +1045,13 @@ void renderer::ClearBackground(void)
 
 	if (background)
 	{
-		delete background;
+		__try
+		{
+			delete background;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+		}
 		background = NULL;
 	}
 

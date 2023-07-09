@@ -8,7 +8,6 @@
 
 iTaskBar::iTaskBar(sSettings& settings) : pTBL(NULL), progressbarstate(TBPF_NOPROGRESS), m_settings(settings)
 {
-	CreateCOM();
 }
 
 iTaskBar::~iTaskBar()
@@ -19,7 +18,7 @@ iTaskBar::~iTaskBar()
 		pTBL = NULL;
 	}
 
-	CoUninitialize();
+	CloseCOM();
 }
 
 bool iTaskBar::Reset()

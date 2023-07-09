@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.4"
+#define PLUGIN_VERSION L"4.4.1"
 
 #define NR_BUTTONS 15
 
@@ -1142,18 +1142,18 @@ DWORD WINAPI SetupJumpListThread(LPVOID lp)
 	if (SUCCEEDED(CreateCOM()))
 	{
 		SetupJumpList();
-	}
 
-	// Create the taskbar interface
-	itaskbar = new iTaskBar(Settings);
-	if ((itaskbar != NULL) && itaskbar->Reset())
-	{
-		updateToolbar(GetThumbnailIcons(false));
-	}
+		// Create the taskbar interface
+		itaskbar = new iTaskBar(Settings);
+		if ((itaskbar != NULL) && itaskbar->Reset())
+		{
+			updateToolbar(GetThumbnailIcons(false));
+		}
 
-	if (Settings.VuMeter)
-	{
-		SetTimer(plugin.hwndParent, 6668, 66, TimerProc);
+		if (Settings.VuMeter)
+		{
+			SetTimer(plugin.hwndParent, 6668, 66, TimerProc);
+		}
 	}
 
 	if (setupthread != NULL)
