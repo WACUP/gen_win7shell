@@ -303,7 +303,14 @@ HBITMAP renderer::GetThumbnail(void)
 
 		no_icon = no_text = fail = false;
 
-		background = new Gdiplus::Bitmap(m_width, m_height, PixelFormat32bppPARGB);
+		__try
+		{
+			background = new Gdiplus::Bitmap(m_width, m_height, PixelFormat32bppPARGB);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			background = NULL;
+		}
 
 		LeaveCriticalSection(&background_cs);
 

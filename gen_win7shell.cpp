@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.4.1"
+#define PLUGIN_VERSION L"4.4.2"
 
 #define NR_BUTTONS 15
 
@@ -48,10 +48,9 @@ std::wstring AppID;	// this is updated on loading to what the
 					// it otherwise makes multiple instances
 					// tricky to work with independently
 
-bool thumbshowing = false, no_uninstall = true,
-	 classicSkin = true, windowShade = false,
-	 modernSUI = false, modernFix = false,
-	 finishedLoad = false, running = false;
+bool thumbshowing = false, no_uninstall = true, classicSkin = true,
+	 windowShade = false, 	 modernSUI = false, modernFix = false,
+	 finishedLoad = false, running = false, closing = false;
 HWND ratewnd = 0, dialogParent = 0;
 int pladv = 1, repeat = 0;
 #ifdef USE_MOUSE
@@ -287,6 +286,7 @@ void config(void)
 
 void quit(void)
 {
+	closing = true;
 	running = false;
 
 	KillTimer(plugin.hwndParent, 6667);
@@ -446,6 +446,8 @@ void updateRepeatButton(void)
 
 DWORD WINAPI UpdateThread(LPVOID lp)
 {
+	(void)CreateCOM();
+
 	while (running && CreateThumbnailDrawer())
 	{
 		const HBITMAP thumbnail = (running && (thumbnaildrawer != NULL) ?
@@ -475,6 +477,8 @@ DWORD WINAPI UpdateThread(LPVOID lp)
 				(!Settings.LowFrameRate ? Settings.MFT : Settings.MST) :
 				(!Settings.LowFrameRate ? Settings.TFT : Settings.TST), TRUE);
 	}
+
+	CloseCOM();
 
 	if (updatethread != NULL)
 	{
@@ -1139,7 +1143,7 @@ void setup_settings(void)
 
 DWORD WINAPI SetupJumpListThread(LPVOID lp)
 {
-	if (SUCCEEDED(CreateCOM()))
+	if (!closing && SUCCEEDED(CreateCOM()))
 	{
 		SetupJumpList();
 
@@ -1154,6 +1158,8 @@ DWORD WINAPI SetupJumpListThread(LPVOID lp)
 		{
 			SetTimer(plugin.hwndParent, 6668, 66, TimerProc);
 		}
+
+		CloseCOM();
 	}
 
 	if (setupthread != NULL)
@@ -1176,7 +1182,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 			{
 				setup = true;
 
-				if (setupthread == NULL)
+				if (!closing && (setupthread == NULL))
 				{
 					setupthread = CreateThread(0, 0, SetupJumpListThread, 0, 0, NULL);
 				}

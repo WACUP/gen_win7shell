@@ -17,8 +17,6 @@ iTaskBar::~iTaskBar()
 		pTBL->Release();
 		pTBL = NULL;
 	}
-
-	CloseCOM();
 }
 
 bool iTaskBar::Reset()
