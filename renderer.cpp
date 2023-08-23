@@ -47,12 +47,7 @@ Gdiplus::Bitmap* ResizeAndCloneBitmap(Gdiplus::Bitmap *bmp, const float width, c
 void renderer::createArtwork(const int cur_w, const int cur_h, ARGB32 *cur_image)
 {
 	BITMAPINFO bmi = { 0 };
-	bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-	bmi.bmiHeader.biWidth = cur_w;
-	bmi.bmiHeader.biHeight = -cur_h;
-	bmi.bmiHeader.biPlanes = 1;
-	bmi.bmiHeader.biBitCount = 32;
-	bmi.bmiHeader.biCompression = BI_RGB;
+	InitBitmapForARGB32(&bmi, cur_w, cur_h);
 
 	Gdiplus::Bitmap tmpbmp(&bmi, cur_image);
 

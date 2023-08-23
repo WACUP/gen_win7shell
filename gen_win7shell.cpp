@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.4.2"
+#define PLUGIN_VERSION L"4.4.4"
 
 #define NR_BUTTONS 15
 
@@ -22,7 +22,6 @@
 #include <sdk/winamp/wa_msgids.h>
 #include <sdk/Agave/Language/lang.h>
 #include <sdk/winamp/ipc_pe.h>
-#include <sdk/nu/autowide.h>
 #include <common/wa_prefs.h>
 #include "resource.h"
 #include "api.h"
@@ -1750,7 +1749,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 					EnableControl(hwnd, ids[i], FALSE);
 				}
 
-				DestroyWindow(GetDlgItem(hwnd, IDC_BUTTON_HELP));
+				DestroyControl(hwnd, IDC_BUTTON_HELP);
 				SetDlgItemText(hwnd, IDC_TEXT_GROUP, WASABI_API_LNGSTRINGW(IDS_TEXT_DISABLED));
 			}
 
@@ -2006,11 +2005,11 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 												   MAKEINTRESOURCEW(IDR_HELP_GZ), &data_size),
 								  *output = NULL;
 
-					DecompressResource(data, data_size, &output, 0);
-					MessageBox(GetPrefsHWND(), AutoWide((LPCSTR)output, CP_UTF8),
+					DecompressResource(data, data_size, &output, 0, true);
+					MessageBox(GetPrefsHWND(), (LPCWSTR)output,
 							   WASABI_API_LNGSTRINGW(IDS_INFORMATION),
 												  MB_ICONINFORMATION);
-					DecompressResourceFree(output);
+					plugin.memmgr->sysFree(output);
 					break;
 				}
 				case IDC_DEFAULT:

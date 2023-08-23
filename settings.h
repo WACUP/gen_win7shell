@@ -25,7 +25,8 @@ public:
 
 	int GetInt(const std::wstring &key, const int default_value) const;
 	bool GetBool(const std::wstring &key, const bool default_value) const;
-	std::wstring GetString(const std::wstring &key, const std::wstring &default_value, const size_t max_size = 1024) const;
+	std::wstring GetString(wchar_t* output, const size_t output_len, const std::wstring &key,
+						   const std::wstring &default_value, const size_t max_size = 1024) const;
 
 	// all of these compare against the default value to prevent
 	// saving the value to the settings file if there's no need.

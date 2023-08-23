@@ -26,9 +26,8 @@ bool SettingsManager::GetBool(const std::wstring &key, const bool default_value)
 								  default_value, settingsFile.c_str());
 }
 
-std::wstring SettingsManager::GetString(const std::wstring &key,
-										const std::wstring &default_value,
-										const size_t max_size) const
+std::wstring SettingsManager::GetString(wchar_t *output, const size_t output_len, const std::wstring &key,
+										const std::wstring &default_value, const size_t max_size) const
 {
 	LPCSTR _section = AutoCharDup((LPWSTR)currentSection.c_str(), CP_UTF8),
 		   _key = AutoCharDup((LPWSTR)key.c_str(), CP_UTF8),
@@ -48,10 +47,10 @@ std::wstring SettingsManager::GetString(const std::wstring &key,
 
 	if (!buffer.empty())
 	{
-		const std::wstring read = AutoWide(buffer.c_str(), CP_UTF8);
-		return read;
+		AutoWide read8(buffer.c_str(), CP_UTF8);
+		(void)StringCchCopy(output, output_len, read8);
 	}
-	return L"";
+	return output;
 }
 
 void SettingsManager::WriteInt(const std::wstring &key, const int value,
@@ -109,8 +108,8 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	Destination_struct.Add2RecentDocs = GetBool(L"Add2RecentDocs", true);
 	Destination_struct.Antialias = GetBool(L"AntiAlias", true);
 	Destination_struct.AsIcon = GetBool(L"AsIcon", true);
-	(void)StringCchCopy(Destination_struct.BGPath, ARRAYSIZE(Destination_struct.BGPath),
-										   GetString(L"BGPath", L"", MAX_PATH).c_str());
+	GetString(Destination_struct.BGPath, ARRAYSIZE(Destination_struct.BGPath),
+						L"BGPath", L"", ARRAYSIZE(Destination_struct.BGPath));
 	Destination_struct.JLbms = GetBool(L"JLBookMarks", true);
 	Destination_struct.JLfrequent = GetBool(L"Frequent", false);
 	Destination_struct.JLpl = GetBool(L"JLPlayList", true);
@@ -122,8 +121,7 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	Destination_struct.Shrinkframe = GetBool(L"ShrinkFrame", false);
 	Destination_struct.Stoppedstatus = GetBool(L"StoppedStatusOn", true);
 	Destination_struct.Streamstatus = GetBool(L"StreamStatusOn", true);
-	(void)StringCchCopy(Destination_struct.Text, ARRAYSIZE(Destination_struct.Text),
-												 GetString(L"Text", L"‡").c_str());
+	GetString(Destination_struct.Text, ARRAYSIZE(Destination_struct.Text), L"Text", L"‡");
 
 	if (SameStr(Destination_struct.Text, L"‡"))
 	{
@@ -147,10 +145,11 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	Destination_struct.BG_Transparency = GetInt(L"BG_Transparency", 80);
 
 	// Decoding bool[16] Buttons
-	const std::wstring Buttons = GetString(L"Buttons", L"1111100000000000");
+	wchar_t Buttons[16] = { 0 };
+	GetString(Buttons, ARRAYSIZE(Buttons), L"Buttons", L"1111100000000000");
 	for (int i = 0; i != 16; ++i)
 	{
-		Destination_struct.Buttons[i] = (Buttons[i] == '1' ? true : false);
+		Destination_struct.Buttons[i] = (Buttons[i] == '1');
 	}
 
 	// Read font

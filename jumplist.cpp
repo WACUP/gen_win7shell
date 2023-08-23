@@ -18,18 +18,16 @@
 
 JumpList::JumpList(const bool delete_now) : pcdl(NULL)
 {
-	HRESULT hr = CoCreateInstance(CLSID_DestinationList, NULL,
-								  CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pcdl));
-	if (SUCCEEDED(hr) && (pcdl != NULL))
+	if (SUCCEEDED(CoCreateInstance(CLSID_DestinationList, NULL, CLSCTX_INPROC_SERVER,
+													   IID_PPV_ARGS(&pcdl))) && pcdl)
 	{
 		LPCWSTR AppID = GetAppID();
 
 		pcdl->SetAppID(AppID);
 
 		IApplicationDocumentLists *padl = NULL;
-		hr = CoCreateInstance(CLSID_ApplicationDocumentLists, NULL,
-							  CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&padl));
-		if (SUCCEEDED(hr) && padl)
+		if (SUCCEEDED(CoCreateInstance(CLSID_ApplicationDocumentLists, NULL,
+						CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&padl))) && padl)
 		{
 			CleanJL(AppID, padl, ADLT_RECENT);
 			CleanJL(AppID, padl, ADLT_FREQUENT);
