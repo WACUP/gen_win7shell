@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.4.4"
+#define PLUGIN_VERSION L"4.5"
 
 #define NR_BUTTONS 15
 
@@ -48,7 +48,7 @@ std::wstring AppID;	// this is updated on loading to what the
 					// tricky to work with independently
 
 bool thumbshowing = false, no_uninstall = true, classicSkin = true,
-	 windowShade = false, 	 modernSUI = false, modernFix = false,
+	 windowShade = false, modernSUI = false, modernFix = false,
 	 finishedLoad = false, running = false, closing = false;
 HWND ratewnd = 0, dialogParent = 0;
 int pladv = 1, repeat = 0;
@@ -78,6 +78,8 @@ LRESULT CALLBACK rateWndProc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lPara
 #ifdef USE_MOUSE
 LRESULT CALLBACK KeyboardEvent(int nCode, WPARAM wParam, LPARAM lParam);
 #endif
+
+WA_UTILS_API HBITMAP GetMainWindowBmp(void);
 
 extern "C" __declspec(dllexport) LRESULT CALLBACK TabHandler_Taskbar(HWND, UINT, WPARAM, LPARAM);
 extern "C" __declspec(dllexport) LRESULT CALLBACK TabHandler_Thumbnail(HWND, UINT, WPARAM, LPARAM);
@@ -443,6 +445,40 @@ void updateRepeatButton(void)
 	}
 }
 
+void UpdateLivePreview(void)
+{
+	static bool processing = false;
+	if (!processing)
+	{
+		processing = true;
+
+		// incase this is updating then we'll try to
+		// ensure we're "live" updating to make this
+		// look more like the default OS handling...
+		if (running && classicSkin && (IsIconic(plugin.hwndParent) ||
+						(Settings.Thumbnailbackground != BG_WINAMP)))
+		{
+			const HBITMAP main_window_bmp = GetMainWindowBmp();
+			if (main_window_bmp != NULL)
+			{
+				// afaict this does not respect being
+				// given a bitmap where alpha is set!
+				// as the WACUP core will for classic
+				// skins try to set the faux alpha as
+				// needed which isn't an issue for it
+				// as it uses regions to do clipping
+				// but will cause those skin areas to
+				// appear as black when drawn here...
+				DwmSetIconicLivePreviewBitmap(plugin.hwndParent, main_window_bmp, NULL, 0);
+
+				DeleteObject(main_window_bmp);
+			}
+		}
+
+		processing = false;
+	}
+}
+
 DWORD WINAPI UpdateThread(LPVOID lp)
 {
 	(void)CreateCOM();
@@ -457,6 +493,8 @@ DWORD WINAPI UpdateThread(LPVOID lp)
 			__try
 			{
 				hr = DwmSetIconicThumbnail(plugin.hwndParent, thumbnail, 0);
+
+				UpdateLivePreview();
 			}
 			__except (EXCEPTION_EXECUTE_HANDLER)
 			{
@@ -634,8 +672,7 @@ MetaData* reset_metadata(LPCWSTR filename, const bool force = false)
 
 void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM lParam)
 {
-	if ((uMsg == WM_DWMSENDICONICTHUMBNAIL) ||
-		(uMsg == WM_DWMSENDICONICLIVEPREVIEWBITMAP))
+	if (uMsg == WM_DWMSENDICONICTHUMBNAIL)
 	{
 		if (CreateThumbnailDrawer())
 		{
@@ -647,6 +684,10 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 			SetThumbnailTimer();
 			DwmInvalidateIconicBitmaps(plugin.hwndParent);
 		}
+	}
+	else if (uMsg == WM_DWMSENDICONICLIVEPREVIEWBITMAP)
+	{
+		UpdateLivePreview();
 	}
 	else if (uMsg == WM_WA_IPC)
 	{

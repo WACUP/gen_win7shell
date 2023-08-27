@@ -12,6 +12,8 @@
 #include <loader/loader/ini.h>
 #include <loader/loader/utils.h>
 
+WA_UTILS_API HBITMAP GetMainWindowBmp(void);
+
 extern CRITICAL_SECTION background_cs;
 
 Gdiplus::Bitmap* ResizeAndCloneBitmap(Gdiplus::Bitmap *bmp, const float width, const float height)
@@ -409,49 +411,73 @@ HBITMAP renderer::GetThumbnail(void)
 				}
 				else
 				{
-					// this will either use the custom icon if specified
-					// or the icon related to the loader currently used.
-					// there is a disconnect if using wacup.exe loader &
-					// having set the process icon to be the winamp.exe
-					// but for what's only used if minimised I just cba!
-					HICON win32_icon = NULL;
-					if (GetWinampIniInt(L"tb_icon", 1) == 2)
+					bool use_icon = true;
+					if (classicSkin)
 					{
-						wchar_t taskbar_tmp[MAX_PATH] = { 0 };
-
-						win32_icon = (HICON)LoadImage(NULL, CombinePath(taskbar_tmp,
-									 GetPaths()->settings_dir, L"taskbar.ico"), IMAGE_ICON,
-									 256, 256, LR_LOADTRANSPARENT | LR_LOADFROMFILE);
-					}
-
-					bool from_core = false;
-					if (win32_icon == NULL)
-					{
-						// due to how WACUP works a wacup.exe or
-						// winamp.exe or might have been used as
-						// the loader along with running as the
-						// non-legacy or legacy modes so we will
-						// let the core manage working out a big
-						// icon for us to use based on the loader
-						win32_icon = GetLoaderIcon(FALSE);
-						from_core = true;
-					}
-
-					if (win32_icon != NULL)
-					{
-						Gdiplus::Bitmap icon(win32_icon);
-						const int icon_width = icon.GetWidth(), icon_height = icon.GetHeight();
-						Gdiplus::Rect dest((m_width / 2) - (icon_width / 2), (m_height / 2) -
-										   (icon_height / 2), icon_width, icon_height);
-						dest.Inflate(-(icon_width / 4), -(icon_height / 4));
-						graphics.DrawImage(&icon, dest, 0, 0, icon_width,
-										   icon_height, Gdiplus::UnitPixel,
-										   (doReplace ? (replace.ToCOLORREF() ==
-											queried.ToCOLORREF() ? &ImgAtt : 0) : 0));
-
-						if (!from_core)
+						const HBITMAP main_window_bmp = GetMainWindowBmp();
+						if (main_window_bmp != NULL)
 						{
-							DestroyIcon(win32_icon);
+							Gdiplus::Bitmap image(main_window_bmp, NULL);
+							DeleteObject(main_window_bmp);
+
+							const int image_width = image.GetWidth(), image_height = image.GetHeight();
+							RECT adjust = { 0 };
+							ScaleArtworkToArea(&adjust, m_width, m_height, image_width, image_height);
+							Gdiplus::Rect dest(adjust.left, adjust.top,
+											   adjust.right - adjust.left,
+											   adjust.bottom - adjust.top);
+							graphics.DrawImage(&image, dest, 0, 0, image_width,
+											   image_height, Gdiplus::UnitPixel);
+							use_icon = false;
+						}
+					}
+					
+					if (use_icon)
+					{
+						// this will either use the custom icon if specified
+						// or the icon related to the loader currently used.
+						// there is a disconnect if using wacup.exe loader &
+						// having set the process icon to be the winamp.exe
+						// but for what's only used if minimised I just cba!
+						HICON win32_icon = NULL;
+						if (GetWinampIniInt(L"tb_icon", 1) == 2)
+						{
+							wchar_t taskbar_tmp[MAX_PATH] = { 0 };
+
+							win32_icon = (HICON)LoadImage(NULL, CombinePath(taskbar_tmp,
+										 GetPaths()->settings_dir, L"taskbar.ico"), IMAGE_ICON,
+										 256, 256, LR_LOADTRANSPARENT | LR_LOADFROMFILE);
+						}
+
+						bool from_core = false;
+						if (win32_icon == NULL)
+						{
+							// due to how WACUP works a wacup.exe or
+							// winamp.exe or might have been used as
+							// the loader along with running as the
+							// non-legacy or legacy modes so we will
+							// let the core manage working out a big
+							// icon for us to use based on the loader
+							win32_icon = GetLoaderIcon(FALSE);
+							from_core = true;
+						}
+
+						if (win32_icon != NULL)
+						{
+							Gdiplus::Bitmap icon(win32_icon);
+							const int icon_width = icon.GetWidth(), icon_height = icon.GetHeight();
+							Gdiplus::Rect dest((m_width / 2) - (icon_width / 2), (m_height / 2) -
+											   (icon_height / 2), icon_width, icon_height);
+							dest.Inflate(-(icon_width / 4), -(icon_height / 4));
+							graphics.DrawImage(&icon, dest, 0, 0, icon_width,
+											   icon_height, Gdiplus::UnitPixel,
+											   (doReplace ? (replace.ToCOLORREF() ==
+												queried.ToCOLORREF() ? &ImgAtt : 0) : 0));
+
+							if (!from_core)
+							{
+								DestroyIcon(win32_icon);
+							}
 						}
 					}
 				}

@@ -69,9 +69,10 @@ void iTaskBar::SetWindowAttr(void) const
 	// window then we can just let Windows handle it as
 	// it will do a much better job with less resources
 	BOOL enabled = (!IsIconic(plugin.hwndParent) ? !(classicSkin &&
-				   (m_settings.Thumbnailbackground == BG_WINAMP)) : TRUE);
+				   (m_settings.Thumbnailbackground == BG_WINAMP)) : /*!classicSkin/*/TRUE/**/);
 	DwmSetWindowAttribute(plugin.hwndParent, DWMWA_HAS_ICONIC_BITMAP, &enabled, sizeof(enabled));
 	DwmSetWindowAttribute(plugin.hwndParent, DWMWA_FORCE_ICONIC_REPRESENTATION, &enabled, sizeof(enabled));
+
 	DwmInvalidateIconicBitmaps(plugin.hwndParent);
 }
 
