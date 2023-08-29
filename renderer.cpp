@@ -818,7 +818,8 @@ HBITMAP renderer::GetThumbnail(void)
 													 text_gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintSingleBitPerPixelGridFit);
 
 							// Draw box if needed
-							if (current_settings.darkbox && !current_text.empty())
+							const bool empty_text = current_text.empty();
+							if (current_settings.darkbox && !empty_text)
 							{
 								Gdiplus::SolidBrush boxbrush(Gdiplus::Color::MakeARGB(120, GetRValue(m_settings.bgcolor),
 															 GetGValue(m_settings.bgcolor), GetBValue(m_settings.bgcolor)));
@@ -827,22 +828,25 @@ HBITMAP renderer::GetThumbnail(void)
 								text_gfx.FillRectangle(&boxbrush, ret_rect);
 							}
 
-							text_gfx.SetTextContrast(120);
-
 							// Draw text to offscreen surface
 
-							//shadow
-							if (current_settings.shadow)
+							if (!empty_text)
 							{
-								text_gfx.DrawString(current_text.c_str(), (INT)current_text.size(),
-													current_settings.largefont ? large_font :
-													normal_font, Gdiplus::PointF(1, -1), &sf, &bgcolor);
-							}
+								const INT text_len = (INT)current_text.size();
+								LPCWSTR text = current_text.c_str();
+								const auto& font = (current_settings.largefont ? large_font : normal_font);
 
-							//text
-							text_gfx.DrawString(current_text.c_str(), (INT)current_text.size(),
-												current_settings.largefont ? large_font :
-												normal_font, Gdiplus::PointF(0, -2), &sf, &fgcolor);
+								text_gfx.SetTextContrast(120);
+
+								//shadow
+								if (current_settings.shadow)
+								{
+									text_gfx.DrawString(text, text_len, font, Gdiplus::PointF(1, -1), &sf, &bgcolor);
+								}
+
+								//text
+								text_gfx.DrawString(text, text_len, font, Gdiplus::PointF(0, -2), &sf, &fgcolor);
+							}
 
 							// Calculate text position
 							int X = 0, CX = m_width;
