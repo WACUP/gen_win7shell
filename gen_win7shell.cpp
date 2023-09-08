@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.5.1"
+#define PLUGIN_VERSION L"4.5.2"
 
 #define NR_BUTTONS 15
 
@@ -1581,7 +1581,7 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 
 			CheckDlgButton(hwnd, IDC_HIDE_ON_MINIMISE, (GetTaskbarOnMinimiseMode() ? BST_CHECKED : BST_UNCHECKED));
 
-			SetupTaskberIcon(hwnd);
+			SetupTaskbarIcon(hwnd);
 			break;
 		}
 		case WM_COMMAND:
@@ -1702,7 +1702,7 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 				{
 					if (HIWORD(wParam) == CBN_SELCHANGE)
 					{
-						UpdateTaskberIcon(hwnd);
+						UpdateTaskbarIcon(hwnd);
 					}
 					break;
 				}

@@ -144,7 +144,6 @@ namespace tools
 			if (SUCCEEDED(hr) && psl)
 			{
 				wchar_t fname[MAX_PATH] = { 0 };
-#ifndef _WIN64
 				// due to how WACUP works, a wacup.exe or
 				// a winamp.exe might be being used (this
 				// is ignoring the winamp.original aspect
@@ -152,9 +151,6 @@ namespace tools
 				// call will get the appropriate filepath
 				// for the instance of the loader in use!
 				RealWACUPPath(fname, ARRAYSIZE(fname));
-#else
-				StringCchCopy(fname, ARRAYSIZE(fname), GetPaths()->wacup_exe_path);
-#endif
 
 				LPSHELLFOLDER pDesktopFolder = 0;
 				if (SUCCEEDED(SHGetDesktopFolder(&pDesktopFolder)) && pDesktopFolder)

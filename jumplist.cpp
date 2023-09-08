@@ -74,7 +74,6 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 			{
 				__try
 				{
-#ifndef _WIN64
 					// due to how WACUP works, a wacup.exe or
 					// a winamp.exe might be being used (this
 					// is ignoring the winamp.original aspect
@@ -86,9 +85,6 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 					{
 						RealWACUPPath(fname, ARRAYSIZE(fname));
 					}
-#else
-					LPCWSTR fname = GetPaths()->wacup_exe_path;
-#endif
 
 					if (mode == 1)
 					{
