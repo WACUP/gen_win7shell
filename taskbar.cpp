@@ -27,8 +27,8 @@ bool iTaskBar::Reset()
 		pTBL = NULL;
 	}
 
-	HRESULT hr = ::CoCreateInstance(CLSID_TaskbarList, NULL, CLSCTX_INPROC_SERVER,
-									IID_ITaskbarList, reinterpret_cast<void**>(&pTBL));
+	HRESULT hr = CreateCOMInProc(CLSID_TaskbarList, IID_ITaskbarList,
+									reinterpret_cast<void**>(&pTBL));
 	if (!SUCCEEDED(hr) || !pTBL)
 	{
 		return false;

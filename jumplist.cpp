@@ -18,16 +18,16 @@
 
 JumpList::JumpList(const bool delete_now) : pcdl(NULL)
 {
-	if (SUCCEEDED(CoCreateInstance(CLSID_DestinationList, NULL, CLSCTX_INPROC_SERVER,
-													   IID_PPV_ARGS(&pcdl))) && pcdl)
+	if (SUCCEEDED(CreateCOMInProc(CLSID_DestinationList,
+		__uuidof(ICustomDestinationList), (LPVOID*)&pcdl)) && pcdl)
 	{
 		LPCWSTR AppID = GetAppID();
 
 		pcdl->SetAppID(AppID);
 
 		IApplicationDocumentLists *padl = NULL;
-		if (SUCCEEDED(CoCreateInstance(CLSID_ApplicationDocumentLists, NULL,
-						CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&padl))) && padl)
+		if (SUCCEEDED(CreateCOMInProc(CLSID_ApplicationDocumentLists,
+			__uuidof(IApplicationDocumentLists), (LPVOID*)&padl)) && padl)
 		{
 			CleanJL(AppID, padl, ADLT_RECENT);
 			CleanJL(AppID, padl, ADLT_FREQUENT);
@@ -62,9 +62,8 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 								   const int iconindex, const int mode)
 {
 	IShellLink *psl = NULL;
-	HRESULT hr = CoCreateInstance(CLSID_ShellLink, NULL,
-								  CLSCTX_INPROC_SERVER,
-								  IID_PPV_ARGS(&psl));
+	HRESULT hr = CreateCOMInProc(CLSID_ShellLink,
+				 __uuidof(IShellLink), (LPVOID*)&psl);
 	if (SUCCEEDED(hr))
 	{
 		if (psl)
@@ -139,7 +138,7 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 									hr = psl->QueryInterface(IID_PPV_ARGS(ppsl));
 								}
 							}
-							PropVariantClear(&propvar);
+							ClearPropVariant(&propvar);
 						}
 						pps->Release();
 					}
@@ -165,98 +164,99 @@ void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring
 	IObjectCollection *poc = NULL;
 	HRESULT hr = pcdl->BeginList(&cMinSlots, IID_PPV_ARGS(&poaRemoved));
 
-	CoCreateInstance(CLSID_EnumerableObjectCollection, NULL,
-					 CLSCTX_INPROC, IID_PPV_ARGS(&poc));
-
-	bool has_bm = false;
-	if (addbm && (hr == S_OK))
+	if (SUCCEEDED(CreateCOMInProc(CLSID_EnumerableObjectCollection,
+				  __uuidof(IObjectCollection), (LPVOID*)&poc)) && poc)
 	{
-		const std::wstring& bms = tools::getBookmarks();
-		std::wstringstream ss(bms);
-		std::wstring line1, line2;
-		bool b = false;
-		has_bm = !bms.empty();
-		while (getline(ss, line1))
+		bool has_bm = false;
+		if (addbm && (hr == S_OK))
 		{
-			if (b)
+			const std::wstring& bms = tools::getBookmarks();
+			std::wstringstream ss(bms);
+			std::wstring line1, line2;
+			bool b = false;
+			has_bm = !bms.empty();
+			while (getline(ss, line1))
 			{
-				IShellLink *psl = NULL;
-				hr = _CreateShellLink(pluginpath, line2.c_str(), line1.c_str(), &psl, 2, 1);
-
-				if (!_IsItemInArray(line2, poaRemoved))
+				if (b)
 				{
-					psl->SetDescription(line2.c_str());
-					poc->AddObject(psl);
-				}
+					IShellLink *psl = NULL;
+					hr = _CreateShellLink(pluginpath, line2.c_str(), line1.c_str(), &psl, 2, 1);
 
-				psl->Release();
-				b = false;
-			}
-			else
-			{
-				line2.resize(MAX_PATH);
-				if (GetShortPathName(line1.c_str(), &line2[0], MAX_PATH) == 0)
-				{
-					line2 = line1;
+					if (!_IsItemInArray(line2, poaRemoved))
+					{
+						psl->SetDescription(line2.c_str());
+						poc->AddObject(psl);
+					}
+
+					psl->Release();
+					b = false;
 				}
 				else
 				{
-					line2.resize(wcslen(line2.c_str()));
+					line2.resize(MAX_PATH);
+					if (GetShortPathName(line1.c_str(), &line2[0], MAX_PATH) == 0)
+					{
+						line2 = line1;
+					}
+					else
+					{
+						line2.resize(wcslen(line2.c_str()));
+					}
+
+					b = true;
 				}
-
-				b = true;
 			}
-		}
-	}
-
-	if (SUCCEEDED(hr))
-	{
-		if (recent)
-		{
-			pcdl->AppendKnownCategory(KDC_RECENT);
-		}
-
-		if (frequent)
-		{
-			pcdl->AppendKnownCategory(KDC_FREQUENT);
-		}
-		
-		if (addbm && has_bm)
-		{
-			_AddCategoryToList(poc, bookmarks);
-		}
-
-		if (playlist)
-		{
-			hr = _AddCategoryToList2(pluginpath, pltext);
-		}
-
-		if (tasks)
-		{
-			_AddTasksToList(pluginpath, pref, openfile);
 		}
 
 		if (SUCCEEDED(hr))
 		{
-			__try
+			if (recent)
 			{
-				// Commit the list-building transaction.
-				pcdl->CommitList();
+				pcdl->AppendKnownCategory(KDC_RECENT);
 			}
-			__except (EXCEPTION_EXECUTE_HANDLER)
+
+			if (frequent)
 			{
+				pcdl->AppendKnownCategory(KDC_FREQUENT);
+			}
+		
+			if (addbm && has_bm)
+			{
+				_AddCategoryToList(poc, bookmarks);
+			}
+
+			if (playlist)
+			{
+				hr = _AddCategoryToList2(pluginpath, pltext);
+			}
+
+			if (tasks)
+			{
+				_AddTasksToList(pluginpath, pref, openfile);
+			}
+
+			if (SUCCEEDED(hr))
+			{
+				__try
+				{
+					// Commit the list-building transaction.
+					pcdl->CommitList();
+				}
+				__except (EXCEPTION_EXECUTE_HANDLER)
+				{
+				}
 			}
 		}
+		poaRemoved->Release();
+		poc->Release();
 	}
-	poaRemoved->Release();
-	poc->Release();
 }
 
 HRESULT JumpList::_AddTasksToList(const std::wstring &pluginpath, const std::wstring &pref, const std::wstring &openfile)
 {
 	IObjectCollection *poc = NULL;
-	HRESULT hr = CoCreateInstance(CLSID_EnumerableObjectCollection, NULL,
-								  CLSCTX_INPROC, IID_PPV_ARGS(&poc));
+	HRESULT hr = CreateCOMInProc(CLSID_EnumerableObjectCollection,
+					  __uuidof(IObjectCollection), (LPVOID*)&poc);
 	if (SUCCEEDED(hr))
 	{
 		if (poc)
@@ -346,10 +346,9 @@ HRESULT JumpList::_AddCategoryToList(IObjectCollection *poc, const std::wstring 
 HRESULT JumpList::_AddCategoryToList2(const std::wstring &pluginpath, const std::wstring &pltext)
 {
 	IObjectCollection *poc = NULL;
-	HRESULT hr = CoCreateInstance(CLSID_EnumerableObjectCollection, NULL,
-								  CLSCTX_INPROC, IID_PPV_ARGS(&poc));
-
-	if (poc)
+	HRESULT hr = CreateCOMInProc(CLSID_EnumerableObjectCollection,
+					  __uuidof(IObjectCollection), (LPVOID*)&poc);
+	if (SUCCEEDED(hr) && poc)
 	{
 		// enumerate through playlists (need to see if can use api_playlists.h via sdk)
 		if (WASABI_API_PLAYLISTS && WASABI_API_PLAYLISTS->GetCount())
@@ -421,32 +420,35 @@ bool JumpList::CleanJL(LPCWSTR AppID, IApplicationDocumentLists *padl, APPDOCLIS
 		if (SUCCEEDED(hr) && (count > 100))
 		{
 			IApplicationDestinations *pad = NULL;
-			hr = CoCreateInstance(CLSID_ApplicationDestinations, NULL,
-								  CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pad));
-			pad->SetAppID(AppID);
-
-			if (SUCCEEDED(hr))
+			hr = CreateCOMInProc(CLSID_ApplicationDestinations,
+								 __uuidof(IApplicationDestinations), (LPVOID*)&pad);
+			if (SUCCEEDED(hr) && pad)
 			{
-				for (UINT i = (count-1); i > 100; --i)
-				{
-					IShellLink *psi = NULL;
-					hr = poa->GetAt(i, IID_PPV_ARGS(&psi));
+				pad->SetAppID(AppID);
 
-					if (SUCCEEDED(hr))
+				if (SUCCEEDED(hr))
+				{
+					for (UINT i = (count - 1); i > 100; --i)
 					{
-						try
+						IShellLink* psi = NULL;
+						hr = poa->GetAt(i, IID_PPV_ARGS(&psi));
+
+						if (SUCCEEDED(hr))
 						{
-							pad->RemoveDestination(psi);
-						}
-						catch (...)
-						{
-							continue;
+							try
+							{
+								pad->RemoveDestination(psi);
+							}
+							catch (...)
+							{
+								continue;
+							}
 						}
 					}
 				}
-			}
 
-			pad->Release();
+				pad->Release();
+			}
 		}
 
 		poa->Release();

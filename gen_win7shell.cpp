@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.5.2"
+#define PLUGIN_VERSION L"4.5.3"
 
 #define NR_BUTTONS 15
 
@@ -132,9 +132,8 @@ const bool GenerateAppIDFromFolder(const wchar_t *search_path, wchar_t *app_id)
 	CreateCOM();
 
 	IKnownFolderManager* pkfm = NULL;
-	HRESULT hr = CoCreateInstance(CLSID_KnownFolderManager, NULL,
-								  CLSCTX_INPROC, IID_PPV_ARGS(&pkfm));
-
+	HRESULT hr = CreateCOMInProc(CLSID_KnownFolderManager,
+				 __uuidof(IKnownFolderManager), (LPVOID*)&pkfm);
 	if (SUCCEEDED(hr))
 	{
 		IKnownFolder* pFolder = NULL;
@@ -161,7 +160,7 @@ const bool GenerateAppIDFromFolder(const wchar_t *search_path, wchar_t *app_id)
 					}
 				}
 			}
-			CoTaskMemFree(path);
+			MemFreeCOM(path);
 			pFolder->Release();
 			return (!!app_id[0]);
 		}
@@ -211,7 +210,7 @@ LPCWSTR GetAppID(void)
 		else
 		{
 			AppID = id;
-			CoTaskMemFree(id);
+			MemFreeCOM(id);
 		}
 
 		if (AppID.empty())
@@ -2055,10 +2054,17 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 				}
 				case IDC_DEFAULT:
 				{
-					SetDlgItemText(hwnd, IDC_EDIT3, L"%c%%s%%curpl% of %totalpl%.\r\n"
-								  L"%c%%s%%title%\r\n%c%%s%%artist%\r\n\r\n%c%%s%%curtime%/"
-								  L"%totaltime%\r\n%c%%s%Track #: %track%        Volume: %volume%%");
-					PostMessage(hwnd, WM_COMMAND, MAKEWPARAM(IDC_EDIT3, EN_CHANGE), NULL);
+					if (MessageBox(hwnd, WASABI_API_LNGSTRINGW(IDS_DEFAULT_TEXT),
+								   (LPWSTR)plugin.description, MB_YESNO |
+								   MB_ICONQUESTION | MB_DEFBUTTON2) == IDYES)
+					{
+						SetDlgItemText(hwnd, IDC_EDIT3, L"%c%%s%%curpl% of "
+									   L"%totalpl%.\r\n%c%%s%%title%\r\n%c"
+									   L"%%s%%artist%\r\n\r\n%c%%s%%curtime%"
+									   L"/%totaltime%\r\n%c%%s%Track #: "
+									   L"%track%        Volume: %volume%%");
+						PostMessage(hwnd, WM_COMMAND, MAKEWPARAM(IDC_EDIT3, EN_CHANGE), NULL);
+					}
 					break;
 				}
 				case IDC_BUTTON5:
@@ -2288,9 +2294,8 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 					IFileDialog *pfd = NULL;
 
 					// CoCreate the dialog object.
-					HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL,
-												  CLSCTX_INPROC_SERVER,
-												  IID_PPV_ARGS(&pfd));
+					HRESULT hr = CreateCOMInProc(CLSID_FileOpenDialog,
+								 __uuidof(IFileDialog), (LPVOID*)&pfd);
 					if (SUCCEEDED(hr) && pfd)
 					{
 						// Show the dialog
@@ -2319,7 +2324,7 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 								psiResult->GetDisplayName(SIGDN_FILESYSPATH, &w);
 								psiResult->Release();
 								(void)StringCchCopy(filename, ARRAYSIZE(filename), w);
-								CoTaskMemFree(w);
+								MemFreeCOM(w);
 							}
 						} 
 						pfd->Release();

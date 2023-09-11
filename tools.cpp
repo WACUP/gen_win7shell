@@ -138,9 +138,8 @@ namespace tools
 		if (ppsl && filename && *filename)
 		{
 			IShellLink *psl = NULL;
-			HRESULT hr = CoCreateInstance(CLSID_ShellLink, NULL,
-										  CLSCTX_INPROC_SERVER,
-										  IID_PPV_ARGS(&psl));
+			HRESULT hr = CreateCOMInProc(CLSID_ShellLink,
+						 __uuidof(IShellLink), (LPVOID*)&psl);
 			if (SUCCEEDED(hr) && psl)
 			{
 				wchar_t fname[MAX_PATH] = { 0 };
@@ -192,7 +191,7 @@ namespace tools
 						failed = TRUE;
 					}
 
-					CoTaskMemFree(filepidl);
+					MemFreeCOM(filepidl);
 					pDesktopFolder->Release();
 
 					if (failed)
@@ -243,7 +242,7 @@ namespace tools
 										hr = psl->QueryInterface(IID_PPV_ARGS(ppsl));
 									}
 								}
-								PropVariantClear(&propvar);
+								ClearPropVariant(&propvar);
 							}
 							pps->Release();
 						}
