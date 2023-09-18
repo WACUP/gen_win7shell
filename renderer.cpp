@@ -505,7 +505,7 @@ HBITMAP renderer::GetThumbnail(void)
 
 						Gdiplus::Image img(m_settings.BGPath, true);
 
-						if (img.GetType() != 0)
+						if ((custom_img != NULL) && (img.GetType() != 0))
 						{
 							Gdiplus::Graphics gfx(custom_img);
 							gfx.SetInterpolationMode(Gdiplus::InterpolationModeBicubic);
