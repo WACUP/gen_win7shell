@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.5.3"
+#define PLUGIN_VERSION L"4.5.4"
 
 #define NR_BUTTONS 15
 
@@ -699,7 +699,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				std::wstring filename((wchar_t*)wParam);
 				if (filename.empty())
 				{
-					LPCWSTR p = GetPlayingFilename(1);
+					LPCWSTR p = GetPlayingFilename(1, NULL);
 					if (p != NULL)
 					{
 						filename = p;
@@ -882,7 +882,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					(wParam == IPC_CB_MISC_ON_STOP) ||
 					(wParam == IPC_CB_MISC_ADVANCED_ON_STOP)))
 				{
-					LPCWSTR p = GetPlayingFilename(0);
+					LPCWSTR p = GetPlayingFilename(0, NULL);
 					if (p != NULL)
 					{
 						reset_metadata(p);
@@ -941,7 +941,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 						}
 					}
 
-					LPCWSTR p = GetPlayingFilename(0);
+					LPCWSTR p = GetPlayingFilename(0, NULL);
 					if (p != NULL)
 					{
 						reset_metadata(p);
@@ -1503,7 +1503,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 			Settings.play_total = GetCurrentTrackLengthMilliSeconds();
 			Settings.play_volume = (int)GetSetVolume((WPARAM)-666, FALSE);
 
-			LPCWSTR p = GetPlayingFilename(1);
+			LPCWSTR p = GetPlayingFilename(1, NULL);
 			if (p != NULL)
 			{
 				reset_metadata(p);
