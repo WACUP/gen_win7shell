@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.5.4"
+#define PLUGIN_VERSION L"4.5.6"
 
 #define NR_BUTTONS 15
 
@@ -1113,7 +1113,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 						SendMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(40047, 0), 0);
 						Settings.play_state = PLAYSTATE_NOTPLAYING;
 
-						plugin.metadata->ClearCache(NULL);
+						plugin.metadata->ClearCache(NULL, FindPathExtension(path));
 
 						SHFILEOPSTRUCT fileop = { 0, FO_DELETE, path, 0, (FILEOP_FLAGS)
 												  ((GetPlaylistRecycleMode() ? FOF_ALLOWUNDO :
@@ -1647,7 +1647,7 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 					}
 					else
 					{
-						if ((itaskbar != NULL))
+						if (itaskbar != NULL)
 						{
 							itaskbar->SetIconOverlay(NULL, L"");
 						}

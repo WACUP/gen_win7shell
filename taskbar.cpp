@@ -55,11 +55,17 @@ void iTaskBar::ThumbBarUpdateButtons(std::vector<THUMBBUTTON>& buttons, HIMAGELI
 	}
 }
 
-void iTaskBar::SetIconOverlay(HICON icon, const std::wstring &text)
+void iTaskBar::SetIconOverlay(HICON icon, LPCWSTR text)
 {
 	if (pTBL != NULL)
 	{
-		pTBL->SetOverlayIcon(plugin.hwndParent, icon, text.c_str());
+		__try
+		{
+			pTBL->SetOverlayIcon(plugin.hwndParent, icon, text);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+		}
 	}
 }
 
