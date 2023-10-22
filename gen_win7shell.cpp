@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.5.6"
+#define PLUGIN_VERSION L"4.5.7"
 
 #define NR_BUTTONS 15
 
@@ -696,7 +696,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 			{
 				Settings.play_playlistpos = GetPlaylistPosition();
 
-				std::wstring filename((wchar_t*)wParam);
+				std::wstring filename((wParam ? (wchar_t*)wParam : L""));
 				if (filename.empty())
 				{
 					LPCWSTR p = GetPlayingFilename(1, NULL);

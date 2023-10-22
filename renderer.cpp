@@ -782,7 +782,7 @@ HBITMAP renderer::GetThumbnail(void)
 						for (std::size_t text_index = 0; text_index != text_parser.GetNumberOfLines(); ++text_index)
 						{
 							Gdiplus::RectF ret_rect;
-							std::wstring current_text = text_parser.GetLineText(text_index);
+							const std::wstring current_text = text_parser.GetLineText(text_index);
 							linesettings current_settings = text_parser.GetLineSettings(text_index);
 
 							// Measure size
