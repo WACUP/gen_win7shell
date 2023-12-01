@@ -156,8 +156,9 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 
 void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring &pref,
 							  const std::wstring &openfile, const std::wstring &bookmarks,
-							  const std::wstring &pltext, const bool recent, const bool frequent,
-							  const bool tasks, const bool addbm, const bool playlist)
+							  const std::wstring &pltext, const bool recent,
+							  const bool frequent, const bool tasks, const bool addbm,
+							  const bool playlist, const bool &closing)
 {
 	UINT cMinSlots = 0;
 	IObjectArray *poaRemoved = NULL;
@@ -175,7 +176,7 @@ void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring
 			std::wstring line1, line2;
 			bool b = false;
 			has_bm = !bms.empty();
-			while (getline(ss, line1))
+			while (getline(ss, line1) && !closing)
 			{
 				if (b)
 				{
@@ -208,7 +209,7 @@ void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring
 			}
 		}
 
-		if (SUCCEEDED(hr))
+		if (SUCCEEDED(hr) && !closing)
 		{
 			if (recent)
 			{

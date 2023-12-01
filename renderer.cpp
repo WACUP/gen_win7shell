@@ -129,15 +129,14 @@ bool renderer::getAlbumArt(const std::wstring &fname)
 	{
 		ARGB32 *cur_image = 0;
 		int cur_w = 0, cur_h = 0;
+
 		// when running under WACUP this request is cached for us
 		// so we don't have to worry too much about it being slow
-		int ret = WASABI_API_ALBUMART->GetAlbumArtAsyncResize(fname.c_str(), L"cover", this, 600,
-															  600, FALSE, preview_sync_callback);
-		if ((ret != ALBUMART_SUCCESS) && (ret != ALBUMART_GOTCACHE))
+		if (WASABI_API_ALBUMART->GetAlbumArtAsyncResize(fname.c_str(), L"cover", this, 600, 600, FALSE,
+															preview_sync_callback) != ALBUMART_SUCCESS)
 		{
-			ret = WASABI_API_ALBUMART->GetAlbumArtResize(fname.c_str(), L"cover", &cur_w,
-														 &cur_h, &cur_image, 600, 600, 0);
-			if ((ret == ALBUMART_SUCCESS) || (ret == ALBUMART_GOTCACHE))
+			if (WASABI_API_ALBUMART->GetAlbumArtResize(fname.c_str(), L"cover", &cur_w, &cur_h,
+												  &cur_image, 600, 600, 0) == ALBUMART_SUCCESS)
 			{
 				createArtwork(cur_w, cur_h, cur_image);
 			}

@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.5.7"
+#define PLUGIN_VERSION L"4.5.10"
 
 #define NR_BUTTONS 15
 
@@ -234,12 +234,10 @@ int init(void)
 	//ServiceBuild(plugin.service, WASABI_API_PLAYLISTS, api_playlistsGUID);
 	WASABI_API_PLAYLISTS = plugin.playlists;
 	//ServiceBuild(plugin.service, WASABI_API_LNG, languageApiGUID);
-	WASABI_API_LNG = plugin.language;
-	WASABI_API_START_LANG(plugin.hDllInstance, GenWin7PlusShellLangGUID);
 
-	wchar_t pluginTitleW[256] = { 0 };
-	StringCchPrintf(pluginTitleW, ARRAYSIZE(pluginTitleW), WASABI_API_LNGSTRINGW(IDS_PLUGIN_NAME), PLUGIN_VERSION);
-	plugin.description = (char*)plugin.memmgr->sysDupStr(pluginTitleW);
+	WASABI_API_START_LANG_DESC(plugin.language, plugin.hDllInstance,
+							   GenWin7PlusShellLangGUID, IDS_PLUGIN_NAME,
+							   PLUGIN_VERSION, &plugin.description);
 
 	InitializeCriticalSectionEx(&background_cs, 400, CRITICAL_SECTION_NO_DEBUG_INFO);
 	InitializeCriticalSectionEx(&overlay_icons_cs, 400, CRITICAL_SECTION_NO_DEBUG_INFO);
@@ -297,16 +295,24 @@ void quit(void)
 
 	if (updatethread != NULL)
 	{
-		WaitForSingleObject(updatethread, 10000);
-		CloseHandle(updatethread);
-		updatethread = NULL;
+		WaitForSingleObjectEx(updatethread, 10000, TRUE);
+
+		if (updatethread != NULL)
+		{
+			CloseHandle(updatethread);
+			updatethread = NULL;
+		}
 	}
 
 	if (setupthread != NULL)
 	{
-		WaitForSingleObject(setupthread, 10000);
-		CloseHandle(setupthread);
-		setupthread = NULL;
+		WaitForSingleObjectEx(setupthread, 10000, TRUE);
+
+		if (setupthread != NULL)
+		{
+			CloseHandle(setupthread);
+			setupthread = NULL;
+		}
 	}
 
 #ifdef USE_MOUSE
@@ -344,11 +350,18 @@ void updateToolbar(HIMAGELIST ImageList)
 {
 	if ((itaskbar != NULL) && Settings.Thumbnailbuttons && plugin.messages)
 	{
-		std::vector<THUMBBUTTON> thbButtons;
 		const size_t count = TButtons.size();
-		for (size_t i = 0; i != count; ++i)
+		std::vector<THUMBBUTTON> thbButtons(count);
+		for (size_t i = 0; i < count; ++i)
 		{
-			THUMBBUTTON button = { THB_BITMAP | THB_TOOLTIP, (UINT)TButtons[i], 0, NULL, {0}, THBF_ENABLED };
+			THUMBBUTTON& button = thbButtons[i];
+
+			button.dwMask = THB_BITMAP | THB_TOOLTIP;
+			button.iId = (UINT)TButtons[i];
+			button.iBitmap = 0;
+			button.hIcon = NULL;
+			button.szTip[0] = 0;
+			button.dwFlags = THBF_ENABLED;
 
 			if (button.iId == TB_RATE || button.iId == TB_STOPAFTER ||
 				button.iId == TB_DELETE || button.iId == TB_JTFE ||
@@ -382,8 +395,6 @@ void updateToolbar(HIMAGELIST ImageList)
 			{
 				(void)StringCchCopy(button.szTip, ARRAYSIZE(button.szTip), tools::getToolTip(button.iId, 0));
 			}
-
-			thbButtons.push_back(button);
 		}
 
 		if (itaskbar != NULL)
@@ -535,7 +546,7 @@ void SetThumbnailTimer(void)
 
 	if (updatethread == NULL)
 	{
-		updatethread = CreateThread(0, 0, UpdateThread, 0, 0, NULL);
+		updatethread = StartThread(UpdateThread, 0, THREAD_PRIORITY_NORMAL, 0, NULL);
 	}
 
 	SetTimer(plugin.hwndParent, 6671, 30000, TimerProc);
@@ -1223,7 +1234,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 
 				if (!closing && (setupthread == NULL))
 				{
-					setupthread = CreateThread(0, 0, SetupJumpListThread, 0, 0, NULL);
+					setupthread = StartThread(SetupJumpListThread, 0, THREAD_PRIORITY_NORMAL, 0, NULL);
 				}
 			}
 
@@ -1488,9 +1499,9 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 			windowShade = !!IsHWNDWndshade((WPARAM)-1)/*/SendMessage(hWnd, WM_WA_IPC, (WPARAM)-1, IPC_IS_WNDSHADE)/**/;
 
 			// Accept messages even if Winamp was run as Administrator
-			ChangeWindowMessageFilter(WM_COMMAND, 1);
-			ChangeWindowMessageFilter(WM_DWMSENDICONICTHUMBNAIL, 1);
-			ChangeWindowMessageFilter(WM_DWMSENDICONICLIVEPREVIEWBITMAP, 1);
+			AddWindowMessageFilter(WM_COMMAND, NULL);
+			AddWindowMessageFilter(WM_DWMSENDICONICTHUMBNAIL, NULL);
+			AddWindowMessageFilter(WM_DWMSENDICONICLIVEPREVIEWBITMAP, NULL);
 
 			// Register taskbarcreated message
 			WM_TASKBARBUTTONCREATED = RegisterWindowMessage(L"TaskbarButtonCreated");
@@ -1546,7 +1557,7 @@ LRESULT CALLBACK rateWndProc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lPara
 			DarkModeSetup(hwndDlg);
 
 			// give an indication of the current rating for the item
-			const int rating = GetSetMainRating(0, IPC_GETRATING);
+			const int rating = (const int)GetSetMainRating(0, IPC_GETRATING);
 			wchar_t rating_text[8] = { 0 };
 			StringCchPrintf(rating_text, ARRAYSIZE(rating_text), L"[%d]", rating);
 			SetDlgItemText(hwndDlg, IDC_RATE1 + rating, rating_text);
@@ -2507,10 +2518,10 @@ void SetupJumpList(void)
 				// I can't find any reason for it. due to
 				// that it is necessary to try & catch it
 				// so we don't take down the entire thing
-				jl->CreateJumpList(pluginPath, tmp1, tmp2,
-								   tmp3, tmp4, Settings.JLrecent,
-								   Settings.JLfrequent, Settings.JLtasks,
-								   Settings.JLbms, Settings.JLpl);
+				jl->CreateJumpList(pluginPath, tmp1, tmp2, tmp3, tmp4,
+								   Settings.JLrecent, Settings.JLfrequent,
+								   Settings.JLtasks, Settings.JLbms,
+								   Settings.JLpl, closing);
 			}
 			__except (EXCEPTION_EXECUTE_HANDLER)
 			{
@@ -2561,8 +2572,7 @@ extern "C" __declspec(dllexport) winampGeneralPurposePlugin * winampGetGeneralPu
 
 extern "C" __declspec(dllexport) int winampUninstallPlugin(HINSTANCE hDllInst, HWND hwndDlg, int param)
 {
-	if (MessageBox(hwndDlg, WASABI_API_LNGSTRINGW(IDS_UNINSTALL_PROMPT),
-							(LPWSTR)plugin.description, MB_YESNO) == IDYES)
+	if (plugin.language->UninstallSettingsPrompt(reinterpret_cast<const wchar_t *>(plugin.description)))
 	{
 		no_uninstall = false;
 

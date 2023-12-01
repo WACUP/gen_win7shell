@@ -46,11 +46,11 @@ void iTaskBar::ThumbBarUpdateButtons(std::vector<THUMBBUTTON>& buttons, HIMAGELI
 		if (ImageList != NULL)
 		{
 			pTBL->ThumbBarSetImageList(plugin.hwndParent, ImageList);
-			pTBL->ThumbBarAddButtons(plugin.hwndParent, (int)buttons.size(), &buttons[0]);
+			pTBL->ThumbBarAddButtons(plugin.hwndParent, (int)buttons.size(), (LPTHUMBBUTTON)&buttons[0]);
 		}
 		else
 		{
-			pTBL->ThumbBarUpdateButtons(plugin.hwndParent, (int)buttons.size(), &buttons[0]);
+			pTBL->ThumbBarUpdateButtons(plugin.hwndParent, (int)buttons.size(), (LPTHUMBBUTTON)&buttons[0]);
 		}
 	}
 }
