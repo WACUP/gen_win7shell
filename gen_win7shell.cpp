@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.5.10"
+#define PLUGIN_VERSION L"4.6"
 
 #define NR_BUTTONS 15
 
@@ -266,7 +266,7 @@ void config(void)
 		{
 			wchar_t text[512] = { 0 };
 			StringCchPrintf(text, ARRAYSIZE(text), WASABI_API_LNGSTRINGW(IDS_ABOUT_MESSAGE),
-							L"Darren Owen aka DrO (2018-" WACUP_COPYRIGHT L")", TEXT(__DATE__));
+							WACUP_AUTHOR_STRW L" (2018-" WACUP_COPYRIGHT L")", TEXT(__DATE__));
 			AboutMessageBox(list, text, (LPWSTR)plugin.description);
 			break;
 		}
@@ -1114,7 +1114,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				}
 				case TB_DELETE:
 				{
-					const MetaData* meta_data = get_metadata();
+					const MetaData* meta_data = (GetPlaylistAllowHardDelete() ? get_metadata() : NULL);
 					if (meta_data != NULL)
 					{
 						wchar_t path[MAX_PATH] = { 0 };
@@ -1767,8 +1767,22 @@ static void UpdateContolButtons(HWND hwnd)
 					   IDC_PCB8, IDC_PCB9, IDC_PCB10, IDC_PCB11,
 					   IDC_PCB12, IDC_PCB13, IDC_PCB14, IDC_PCB15,
 					   IDC_BUTTON_ORDER, IDC_LIST1, IDC_UPBUTT, IDC_DOWNBUTT};
+	const bool allow_delete = GetPlaylistAllowHardDelete();
 	for (int i = 0; i < ARRAYSIZE(ids); i++)
 	{
+		// if global support to delete items is
+		// disabled but the action already set
+		// then we need to offer a means to get
+		// it removed from the active 'buttons'
+		if ((i == 14) && !allow_delete)
+		{
+			if (std::find(TButtons.begin(), TButtons.end(), TB_DELETE) == TButtons.end())
+			{
+				EnableControl(hwnd, ids[i], FALSE);
+				continue;
+			}
+		}
+
 		EnableControl(hwnd, ids[i], Settings.Thumbnailbuttons);
 	}
 }
@@ -1918,6 +1932,8 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 						{
 							SetDlgItemText(hwnd, IDC_STATIC29, tools::getToolTip(wParam));
 						}
+
+						UpdateContolButtons(hwnd);
 					}
 					break;
 				}

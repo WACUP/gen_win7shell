@@ -120,7 +120,7 @@ namespace tools
 			}
 			case TB_DELETE:
 			{
-				strID = IDS_DELETE_PHYSICALLY;
+				strID = (GetPlaylistAllowHardDelete() ? IDS_DELETE_PHYSICALLY : IDS_DELETE_PHYSICALLY_DISABLED);
 				break;
 			}
 			case TB_OPENEXPLORER:
@@ -645,7 +645,7 @@ namespace tools
 			}
 			case TB_DELETE:
 			{
-				return 17;
+				return (GetPlaylistAllowHardDelete() ? 17 : -1);
 			}
 			case TB_OPENEXPLORER:
 			{
