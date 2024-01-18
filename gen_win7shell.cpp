@@ -2296,7 +2296,7 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 					else if (SendDlgItemMessage(hwnd, IDC_RADIO3, (UINT) BM_GETCHECK, 0 , 0))
 					{
 						Settings.Thumbnailbackground = BG_CUSTOM;
-						if (GetWindowTextLength(GetDlgItem(hwnd, IDC_EDIT2)) == 0)
+						if (GetControlTextLength(hwnd, IDC_EDIT2) == 0)
 						{
 							PostDlgItemMessage(hwnd, IDC_BUTTON3, BM_CLICK, 0, 0);
 						}

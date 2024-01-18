@@ -133,7 +133,7 @@ bool renderer::getAlbumArt(const std::wstring &fname)
 		// when running under WACUP this request is cached for us
 		// so we don't have to worry too much about it being slow
 		if (WASABI_API_ALBUMART->GetAlbumArtAsyncResize(fname.c_str(), L"cover", this, 600, 600, FALSE,
-															preview_sync_callback) != ALBUMART_SUCCESS)
+														NULL, preview_sync_callback) != ALBUMART_SUCCESS)
 		{
 			if (WASABI_API_ALBUMART->GetAlbumArtResize(fname.c_str(), L"cover", &cur_w, &cur_h,
 												  &cur_image, 600, 600, 0) == ALBUMART_SUCCESS)
