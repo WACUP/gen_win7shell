@@ -201,7 +201,7 @@ void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring
 					}
 					else
 					{
-						line2.resize(wcslen(line2.c_str()));
+						line2.shrink_to_fit();
 					}
 
 					b = true;

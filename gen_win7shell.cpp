@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.6"
+#define PLUGIN_VERSION L"4.6.1"
 
 #define NR_BUTTONS 15
 
@@ -80,6 +80,9 @@ LRESULT CALLBACK KeyboardEvent(int nCode, WPARAM wParam, LPARAM lParam);
 #endif
 
 WA_UTILS_API HBITMAP GetMainWindowBmp(void);
+#ifndef _WIN64
+WA_UTILS_API const bool IsWasabiWindow(HWND hwnd);
+#endif
 
 extern "C" __declspec(dllexport) LRESULT CALLBACK TabHandler_Taskbar(HWND, UINT, WPARAM, LPARAM);
 extern "C" __declspec(dllexport) LRESULT CALLBACK TabHandler_Thumbnail(HWND, UINT, WPARAM, LPARAM);
@@ -412,9 +415,8 @@ void updateToolbar(HIMAGELIST ImageList)
 
 BOOL CALLBACK checkSkinProc(HWND hwnd, LPARAM lParam)
 {
-	wchar_t cl[24] = { 0 };
-	GetClassName(hwnd, cl, ARRAYSIZE(cl));
-	if (SameStrN(cl, L"BaseWindow_RootWnd", 18))
+#ifndef _WIN64
+	if (IsWasabiWindow(hwnd))
 	{
 		// if any of these are a child window of
 		// the current skin being used then it's
@@ -423,18 +425,19 @@ BOOL CALLBACK checkSkinProc(HWND hwnd, LPARAM lParam)
 		HWND child = GetWindow(hwnd, GW_CHILD);
 		if (IsWindow(child))
 		{
-			cl[0] = 0;
-			GetClassName(child, cl, ARRAYSIZE(cl));
-			if (SameStrN(cl, L"Winamp EQ", 9) ||
-				SameStrN(cl, L"Winamp PE", 9) ||
-				SameStrN(cl, L"Winamp Gen", 10) ||
-				SameStrN(cl, L"Winamp Video", 12))
+			wchar_t cl[16] = { 0 };
+			if (GetClassName(child, cl, ARRAYSIZE(cl)) &&
+				(SameStrN(cl, L"Winamp EQ", 9) ||
+				 SameStrN(cl, L"Winamp PE", 9) ||
+				 SameStrN(cl, L"Winamp Gen", 10) ||
+				 SameStrN(cl, L"Winamp Video", 12)))
 			{
 				modernSUI = true;
 				return FALSE;
 			}
 		}
 	}
+#endif
 	(void)lParam;
 	return TRUE;
 }
