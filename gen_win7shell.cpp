@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.6.1"
+#define PLUGIN_VERSION L"4.6.2"
 
 #define NR_BUTTONS 15
 
@@ -70,7 +70,6 @@ HIMAGELIST theicons = NULL, overlayicons = NULL;
 api_albumart *WASABI_API_ALBUMART = 0;
 api_playlists *WASABI_API_PLAYLISTS = 0;
 //api_explorerfindfile *WASABI_API_EXPLORERFINDFILE = 0;
-api_skin *WASABI_API_SKIN = 0;
 
 // CALLBACKS
 VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime);
@@ -83,6 +82,7 @@ WA_UTILS_API HBITMAP GetMainWindowBmp(void);
 #ifndef _WIN64
 WA_UTILS_API const bool IsWasabiWindow(HWND hwnd);
 #endif
+WA_UTILS_API const bool IsModernSkinActive(const wchar_t** skin);
 
 extern "C" __declspec(dllexport) LRESULT CALLBACK TabHandler_Taskbar(HWND, UINT, WPARAM, LPARAM);
 extern "C" __declspec(dllexport) LRESULT CALLBACK TabHandler_Thumbnail(HWND, UINT, WPARAM, LPARAM);
@@ -342,7 +342,6 @@ void quit(void)
 	//ServiceRelease(plugin.service, WASABI_API_PLAYLISTS, api_playlistsGUID);
 	//ServiceRelease(plugin.service, WASABI_API_LNG, languageApiGUID);
 	//ServiceRelease(plugin.service, WASABI_API_EXPLORERFINDFILE, ExplorerFindFileApiGUID);
-	ServiceRelease(plugin.service, WASABI_API_SKIN, skinApiServiceGuid);
 
 	DeleteCriticalSection(&background_cs);
 	DeleteCriticalSection(&overlay_icons_cs);
@@ -523,9 +522,9 @@ DWORD WINAPI UpdateThread(LPVOID lp)
 			}
 		}
 
-		SleepEx((Settings.Thumbnailbackground == BG_WINAMP) ?
+		SleepEx((running ? (Settings.Thumbnailbackground == BG_WINAMP) ?
 				(!Settings.LowFrameRate ? Settings.MFT : Settings.MST) :
-				(!Settings.LowFrameRate ? Settings.TFT : Settings.TST), TRUE);
+				(!Settings.LowFrameRate ? Settings.TFT : Settings.TST) : 1000), TRUE);
 	}
 
 	CloseCOM();
@@ -843,20 +842,9 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 							export_sa_setreq(Settings.VuMeter);
 						}
 
-						// delay doing this until needed as it then
-						// copes with modern skins being later used
-						if (WASABI_API_SKIN == NULL)
-						{
-							ServiceBuild(plugin.service, WASABI_API_SKIN, skinApiServiceGuid);
-						}
-
-						// TODO pull in the localised version from gen_ff
-						//		to ensure the checking will work correctly
-						LPCWSTR skin_name = (WASABI_API_SKIN != NULL ? WASABI_API_SKIN->getSkinName() : NULL);
-						classicSkin = (!WASABI_API_SKIN || //WASABI_API_SKIN &&
-									  // TODO pull in the localised version from gen_ff
-									  //		to ensure the checking will work correctly
-							(SameStr(skin_name, L"No skin loaded")));
+#ifndef _WIN64
+						LPCWSTR skin_name = NULL;
+						classicSkin = !IsModernSkinActive(&skin_name);
 
 						modernSUI = false;
 						modernFix = (skin_name && *skin_name && SameStrN(skin_name, L"Winamp Modern", 13));
@@ -870,6 +858,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 							// we're wanting to do support alpha better
 							EnumChildWindows(dialogParent, checkSkinProc, 0);
 						}
+#endif
 					}
 
 					if (itaskbar != NULL)

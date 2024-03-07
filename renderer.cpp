@@ -369,10 +369,9 @@ HBITMAP renderer::GetThumbnail(void)
 				}
 				else
 				{
-					DWORD_PTR ret = 0;
 					SendMessageTimeout(dialogParent, WM_PRINTCLIENT, (WPARAM)hdc,
 									   PRF_CHILDREN | PRF_NONCLIENT | PRF_CLIENT,
-									   SMTO_ABORTIFHUNG | SMTO_ERRORONEXIT, 1000, &ret);
+									   SMTO_ABORTIFHUNG | SMTO_ERRORONEXIT, 1000, NULL);
 				}
 
 				gfx.ReleaseHDC(hdc);

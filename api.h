@@ -22,6 +22,4 @@
 
 #include <Agave/ExplorerFindFile/api_explorerfindfile.h>
 
-#include <loader/hook/api_skin.h>
-
 #endif
