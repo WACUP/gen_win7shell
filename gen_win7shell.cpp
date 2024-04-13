@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.6.2"
+#define PLUGIN_VERSION L"4.6.3"
 
 #define NR_BUTTONS 15
 
@@ -79,10 +79,11 @@ LRESULT CALLBACK KeyboardEvent(int nCode, WPARAM wParam, LPARAM lParam);
 #endif
 
 WA_UTILS_API HBITMAP GetMainWindowBmp(void);
+
 #ifndef _WIN64
 WA_UTILS_API const bool IsWasabiWindow(HWND hwnd);
-#endif
 WA_UTILS_API const bool IsModernSkinActive(const wchar_t** skin);
+#endif
 
 extern "C" __declspec(dllexport) LRESULT CALLBACK TabHandler_Taskbar(HWND, UINT, WPARAM, LPARAM);
 extern "C" __declspec(dllexport) LRESULT CALLBACK TabHandler_Thumbnail(HWND, UINT, WPARAM, LPARAM);
@@ -733,11 +734,12 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					// if there's an issue with the local library db handling
 					INT_PTR db_error = FALSE;
 					void *token = NULL;
+					bool reentrant = false;
 
 					__try
 					{
-						const std::wstring title(meta_data->getMetadata(L"title", &token, &db_error) + L" - " +
-												 meta_data->getMetadata(L"artist", &token, &db_error) +
+						const std::wstring title(meta_data->getMetadata(L"title", &token, &reentrant, &db_error) + L" - " +
+												 meta_data->getMetadata(L"artist", &token, &reentrant, &db_error) +
 												 ((Settings.play_total > 0) ? L"  (" +
 												 tools::SecToTime(Settings.play_total / 1000) + L")" : L""));
 

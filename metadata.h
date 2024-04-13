@@ -10,7 +10,7 @@ class MetaData
 public:
 	MetaData() : mfilename(NULL) {}
 	void reset(LPCWSTR filename, const bool force = false);
-	std::wstring getMetadata(const std::wstring &tag, void **token, INT_PTR *db_error);
+	std::wstring getMetadata(const std::wstring &tag, void **token, bool* reentrant, INT_PTR *db_error);
 	LPCWSTR getFileName(void) const;
 
 private:
