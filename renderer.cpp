@@ -46,118 +46,86 @@ Gdiplus::Bitmap* ResizeAndCloneBitmap(Gdiplus::Bitmap *bmp, const float width, c
 	return newBitmap;
 }
 
-void renderer::createArtwork(const int cur_w, const int cur_h, ARGB32 *cur_image)
-{
-	BITMAPINFO bmi = { 0 };
-	InitBitmapForARGB32(&bmi, cur_w, cur_h);
-
-	Gdiplus::Bitmap tmpbmp(&bmi, cur_image);
-
-	float new_height = 0.f, new_width = 0.f, anchor = (m_height * 1.f);
-
-	if (!m_settings.AsIcon)
-	{
-		if (m_width < m_height)
-		{
-			anchor = (m_width * 1.f);
-		}
-	}
-	else
-	{
-		anchor = (_iconheight * 1.f);
-	}
-
-	if (cur_w > cur_h)
-	{
-		new_height = (float)cur_h / (float)cur_w * (float)anchor;
-		new_height -= 2;
-		new_width = anchor;
-
-		if (new_height > m_height)
-		{
-			new_width = (float)cur_w / (float)cur_h * (float)anchor;
-			new_width -= 2;
-			new_height = anchor;
-		}
-	}
-	else
-	{
-		new_width = (float)cur_w / (float)cur_h * (float)anchor;
-		new_width -= 2;
-		new_height = anchor;
-
-		if (new_width > m_width)
-		{
-			new_height = (float)cur_h / (float)cur_w * (float)anchor;
-			new_height -= 2;
-			new_width = anchor;
-		}
-	}
-
-	m_iconheight = _iconheight = (int)new_height;
-	m_iconwidth = _iconwidth = (int)new_width;
-
-	// we don't want to keep doing this as it is going
-	// to be very slow especially with >600x600 images
-	// so we cache a re-sized image and then draw that
-	albumart = ResizeAndCloneBitmap(&tmpbmp, new_width, new_height);
-
-	if (cur_image)
-	{
-		plugin.memmgr->sysFree(cur_image);
-	}
-}
-
-int __cdecl preview_sync_callback(const wchar_t *filename, const int w, const int h,
-								  ARGB32 *callback_bits, void *user_data)
-{
-	// due to how this might be triggered (e.g. closing action) it's necessary to have it avoid
-	// trying to do anything here so we don't then crash due to accessing a non-existant object
-	renderer* this_renderer = reinterpret_cast<renderer*>(user_data);
-	LPCWSTR fn = (running && this_renderer ? this_renderer->GetMetadata().getFileName() : NULL);
-	if (SameStr(filename, fn))
-	{
-		this_renderer->createArtwork(w, h, callback_bits);
-		return TRUE;
-	}
-	return FALSE;
-}
-
 bool renderer::getAlbumArt(const std::wstring &fname)
 {
-	if (!albumart && (WASABI_API_ALBUMART != NULL))
+	if (running && !albumart && (WASABI_API_ALBUMART != NULL))
 	{
-		ARGB32 *cur_image = 0;
+		// this is always going to be called from it's own thread
+		// so the use of GetAlbumArtAsyncResize(..) only makes it
+		// seem a bit glitchy or can allow multiple actions to be
+		// triggered which makes the preview seem to then flicker
+		ARGB32* cur_image = 0;
 		int cur_w = 0, cur_h = 0;
 
-		// when running under WACUP this request is cached for us
-		// so we don't have to worry too much about it being slow
-		if (WASABI_API_ALBUMART->GetAlbumArtAsyncResize(fname.c_str(), L"cover", this, 600, 600, FALSE,
-														NULL, preview_sync_callback) != ALBUMART_SUCCESS)
+		if (WASABI_API_ALBUMART->GetAlbumArtResize(fname.c_str(), L"cover", &cur_w, &cur_h,
+												&cur_image, 600, 600, 0) == ALBUMART_SUCCESS)
 		{
-			if (WASABI_API_ALBUMART->GetAlbumArtResize(fname.c_str(), L"cover", &cur_w, &cur_h,
-												  &cur_image, 600, 600, 0) == ALBUMART_SUCCESS)
+			BITMAPINFO bmi = { 0 };
+			InitBitmapForARGB32(&bmi, cur_w, cur_h);
+
+			Gdiplus::Bitmap tmpbmp(&bmi, cur_image);
+
+			float new_height = 0.f, new_width = 0.f, anchor = (m_height * 1.f);
+
+			if (!m_settings.AsIcon)
 			{
-				createArtwork(cur_w, cur_h, cur_image);
+				if (m_width < m_height)
+				{
+					anchor = (m_width * 1.f);
+				}
 			}
 			else
 			{
-				return false;
+				anchor = (_iconheight * 1.f);
+			}
+
+			if (cur_w > cur_h)
+			{
+				new_height = (float)cur_h / (float)cur_w * (float)anchor;
+				new_height -= 2;
+				new_width = anchor;
+
+				if (new_height > m_height)
+				{
+					new_width = (float)cur_w / (float)cur_h * (float)anchor;
+					new_width -= 2;
+					new_height = anchor;
+				}
+			}
+			else
+			{
+				new_width = (float)cur_w / (float)cur_h * (float)anchor;
+				new_width -= 2;
+				new_height = anchor;
+
+				if (new_width > m_width)
+				{
+					new_height = (float)cur_h / (float)cur_w * (float)anchor;
+					new_height -= 2;
+					new_width = anchor;
+				}
+			}
+
+			m_iconheight = _iconheight = (int)new_height;
+			m_iconwidth = _iconwidth = (int)new_width;
+
+			// we don't want to keep doing this as it is going
+			// to be very slow especially with >600x600 images
+			// so we cache a re-sized image and then draw that
+			albumart = (cur_image ? ResizeAndCloneBitmap(&tmpbmp, new_width, new_height) : NULL);
+
+			if (cur_image)
+			{
+				plugin.memmgr->sysFree(cur_image);
 			}
 		}
 		else
 		{
-			// let the async callback do the render
-			// call instead of returning a failure.
-			return true;
+			return false;
 		}
 	}
-	return render();
-}
 
-bool renderer::render(void)
-{
-	if (albumart)
+	if (albumart != NULL)
 	{
 		Gdiplus::Graphics gfx(background);
 
@@ -229,28 +197,29 @@ bool renderer::render(void)
 							  static_cast<Gdiplus::REAL>(m_iconheight)), 0, 0, static_cast<Gdiplus::REAL>(m_iconwidth),
 							  static_cast<Gdiplus::REAL>(m_iconheight), Gdiplus::UnitPixel, &ImgAttr) == Gdiplus::Ok);
 	}
+
+	// try to get the custom/fallback to
+	// be shown to avoid a blank preview
+	fail = true;
+	GetThumbnail(true);
 	return false;
 }
 
-HBITMAP renderer::GetThumbnail(void)
+HBITMAP renderer::GetThumbnail(const bool clear)
 {
 	// not everyone is going to even cause the
 	// preview to be generated so we will wait
 	// until its needed to load gdiplus as its
 	// a relatively slow to close down on exit
-	/*if (!gdiplusToken)
-	{
-		gdiplusStartupInput.SuppressBackgroundThread = TRUE;
-		Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput,
-								&gdiplusStartupOutput);
-		gdiplusStartupOutput.NotificationHook(&gdiplusBgThreadToken);
-	}/*/
 	if (!running || !SetupGDIplus())
 	{
 		return NULL;
-	}/**/
+	}
 
-	ClearBackground();
+	if (clear)
+	{
+		ClearBackground();
+	}
 
 	//Calculate icon size
 	_iconwidth = m_iconwidth;
@@ -285,6 +254,15 @@ HBITMAP renderer::GetThumbnail(void)
 	// Draw background if not valid
 	if (!background)
 	{
+		__try
+		{
+			background = new Gdiplus::Bitmap(m_width, m_height, PixelFormat32bppPARGB);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			background = NULL;
+		}
+
 		if (m_settings.Shrinkframe)
 		{
 			if (iconposition == IP_LOWERLEFT)
@@ -298,15 +276,6 @@ HBITMAP renderer::GetThumbnail(void)
 		}
 
 		no_icon = no_text = fail = false;
-
-		__try
-		{
-			background = new Gdiplus::Bitmap(m_width, m_height, PixelFormat32bppPARGB);
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			background = NULL;
-		}
 
 		LeaveCriticalSection(&background_cs);
 
@@ -487,11 +456,20 @@ HBITMAP renderer::GetThumbnail(void)
 				if (!getAlbumArt(m_metadata.getFileName()) &&
 					(m_settings.Revertto != BG_ALBUMART))
 				{
-					// fallback
-					fail = true;
-					GetThumbnail();
+					// so it can be handled quicker
+					// we are going to fall through
+					// to the custom handling which
+					// will then gets what's needed
+					if (m_settings.Revertto != BG_CUSTOM)
+					{
+						break;
+					}
 				}
-				break;
+				else
+				{
+					break;
+				}
+				[[fallthrough]];
 			}
 			case BG_CUSTOM:
 			{
@@ -643,33 +621,53 @@ HBITMAP renderer::GetThumbnail(void)
 												  Gdiplus::UnitPixel, &ImgAttr);
 								}
 							}
+
+							EnterCriticalSection(&background_cs);
+
+							if (background != NULL)
+							{
+								delete background;
+							}
+
+							if (custom_img != NULL)
+							{
+								background = (Gdiplus::Bitmap*)custom_img->Clone();
+							}
+							else
+							{
+								background = NULL;
+							}
+
+							fail = (background == NULL);
+
+							LeaveCriticalSection(&background_cs);
+
+							// so we can attempt to do something
+							// we'll clear this so either what's
+							// been found will show or it'll set
+							// it to the generic background/text
+							tempfail = false;
+							break;
 						}
 						else if (m_settings.Revertto != BG_CUSTOM)
 						{
 							fail = true;
-							GetThumbnail();
+							GetThumbnail(true);
+							break;
 						}
 					}
-
-					EnterCriticalSection(&background_cs);
-
-					delete background;
-
-					background = (Gdiplus::Bitmap*)custom_img->Clone();
-
-					LeaveCriticalSection(&background_cs);
 				}
 				else if (m_settings.Revertto != BG_CUSTOM)
 				{
 					fail = true;
-					GetThumbnail();
+					GetThumbnail(true);
 				}
 				break;
 			}
 			default:
 			{
 				fail = true;
-				GetThumbnail();
+				GetThumbnail(true);
 				break;
 			}
 		}
@@ -827,7 +825,6 @@ HBITMAP renderer::GetThumbnail(void)
 							}
 
 							// Draw text to offscreen surface
-
 							if (!empty_text)
 							{
 								const INT text_len = (INT)current_text.size();
@@ -969,6 +966,16 @@ HBITMAP renderer::GetThumbnail(void)
 						}
 					}
 				}
+				else
+				{
+					// so we've got something irrespective of the mode being used
+					// it's simpler to ensure that the background has been filled
+					// in with something that'll act like it's transparent to not
+					// have it showing as a black rectangle if something fails...
+					gfx.FillRectangle(&Gdiplus::SolidBrush(Gdiplus::Color::MakeARGB(2, 0, 0, 0)),
+									  static_cast<Gdiplus::REAL>(0), static_cast<Gdiplus::REAL>(0), 
+									  static_cast<Gdiplus::REAL>(m_width), static_cast<Gdiplus::REAL>(m_height));
+				}
 
 				// Draw progressbar (only if there's a need to do so)
 				if (m_settings.Thumbnailpb &&
@@ -993,6 +1000,7 @@ HBITMAP renderer::GetThumbnail(void)
 					Gdiplus::RectF R2((Gdiplus::REAL)m_width - 56, (Gdiplus::REAL)Y, 10, 9);
 
 					gfx.FillRectangle(&b1, 46, Y, m_width - 94, 9);
+
 					gfx.DrawLine(&p2, 46, Y + 2, 46, Y + 6);
 					gfx.DrawLine(&p2, m_width - 48, Y + 2, m_width - 48, Y + 6);
 
@@ -1045,13 +1053,6 @@ renderer::~renderer()
 	ClearBackground();
 	ClearCustomBackground();
 	ClearFonts();
-
-	/*if (gdiplusToken != 0)
-	{
-		gdiplusStartupOutput.NotificationUnhook(gdiplusToken);
-		Gdiplus::GdiplusShutdown(gdiplusToken);
-		gdiplusToken = gdiplusBgThreadToken = 0;
-	}*/
 }
 
 void renderer::SetDimensions(const int new_w, const int new_h) 
@@ -1062,7 +1063,7 @@ void renderer::SetDimensions(const int new_w, const int new_h)
 
 void renderer::ClearAlbumart(void)
 {
-	if (albumart)
+	if (albumart != NULL)
 	{
 		delete albumart;
 		albumart = NULL;
@@ -1073,7 +1074,7 @@ void renderer::ClearBackground(void)
 {
 	EnterCriticalSection(&background_cs);
 
-	if (background)
+	if (background != NULL)
 	{
 		__try
 		{
@@ -1111,7 +1112,7 @@ void renderer::ThumbnailPopup(void)
 
 void renderer::ClearCustomBackground(void)
 {
-	if (custom_img)
+	if (custom_img != NULL)
 	{
 		delete custom_img;
 		custom_img = NULL;

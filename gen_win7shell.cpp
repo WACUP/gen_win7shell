@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.6.3"
+#define PLUGIN_VERSION L"4.7"
 
 #define NR_BUTTONS 15
 
@@ -499,7 +499,7 @@ DWORD WINAPI UpdateThread(LPVOID lp)
 	while (running && CreateThumbnailDrawer())
 	{
 		const HBITMAP thumbnail = (running && (thumbnaildrawer != NULL) ?
-								   thumbnaildrawer->GetThumbnail() : NULL);
+								   thumbnaildrawer->GetThumbnail(false) : NULL);
 		if (thumbnail != NULL)
 		{
 			HRESULT hr = S_OK;
@@ -885,7 +885,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					(wParam == IPC_CB_MISC_AA_OPT_CHANGED) ||
 					(wParam == IPC_CB_MISC_TITLE_RATING) ||
 					(wParam == IPC_CB_MISC_ON_STOP) ||
-					(wParam == IPC_CB_MISC_ADVANCED_ON_STOP)))
+					(wParam == IPC_CB_MISC_ADVANCED_NEXT_ON_STOP)))
 				{
 					LPCWSTR p = GetPlayingFilename(0, NULL);
 					if (p != NULL)
