@@ -797,6 +797,9 @@ HBITMAP renderer::GetThumbnail(const bool clear)
 														static_cast<INT>(ret_rect.GetBottom() - 1),
 														PixelFormat32bppPARGB);
 
+							const int bmp_width = (int)text_bitmap.GetWidth(),
+									  bmp_height = (int)text_bitmap.GetHeight();
+
 							Gdiplus::Graphics text_gfx(&text_bitmap);
 
 							// Graphics setup
@@ -879,12 +882,10 @@ HBITMAP renderer::GetThumbnail(const bool clear)
 							// Draw text bitmap to final bitmap with scrolling as needed
 							// based on the icon vs background image mode where the area
 							// can vary depending on the size of things vs overall image
-							if ((text_bitmap.GetWidth() > (UINT)(CX + 2)) && !current_settings.dontscroll)
+							if ((bmp_width > (CX + 2)) && !current_settings.dontscroll)
 							{
 								// Draw scrolling text
 								int left = m_textpositions[text_index];
-								const int bmp_width = (int)text_bitmap.GetWidth(),
-										  bmp_height = (int)text_bitmap.GetHeight();
 
 								if (left + bmp_width < 0)
 								{
@@ -919,16 +920,14 @@ HBITMAP renderer::GetThumbnail(const bool clear)
 								if (current_settings.center)
 								{
 									// Center text
-									const int newleft = X + ((CX / 2) - (text_bitmap.GetWidth() / 2));
+									const int newleft = X + ((CX / 2) - (bmp_width / 2));
 									gfx.DrawImage(&text_bitmap, newleft, (int)textheight, 0, 0,
-												  text_bitmap.GetWidth(), text_bitmap.GetHeight(),
-												  Gdiplus::UnitPixel);          
+												  bmp_width, bmp_height, Gdiplus::UnitPixel);          
 								}
 								else
 								{
 									gfx.DrawImage(&text_bitmap, X, (int)textheight, 0, 0,
-												  text_bitmap.GetWidth(), text_bitmap.GetHeight(),
-												  Gdiplus::UnitPixel);          
+												  bmp_width, bmp_height, Gdiplus::UnitPixel);          
 								}
 
 								// Nr. pixels text jumps on each step when scrolling
@@ -937,7 +936,7 @@ HBITMAP renderer::GetThumbnail(const bool clear)
 
 							gfx.ResetClip();
 
-							textheight += text_bitmap.GetHeight();
+							textheight += bmp_height;
 						}
 
 						if (m_textpause > 0)
@@ -976,14 +975,10 @@ HBITMAP renderer::GetThumbnail(const bool clear)
 				if (m_settings.Thumbnailpb &&
 					(m_settings.play_total > 0) &&
 					(m_settings.play_current > 0))
-				{
+				{\
 					gfx.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
 
-					int Y = canvas->GetHeight() - 10;
-					if (m_settings.Shrinkframe)
-					{
-						Y = (int)(textheight - 10);
-					}
+					const int Y = (!m_settings.Shrinkframe ? (canvas->GetHeight() - 10) : (int)(textheight - 10));
 
 					Gdiplus::Pen p1(Gdiplus::Color::MakeARGB(0xFF, 0xFF, 0xFF, 0xFF), 1);
 					Gdiplus::Pen p2(Gdiplus::Color::MakeARGB(80, 0, 0, 0), 1);
