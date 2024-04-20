@@ -16,36 +16,6 @@ WA_UTILS_API HBITMAP GetMainWindowBmp(void);
 
 extern CRITICAL_SECTION background_cs;
 
-Gdiplus::Bitmap* ResizeAndCloneBitmap(Gdiplus::Bitmap *bmp, const float width, const float height)
-{
-	const UINT o_height = bmp->GetHeight(),
-			   o_width = bmp->GetWidth();
-	const float ratio = ((float)o_width) / ((float)o_height);
-	float n_width = width, n_height = height;
-
-	if (o_width > o_height)
-	{
-		n_height = (n_width / ratio);
-	}
-	else
-	{
-		n_width = (n_height * ratio);
-	}
-
-	Gdiplus::Bitmap* newBitmap = new Gdiplus::Bitmap(static_cast<int>(n_width),
-													 static_cast<int>(n_height),
-													 bmp->GetPixelFormat());
-	if (newBitmap)
-	{
-		Gdiplus::Graphics graphics(newBitmap);
-		graphics.DrawImage(bmp, static_cast<Gdiplus::REAL>(0),
-						   static_cast<Gdiplus::REAL>(0),
-						   static_cast<Gdiplus::REAL>(n_width),
-						   static_cast<Gdiplus::REAL>(n_height));
-	}
-	return newBitmap;
-}
-
 bool renderer::getAlbumArt(const std::wstring &fname)
 {
 	if (running && !albumart && (WASABI_API_ALBUMART != NULL))
@@ -112,11 +82,36 @@ bool renderer::getAlbumArt(const std::wstring &fname)
 			// we don't want to keep doing this as it is going
 			// to be very slow especially with >600x600 images
 			// so we cache a re-sized image and then draw that
-			albumart = (cur_image ? ResizeAndCloneBitmap(&tmpbmp, new_width, new_height) : NULL);
-
-			if (cur_image)
+			if (cur_image != NULL)
 			{
+				const float ratio = (cur_h * 1.f) / (cur_h * 1.f);
+
+				if (cur_w > cur_h)
+				{
+					new_height = (new_width / ratio);
+				}
+				else
+				{
+					new_width = (new_height * ratio);
+				}
+
+				albumart = new Gdiplus::Bitmap(static_cast<int>(new_width),
+											   static_cast<int>(new_height),
+											   tmpbmp.GetPixelFormat());
+				if (albumart)
+				{
+					Gdiplus::Graphics graphics(albumart);
+					graphics.DrawImage(&tmpbmp, static_cast<Gdiplus::REAL>(0),
+												static_cast<Gdiplus::REAL>(0),
+												static_cast<Gdiplus::REAL>(new_width),
+												static_cast<Gdiplus::REAL>(new_height));
+				}
+
 				plugin.memmgr->sysFree(cur_image);
+			}
+			else
+			{
+				albumart = NULL;
 			}
 		}
 		else
