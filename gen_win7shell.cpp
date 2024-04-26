@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.7.1"
+#define PLUGIN_VERSION L"4.7.2"
 
 #define NR_BUTTONS 15
 
@@ -499,7 +499,7 @@ DWORD WINAPI UpdateThread(LPVOID lp)
 	while (running && CreateThumbnailDrawer())
 	{
 		const HBITMAP thumbnail = (running && (thumbnaildrawer != NULL) ?
-								   thumbnaildrawer->GetThumbnail(false) : NULL);
+								   thumbnaildrawer->GetThumbnail(false, false) : NULL);
 		if (thumbnail != NULL)
 		{
 			HRESULT hr = S_OK;
@@ -560,7 +560,7 @@ void ResetThumbnail(void)
 	if (CreateThumbnailDrawer(false))
 	{
 		thumbnaildrawer->ClearAlbumart();
-		thumbnaildrawer->ClearBackground();
+		thumbnaildrawer->ClearBackground(false);
 		thumbnaildrawer->ClearCustomBackground();
 		thumbnaildrawer->ClearFonts();
 		thumbnaildrawer->ThumbnailPopup();
@@ -838,7 +838,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					{
 						// this is needed when the vu mode is enabled to allow the
 						// data to be obtained if the main wnidow mode is disabled
-						static void(*export_sa_setreq)(int) = (void(__cdecl*)(int))GetSADataFunc(1);
+						static void (__cdecl *export_sa_setreq)(int) = (void (__cdecl *)(int))GetSADataFunc(1);
 						if (export_sa_setreq)
 						{
 							export_sa_setreq(Settings.VuMeter);
@@ -1347,9 +1347,9 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 				// this also forces these modes to work
 				// when using a classic skin & sa/vu is
 				// disabled like gen_ff has to work ok.
-				static int (*export_vu_get)(int channel) =
-					   (int(__cdecl *)(int))GetVUDataFunc();
-				static char * (*export_sa_get)(char data[75*2+8]) =
+				static int (__cdecl *export_vu_get)(int channel) =
+					   (int (__cdecl *)(int))GetVUDataFunc();
+				static char * (__cdecl *export_sa_get)(char data[75*2+8]) =
 					   (char * (__cdecl *)(char data[75*2+8]))GetSADataFunc(2);
 				int audiodata = (export_vu_get ? export_vu_get(0) : -1);
 

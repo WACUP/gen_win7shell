@@ -16,7 +16,7 @@ WA_UTILS_API HBITMAP GetMainWindowBmp(void);
 
 extern CRITICAL_SECTION background_cs;
 
-bool renderer::getAlbumArt(const std::wstring &fname)
+bool renderer::getAlbumArt(const std::wstring &fname, const bool skip_lock)
 {
 	if (running && !albumart && (WASABI_API_ALBUMART != NULL))
 	{
@@ -196,11 +196,11 @@ bool renderer::getAlbumArt(const std::wstring &fname)
 	// try to get the custom/fallback to
 	// be shown to avoid a blank preview
 	fail = true;
-	GetThumbnail(true);
+	GetThumbnail(true, skip_lock);
 	return false;
 }
 
-HBITMAP renderer::GetThumbnail(const bool clear)
+HBITMAP renderer::GetThumbnail(const bool clear, const bool skip_lock)
 {
 	// not everyone is going to even cause the
 	// preview to be generated so we will wait
@@ -213,7 +213,7 @@ HBITMAP renderer::GetThumbnail(const bool clear)
 
 	if (clear)
 	{
-		ClearBackground();
+		ClearBackground(skip_lock);
 	}
 
 	//Calculate icon size
@@ -244,7 +244,10 @@ HBITMAP renderer::GetThumbnail(const bool clear)
 	bool tempfail = fail;
 	int iconposition = m_settings.IconPosition;
 
-	EnterCriticalSection(&background_cs);
+	if (!skip_lock)
+	{
+		EnterCriticalSection(&background_cs);
+	}
 
 	// Draw background if not valid
 	if (!background)
@@ -272,10 +275,12 @@ HBITMAP renderer::GetThumbnail(const bool clear)
 
 		no_icon = no_text = fail = false;
 
-		LeaveCriticalSection(&background_cs);
-
 		if (!background)
 		{
+			if (!skip_lock)
+			{
+				LeaveCriticalSection(&background_cs);
+			}
 			return NULL;
 		}
 
@@ -448,7 +453,7 @@ HBITMAP renderer::GetThumbnail(const bool clear)
 			case BG_ALBUMART:
 			{
 				// get album art
-				if (!getAlbumArt(m_metadata.getFileName()) &&
+				if (!getAlbumArt(m_metadata.getFileName(), skip_lock) &&
 					(m_settings.Revertto != BG_ALBUMART))
 				{
 					// so it can be handled quicker
@@ -617,8 +622,6 @@ HBITMAP renderer::GetThumbnail(const bool clear)
 								}
 							}
 
-							EnterCriticalSection(&background_cs);
-
 							if (background != NULL)
 							{
 								delete background;
@@ -635,8 +638,6 @@ HBITMAP renderer::GetThumbnail(const bool clear)
 
 							fail = (background == NULL);
 
-							LeaveCriticalSection(&background_cs);
-
 							// so we can attempt to do something
 							// we'll clear this so either what's
 							// been found will show or it'll set
@@ -647,7 +648,7 @@ HBITMAP renderer::GetThumbnail(const bool clear)
 						else if (m_settings.Revertto != BG_CUSTOM)
 						{
 							fail = true;
-							GetThumbnail(true);
+							GetThumbnail(true, true);
 							break;
 						}
 					}
@@ -655,21 +656,17 @@ HBITMAP renderer::GetThumbnail(const bool clear)
 				else if (m_settings.Revertto != BG_CUSTOM)
 				{
 					fail = true;
-					GetThumbnail(true);
+					GetThumbnail(true, true);
 				}
 				break;
 			}
 			default:
 			{
 				fail = true;
-				GetThumbnail(true);
+				GetThumbnail(true, true);
 				break;
 			}
 		}
-	}
-	else
-	{
-		LeaveCriticalSection(&background_cs);
 	}
 
 	HBITMAP retbmp = NULL;
@@ -678,6 +675,12 @@ HBITMAP renderer::GetThumbnail(const bool clear)
 		Gdiplus::REAL textheight = 0;
 		Gdiplus::Bitmap *canvas = (background ? background->Clone(0, 0, background->GetWidth(),
 									   background->GetHeight(), PixelFormat32bppPARGB) : NULL);
+
+		if (!skip_lock)
+		{
+			LeaveCriticalSection(&background_cs);
+		}
+
 		if (canvas)
 		{
 			Gdiplus::Graphics gfx(canvas);
@@ -1026,6 +1029,10 @@ HBITMAP renderer::GetThumbnail(const bool clear)
 			delete canvas;
 		}
 	}
+	else if(!skip_lock)
+	{
+		LeaveCriticalSection(&background_cs);
+	}
 	return retbmp;
 }
 
@@ -1040,7 +1047,7 @@ renderer::renderer(sSettings& settings, MetaData &metadata) :
 renderer::~renderer()
 {
 	ClearAlbumart();
-	ClearBackground();
+	ClearBackground(false);
 	ClearCustomBackground();
 	ClearFonts();
 }
@@ -1060,9 +1067,12 @@ void renderer::ClearAlbumart(void)
 	}
 }
 
-void renderer::ClearBackground(void)
+void renderer::ClearBackground(const bool skip_lock)
 {
-	EnterCriticalSection(&background_cs);
+	if (!skip_lock)
+	{
+		EnterCriticalSection(&background_cs);
+	}
 
 	if (background != NULL)
 	{
@@ -1073,10 +1083,14 @@ void renderer::ClearBackground(void)
 		__except (EXCEPTION_EXECUTE_HANDLER)
 		{
 		}
+
 		background = NULL;
 	}
 
-	LeaveCriticalSection(&background_cs);
+	if (!skip_lock)
+	{
+		LeaveCriticalSection(&background_cs);
+	}
 }
 
 void renderer::ClearFonts(void)

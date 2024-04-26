@@ -15,12 +15,12 @@ public:
 	renderer(sSettings& settings, MetaData &metadata);
 	~renderer();
 
-	bool getAlbumArt(const std::wstring &fname);
+	bool getAlbumArt(const std::wstring &fname, const bool skip_lock);
 	typedef unsigned long ARGB32;
 
-	HBITMAP GetThumbnail(const bool clear);
+	HBITMAP GetThumbnail(const bool clear, const bool skip_lock);
 	void ClearAlbumart(void);
-	void ClearBackground(void);
+	void ClearBackground(const bool skip_lock);
 	void ClearCustomBackground(void);
 	void ClearFonts(void);
 	void ThumbnailPopup(void);
