@@ -28,7 +28,7 @@ bool renderer::getAlbumArt(const std::wstring &fname, const bool skip_lock)
 		int cur_w = 0, cur_h = 0;
 
 		if (WASABI_API_ALBUMART->GetAlbumArtResize(fname.c_str(), L"cover", &cur_w, &cur_h,
-												&cur_image, 600, 600, 0) == ALBUMART_SUCCESS)
+										&cur_image, 600, 600, 0, NULL) == ALBUMART_SUCCESS)
 		{
 			BITMAPINFO bmi = { 0 };
 			InitBitmapForARGB32(&bmi, cur_w, cur_h);
@@ -672,17 +672,12 @@ HBITMAP renderer::GetThumbnail(const bool clear, const bool skip_lock)
 	HBITMAP retbmp = NULL;
 	if (!tempfail)
 	{
-		Gdiplus::REAL textheight = 0;
 		Gdiplus::Bitmap *canvas = (background ? background->Clone(0, 0, background->GetWidth(),
 									   background->GetHeight(), PixelFormat32bppPARGB) : NULL);
 
-		if (!skip_lock)
-		{
-			LeaveCriticalSection(&background_cs);
-		}
-
 		if (canvas)
 		{
+			Gdiplus::REAL textheight = 0;
 			Gdiplus::Graphics gfx(canvas);
 
 			if (!no_text)
@@ -978,7 +973,7 @@ HBITMAP renderer::GetThumbnail(const bool clear, const bool skip_lock)
 				if (m_settings.Thumbnailpb &&
 					(m_settings.play_total > 0) &&
 					(m_settings.play_current > 0))
-				{\
+				{
 					gfx.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
 
 					const int Y = (!m_settings.Shrinkframe ? (canvas->GetHeight() - 10) : (int)(textheight - 10));
@@ -1029,7 +1024,8 @@ HBITMAP renderer::GetThumbnail(const bool clear, const bool skip_lock)
 			delete canvas;
 		}
 	}
-	else if(!skip_lock)
+	
+	if (!skip_lock)
 	{
 		LeaveCriticalSection(&background_cs);
 	}
