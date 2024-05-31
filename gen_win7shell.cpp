@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.7.3"
+#define PLUGIN_VERSION L"4.7.5"
 
 #define NR_BUTTONS 15
 
@@ -62,9 +62,7 @@ iTaskBar *itaskbar = NULL;
 MetaData *metadata = NULL;
 renderer *thumbnaildrawer = NULL;
 HANDLE updatethread = NULL, setupthread = NULL;
-CRITICAL_SECTION background_cs = { 0 },
-				 overlay_icons_cs = { 0 },
-				 thumbnai_icons_cs = { 0 };
+CRITICAL_SECTION g_cs[4] = { 0 };
 HIMAGELIST theicons = NULL, overlayicons = NULL;
 
 api_albumart *WASABI_API_ALBUMART = 0;
@@ -243,9 +241,10 @@ int init(void)
 							   GenWin7PlusShellLangGUID, IDS_PLUGIN_NAME,
 							   PLUGIN_VERSION, &plugin.description);
 
-	InitializeCriticalSectionEx(&background_cs, 400, CRITICAL_SECTION_NO_DEBUG_INFO);
-	InitializeCriticalSectionEx(&overlay_icons_cs, 400, CRITICAL_SECTION_NO_DEBUG_INFO);
-	InitializeCriticalSectionEx(&thumbnai_icons_cs, 400, CRITICAL_SECTION_NO_DEBUG_INFO);
+	for (int i = 0; i < ARRAYSIZE(g_cs); i++)
+	{
+		InitializeCriticalSectionEx(&g_cs[i], 400, CRITICAL_SECTION_NO_DEBUG_INFO);
+	}
 
 	return GEN_INIT_SUCCESS;/*/
 	return GEN_INIT_FAILURE;/**/
@@ -344,9 +343,10 @@ void quit(void)
 	//ServiceRelease(plugin.service, WASABI_API_LNG, languageApiGUID);
 	//ServiceRelease(plugin.service, WASABI_API_EXPLORERFINDFILE, ExplorerFindFileApiGUID);
 
-	DeleteCriticalSection(&background_cs);
-	DeleteCriticalSection(&overlay_icons_cs);
-	DeleteCriticalSection(&thumbnai_icons_cs);
+	for (int i = 0; i < ARRAYSIZE(g_cs); i++)
+	{
+		DeleteCriticalSection(&g_cs[i]);
+	}
 }
 
 void updateToolbar(HIMAGELIST ImageList)
@@ -710,6 +710,8 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 			{
 				Settings.play_playlistpos = GetPlaylistPosition();
 
+				EnterCriticalSection(&metadata_cs);
+
 				std::wstring filename((wParam ? (wchar_t*)wParam : L""));
 				if (filename.empty())
 				{
@@ -721,6 +723,8 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				}
 
 				MetaData* meta_data = reset_metadata(filename.c_str());
+
+				LeaveCriticalSection(&metadata_cs);
 
 				Settings.play_total = GetCurrentTrackLengthMilliSeconds();
 				Settings.play_current = 0;
@@ -887,11 +891,15 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					(wParam == IPC_CB_MISC_ON_STOP) ||
 					(wParam == IPC_CB_MISC_ADVANCED_NEXT_ON_STOP)))
 				{
+					EnterCriticalSection(&metadata_cs);
+
 					LPCWSTR p = GetPlayingFilename(0, NULL);
 					if (p != NULL)
 					{
 						reset_metadata(p);
 					}
+
+					LeaveCriticalSection(&metadata_cs);
 
 					DwmInvalidateIconicBitmaps(hWnd);
 					ResetThumbnail();
@@ -946,11 +954,15 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 						}
 					}
 
+					EnterCriticalSection(&metadata_cs);
+
 					LPCWSTR p = GetPlayingFilename(0, NULL);
 					if (p != NULL)
 					{
 						reset_metadata(p);
 					}
+
+					LeaveCriticalSection(&metadata_cs);
 
 					if (CreateThumbnailDrawer())
 					{
@@ -1068,7 +1080,9 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 						LPCWSTR filename = meta_data->getFileName();
 						if (filename && *filename)
 						{
-							if (FileExists(filename))
+							wchar_t filepath[FILENAME_SIZE] = { 0 };
+							if (FileExists(GetRealFilePath(filename,
+									filepath, ARRAYSIZE(filepath))))
 							{
 								/*if (WASABI_API_EXPLORERFINDFILE == NULL)
 								{
@@ -1080,27 +1094,6 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 									WASABI_API_EXPLORERFINDFILE->ShowFiles();
 								}/*/
 								plugin.explorerfindfile->AddAndShowFile(filename);
-							}
-							else
-							{
-								// TODO it would be useful if there was a common interface
-								//		that allows for determining the real filename when
-								//		there's extras after the extension or custom urls
-								//		so it can just be used where needed without plug-in
-								//		workarounds to fix issues (explorerfindfile is meant
-								//		cope with zip:// but for some reason it fails now &
-								//		it just won't cope with cda:// style entries either)
-								if (IsZipEntry(filename))
-								{
-									filename += 6;
-								}
-
-								// if there's an extension then we'll give it another go
-								// as typically no extension means that it won't work...
-								if (FindPathExtension(filename))
-								{
-									plugin.explorerfindfile->AddAndShowFile(filename);
-								}
 							}
 						}
 					}
@@ -1118,14 +1111,15 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 						SendMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(40047, 0), 0);
 						Settings.play_state = PLAYSTATE_NOTPLAYING;
 
-						plugin.metadata->ClearCache(NULL, FindPathExtension(path));
+						plugin.metadata->ClearCacheByFileType(path);
 
 						SHFILEOPSTRUCT fileop = { 0, FO_DELETE, path, 0, (FILEOP_FLAGS)
 												  ((GetPlaylistRecycleMode() ? FOF_ALLOWUNDO :
 																0) | FOF_FILESONLY), 0, 0, 0 };
 						if (!FileAction(&fileop))
 						{
-							SendMessage(GetPlaylistWnd(), WM_WA_IPC, IPC_PE_DELETEINDEX, GetPlaylistPosition());
+							/*SendMessage(GetPlaylistWnd(), WM_WA_IPC, IPC_PE_DELETEINDEX, GetPlaylistPosition());/*/
+							PlaylistRemoveItem(GetPlaylistPosition());/**/
 						}
 
 						if (saved_play_state == PLAYSTATE_PLAYING)
@@ -1282,7 +1276,12 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 							if (count2 == 8)
 							{   
 								count2 = 0;
+
+								EnterCriticalSection(&metadata_cs);
+
 								reset_metadata(L"", true);
+
+								LeaveCriticalSection(&metadata_cs);
 							}
 							else
 							{
@@ -1508,11 +1507,15 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 			Settings.play_total = GetCurrentTrackLengthMilliSeconds();
 			Settings.play_volume = (int)GetSetVolume((WPARAM)-666, FALSE);
 
+			EnterCriticalSection(&metadata_cs);
+
 			LPCWSTR p = GetPlayingFilename(1, NULL);
 			if (p != NULL)
 			{
 				reset_metadata(p);
 			}
+
+			LeaveCriticalSection(&metadata_cs);
 
 			// update shuffle and repeat
 			Settings.state_shuffle = GetShuffle();

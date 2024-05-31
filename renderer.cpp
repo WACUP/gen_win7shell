@@ -14,8 +14,6 @@
 
 WA_UTILS_API HBITMAP GetMainWindowBmp(void);
 
-extern CRITICAL_SECTION background_cs;
-
 bool renderer::getAlbumArt(const std::wstring &fname, const bool skip_lock)
 {
 	if (running && !albumart && (WASABI_API_ALBUMART != NULL))
