@@ -670,8 +670,16 @@ HBITMAP renderer::GetThumbnail(const bool clear, const bool skip_lock)
 	HBITMAP retbmp = NULL;
 	if (!tempfail)
 	{
-		Gdiplus::Bitmap *canvas = (background ? background->Clone(0, 0, background->GetWidth(),
-									   background->GetHeight(), PixelFormat32bppPARGB) : NULL);
+		Gdiplus::Bitmap* canvas = NULL;
+		
+		__try
+		{
+			canvas = (background ? background->Clone(0, 0, background->GetWidth(),
+					  background->GetHeight(), PixelFormat32bppPARGB) : NULL);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+		}
 
 		if (canvas)
 		{

@@ -42,11 +42,12 @@ std::wstring MetaData::getMetadata(const std::wstring &tag, void **token, bool* 
 			const bool artist = (tag == L"artist"), title = (tag == L"title");
 			if (title || artist)
 			{
-				ret = GetPlayingTitle(0);
-				if (ret.empty())
+				LPCWSTR playing_title = GetPlayingTitle(0);
+				if (!playing_title || !*playing_title)
 				{
 					return L"";
 				}
+				ret = playing_title;
 
 				size_t pos = ret.find_first_of('-');
 				if (pos != std::wstring::npos && pos != 0)

@@ -130,7 +130,9 @@ namespace tools
 			}
 		}
 
-		return ((strID != -1) ? WASABI_API_LNGSTRINGW(strID) : L"");
+		static wchar_t menu_string[64] = { 0 };
+		return ((strID != -1) ? WASABI_API_LNGSTRINGW_BUF(strID,
+					menu_string, ARRAYSIZE(menu_string)) : L"");
 	}
 
 	HRESULT CreateShellLink(LPCWSTR filename, LPCWSTR pszTitle, IShellLink **ppsl)
