@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.7.6"
+#define PLUGIN_VERSION L"4.7.7"
 
 #define NR_BUTTONS 15
 
@@ -1824,6 +1824,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 			}
 			
 			// Set button icons
+			// TODO would be nice for this to work
 			//		better when dark mode is used!
 			for (int i = 0; i < NR_BUTTONS; i++)
 			{

@@ -674,8 +674,8 @@ HBITMAP renderer::GetThumbnail(const bool clear, const bool skip_lock)
 		
 		__try
 		{
-			canvas = (background ? background->Clone(0, 0, background->GetWidth(),
-					  background->GetHeight(), PixelFormat32bppPARGB) : NULL);
+			canvas = (background ? background->Clone(0, 0, m_width, m_height,
+											  PixelFormat32bppPARGB) : NULL);
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER)
 		{
