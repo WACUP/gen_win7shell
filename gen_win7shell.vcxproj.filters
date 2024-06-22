@@ -159,5 +159,8 @@
     <None Include="gen_win7shell.def">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="Resources\about.bin.gz">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

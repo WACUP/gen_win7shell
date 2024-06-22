@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.7.7"
+#define PLUGIN_VERSION L"4.7.8"
 
 #define NR_BUTTONS 15
 
@@ -267,9 +267,19 @@ void config(void)
 	{
 		case 1:
 		{
-			wchar_t text[512] = { 0 };
-			StringCchPrintf(text, ARRAYSIZE(text), WASABI_API_LNGSTRINGW(IDS_ABOUT_MESSAGE),
-							WACUP_AUTHOR_STRW L" (2018-" WACUP_COPYRIGHT L")", TEXT(__DATE__));
+			wchar_t text[1024] = { 0 };
+
+			DWORD data_size = 0;
+			unsigned char *data = (unsigned char *)WASABI_API_LNG->LoadResourceFromFileW(plugin.hDllInstance,
+									  plugin.hDllInstance, L"GZ", MAKEINTRESOURCE(IDR_ABOUT_GZ), &data_size);
+			unsigned char *output = NULL;
+			DecompressResource(data, data_size, &output, 0, false);
+
+			StringCchPrintf(text, ARRAYSIZE(text), (LPCWSTR)output, WACUP_AUTHOR_STRW
+									L" (2018-" WACUP_COPYRIGHT L")", TEXT(__DATE__));
+
+			DecompressResourceFree(output);
+
 			AboutMessageBox(list, text, (LPWSTR)plugin.description);
 			break;
 		}

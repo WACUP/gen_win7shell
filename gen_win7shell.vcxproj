@@ -165,6 +165,7 @@ copy "$(OutDir)$(ProjectName).dll" "$(ProgramFiles)\Winamp\Plugins" /y
   </ItemGroup>
   <ItemGroup>
     <None Include="gen_win7shell.def" />
+    <None Include="Resources\about.bin.gz" />
     <None Include="Resources\bookmark.ico" />
     <None Include="Resources\delete.ico" />
     <None Include="Resources\fav.ico" />
