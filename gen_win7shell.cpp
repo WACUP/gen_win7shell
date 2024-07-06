@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.7.8"
+#define PLUGIN_VERSION L"4.7.9"
 
 #define NR_BUTTONS 15
 
@@ -305,6 +305,7 @@ void quit(void)
 	KillTimer(plugin.hwndParent, 6670);
 	KillTimer(plugin.hwndParent, 6671);
 	KillTimer(plugin.hwndParent, 6672);
+	KillTimer(plugin.hwndParent, 6673);
 
 	if (updatethread != NULL)
 	{
@@ -838,7 +839,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 			{
 				if (wParam)
 				{
-					SetupJumpList();
+					SetTimer(plugin.hwndParent, 6673, 1000, TimerProc);
 				}
 				break;
 			}
@@ -1550,6 +1551,11 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 			}
 #endif
 			SetTimer(plugin.hwndParent, 6667, Settings.LowFrameRate ? 400 : 100, TimerProc);
+			break;
+		}
+		case 6673:
+		{
+			SetupJumpList();
 			break;
 		}
 	}
