@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.7.9"
+#define PLUGIN_VERSION L"4.7.10"
 
 #define NR_BUTTONS 15
 
@@ -558,6 +558,8 @@ void SetThumbnailTimer(void)
 
 	KillTimer(plugin.hwndParent, 6671);
 
+	CheckThreadHandleIsValid(&updatethread);
+
 	if (updatethread == NULL)
 	{
 		updatethread = StartThread(UpdateThread, 0, THREAD_PRIORITY_NORMAL, 0, NULL);
@@ -1092,8 +1094,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 						if (filename && *filename)
 						{
 							wchar_t filepath[FILENAME_SIZE] = { 0 };
-							if (FileExists(GetRealFilePath(filename,
-									filepath, ARRAYSIZE(filepath))))
+							if (GetRealFilePath(filename, filepath, ARRAYSIZE(filepath), true))
 							{
 								/*if (WASABI_API_EXPLORERFINDFILE == NULL)
 								{
@@ -2090,7 +2091,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 					MessageBox(GetPrefsHWND(), (LPCWSTR)output,
 							   WASABI_API_LNGSTRINGW(IDS_INFORMATION),
 												  MB_ICONINFORMATION);
-					plugin.memmgr->sysFree(output);
+					DecompressResourceFree(output);
 					break;
 				}
 				case IDC_DEFAULT:
