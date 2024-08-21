@@ -29,9 +29,9 @@ bool SettingsManager::GetBool(const std::wstring &key, const bool default_value)
 std::wstring SettingsManager::GetString(wchar_t *output, const size_t output_len, const std::wstring &key,
 										const std::wstring &default_value, const size_t max_size) const
 {
-	LPCSTR _section = AutoCharDup((LPWSTR)currentSection.c_str(), CP_UTF8),
-		   _key = AutoCharDup((LPWSTR)key.c_str(), CP_UTF8),
-		   _default = AutoCharDup((LPWSTR)default_value.c_str(), CP_UTF8),
+	LPCSTR _section = AutoCharDupN((LPWSTR)currentSection.c_str(), currentSection.size(), CP_UTF8),
+		   _key = AutoCharDupN((LPWSTR)key.c_str(), key.size(), CP_UTF8),
+		   _default = AutoCharDupN((LPWSTR)default_value.c_str(), default_value.size(), CP_UTF8),
 		   _file = ConvertPathToA((LPWSTR)settingsFile.c_str(), NULL, 0, CP_ACP);
 
 	std::string buffer;
@@ -80,20 +80,18 @@ void SettingsManager::WriteBool(const std::wstring &key, const bool value,
 void SettingsManager::WriteString(const std::wstring &key, const std::wstring &value,
 								  const std::wstring &default_value) const
 {
-	LPCSTR _section = AutoCharDup((LPWSTR)currentSection.c_str(), CP_UTF8),
-		   _key = AutoCharDup((LPWSTR)key.c_str(), CP_UTF8),
+	LPCSTR _section = AutoCharDupN((LPWSTR)currentSection.c_str(), currentSection.size(), CP_UTF8),
+		   _key = AutoCharDupN((LPWSTR)key.c_str(), key.size(), CP_UTF8),
 		   _file = ConvertPathToA((LPWSTR)settingsFile.c_str(), NULL, 0, CP_ACP);
 	if (value != default_value)
 	{
-		LPCSTR _value = AutoCharDup((LPWSTR)value.c_str(), CP_UTF8);
-		WritePrivateProfileStringA(_section, _key,
-								   _value, _file);
+		LPCSTR _value = AutoCharDupN((LPWSTR)value.c_str(), value.size(), CP_UTF8);
+		WritePrivateProfileStringA(_section, _key, _value, _file);
 		AutoCharDupFree((void *)_value);
 	}
 	else
 	{
-		WritePrivateProfileStringA(_section, _key,
-								   NULL, _file);
+		WritePrivateProfileStringA(_section, _key, NULL, _file);
 	}
 	AutoCharDupFree((void *)_section);
 	AutoCharDupFree((void *)_key);

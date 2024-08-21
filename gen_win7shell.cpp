@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.7.10"
+#define PLUGIN_VERSION L"4.7.11"
 
 #define NR_BUTTONS 15
 
@@ -31,7 +31,6 @@
 #include "settings.h"
 #include "taskbar.h"
 #include "renderer.h"
-#include <../wacup_version.h>
 
 // TODO add to lang.h
 // Taskbar Integration plugin (gen_win7shell.dll)
@@ -275,8 +274,8 @@ void config(void)
 			unsigned char *output = NULL;
 			DecompressResource(data, data_size, &output, 0, false);
 
-			StringCchPrintf(text, ARRAYSIZE(text), (LPCWSTR)output, WACUP_AUTHOR_STRW
-									L" (2018-" WACUP_COPYRIGHT L")", TEXT(__DATE__));
+			StringCchPrintf(text, ARRAYSIZE(text), (LPCWSTR)output, WACUP_Author(),
+												WACUP_Copyright(), TEXT(__DATE__));
 
 			DecompressResourceFree(output);
 
