@@ -268,11 +268,8 @@ void config(void)
 		{
 			wchar_t text[1024] = { 0 };
 
-			DWORD data_size = 0;
-			unsigned char *data = (unsigned char *)WASABI_API_LNG->LoadResourceFromFileW(plugin.hDllInstance,
-									  plugin.hDllInstance, L"GZ", MAKEINTRESOURCE(IDR_ABOUT_GZ), &data_size);
-			unsigned char *output = NULL;
-			DecompressResource(data, data_size, &output, 0, false);
+			const unsigned char* output = DecompressResourceText(plugin.hDllInstance,
+												  plugin.hDllInstance, IDR_ABOUT_GZ);
 
 			StringCchPrintf(text, ARRAYSIZE(text), (LPCWSTR)output, WACUP_Author(),
 												WACUP_Copyright(), TEXT(__DATE__));
@@ -2081,15 +2078,13 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 				}
 				case IDC_BUTTON_HELP:
 				{
-					DWORD data_size = 0;
-					unsigned char *data = (unsigned char *)WASABI_API_LOADRESFROMFILEW(L"GZ",
-												   MAKEINTRESOURCEW(IDR_HELP_GZ), &data_size),
-								  *output = NULL;
+					const unsigned char* output = DecompressResourceText(WASABI_API_LNG_HINST,
+													WASABI_API_ORIG_HINST, IDR_HELP_GZ, true);
 
-					DecompressResource(data, data_size, &output, 0, true);
 					MessageBox(GetPrefsHWND(), (LPCWSTR)output,
 							   WASABI_API_LNGSTRINGW(IDS_INFORMATION),
 												  MB_ICONINFORMATION);
+
 					DecompressResourceFree(output);
 					break;
 				}
