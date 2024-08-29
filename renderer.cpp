@@ -746,11 +746,11 @@ HBITMAP renderer::GetThumbnail(const bool clear, const bool skip_lock)
 
 							if (!large_font)
 							{
+								const int dpi_y = GetDeviceCaps(h_gfx, LOGPIXELSY);
 								LOGFONT _large_font = m_settings.font;
-								LONG large_size = -((m_settings.font.lfHeight * 72) /
-													GetDeviceCaps(h_gfx, LOGPIXELSY));
+								LONG large_size = -((m_settings.font.lfHeight * 72) / dpi_y);
 								large_size += 4;
-								_large_font.lfHeight = -MulDiv(large_size, GetDeviceCaps(h_gfx, LOGPIXELSY), 72);
+								_large_font.lfHeight = -MulDiv(large_size, dpi_y, 72);
 								large_font = new Gdiplus::Font(h_gfx, &_large_font);
 							}
 

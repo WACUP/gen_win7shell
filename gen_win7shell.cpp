@@ -2339,7 +2339,7 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 						COMDLG_FILTERSPEC rgSpec[] =
 						{ 
 							{ WASABI_API_LNGSTRINGW_BUF(IDS_ALL_IMAGE_FORMATS, tmp, 128),
-							L"*.bmp;*.gif;*.jpg;*.jpeg;*.png"
+							L"*.bmp;*.gif;*.jpg;*.jpeg;*.png;*webp"
 							}
 						};
 
