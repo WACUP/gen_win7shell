@@ -1236,6 +1236,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 
 			if (setupthread != NULL)
 			{
+				CheckThreadHandleIsValid(&updatethread);
 				break;
 			}
 
