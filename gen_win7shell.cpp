@@ -16,6 +16,7 @@
 
 #include "gen_win7shell.h"
 #include <loader/loader/utils.h>
+#include <loader/loader/runtime_helper.h>
 #include <loader/hook/squash.h>
 #include <loader/hook/plugins.h>
 #include <sdk/winamp/wa_cup.h>
@@ -2617,3 +2618,7 @@ extern "C" __declspec(dllexport) int winampUninstallPlugin(HINSTANCE hDllInst, H
 
 	return GEN_PLUGIN_UNINSTALL_REBOOT;
 }
+
+RUNTIME_HELPER_HANDLER
+
+//////////////////////////////////////////////////////////////////////////////
