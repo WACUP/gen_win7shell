@@ -555,9 +555,7 @@ void SetThumbnailTimer(void)
 
 	KillTimer(plugin.hwndParent, 6671);
 
-	CheckThreadHandleIsValid(&updatethread);
-
-	if (updatethread == NULL)
+	if (!CheckThreadHandleIsValid(&updatethread))
 	{
 		updatethread = StartThread(UpdateThread, 0, THREAD_PRIORITY_NORMAL, 0, NULL);
 	}
