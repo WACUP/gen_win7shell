@@ -174,8 +174,7 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	std::wstring text;
 	text.resize(100);
 	const DWORD len = GetPrivateProfileString(SECTION_NAME_GENERAL, L"ThumbButtons",
-											  L"1300,1301,1302,1303,1308,1314",
-											  &text[0], 99, settingsFile.c_str());
+											  L"~", &text[0], 99, settingsFile.c_str());
 	if (len > 0)
 	{
 		text.resize(len);
@@ -202,13 +201,17 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	} 
 	while (pos != std::wstring::npos);
 
-	if (tba.empty())
+	// deal with no prior config so the default can
+	// be shown instead of it showing nothing as it
+	// can do if the user unchecked all the buttons
+	if (SameStr(text.c_str(), L"~") && tba.empty())
 	{
 		tba.push_back(1300);
 		tba.push_back(1301);
 		tba.push_back(1302);
 		tba.push_back(1303);
 		tba.push_back(1308);
+		tba.push_back(1314);
 	}
 }
 
@@ -441,7 +444,10 @@ void SettingsManager::WriteButtons(std::vector<int> &tba)
 	}
 
 	std::wstring button_Text = button_TextStream.str();
-	button_Text.erase(button_Text.length() - 1, 1);
+	if (!button_Text.empty())
+	{
+		button_Text.erase(button_Text.length() - 1, 1);
+	}
 
 	if (!SameStr(button_Text.c_str(), L"1300,1301,1302,1303,1308,1314"))
 	{

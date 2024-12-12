@@ -874,7 +874,7 @@ HBITMAP renderer::GetThumbnail(const bool clear, const bool skip_lock)
 							}
 							else
 							{
-								CX *= 0.96f;
+								CX = (int)(CX * 0.96f);
 							}
 
 							gfx.SetClip(Gdiplus::RectF(static_cast<Gdiplus::REAL>(X),
