@@ -288,9 +288,9 @@ HBITMAP renderer::GetThumbnail(const bool clear, const bool skip_lock)
 		// it's simpler to ensure that the background has been filled
 		// in with something that'll act like it's transparent to not
 		// have it showing as a black rectangle if something fails...
-		graphics.FillRectangle(&Gdiplus::SolidBrush(Gdiplus::Color::MakeARGB(2, 0, 0, 0)),
-								static_cast<Gdiplus::REAL>(0), static_cast<Gdiplus::REAL>(0), 
-								static_cast<Gdiplus::REAL>(m_width), static_cast<Gdiplus::REAL>(m_height));
+		const Gdiplus::SolidBrush solid_brush(Gdiplus::Color::MakeARGB(2, 0, 0, 0));
+		graphics.FillRectangle(&solid_brush, static_cast<Gdiplus::REAL>(0), static_cast<Gdiplus::REAL>(0),
+							   static_cast<Gdiplus::REAL>(m_width), static_cast<Gdiplus::REAL>(m_height));
 
 		switch (tempfail ? m_settings.Revertto : m_settings.Thumbnailbackground)
 		{
@@ -336,9 +336,8 @@ HBITMAP renderer::GetThumbnail(const bool clear, const bool skip_lock)
 				}
 				else
 				{
-					SendMessageTimeout(dialogParent, WM_PRINTCLIENT, (WPARAM)hdc,
-									   PRF_CHILDREN | PRF_NONCLIENT | PRF_CLIENT,
-									   SMTO_ABORTIFHUNG | SMTO_ERRORONEXIT, 1000, NULL);
+					SendMessageSafe(dialogParent, WM_PRINTCLIENT, (WPARAM)hdc,
+							 PRF_CHILDREN | PRF_NONCLIENT | PRF_CLIENT, 1000);
 				}
 
 				gfx.ReleaseHDC(hdc);
@@ -529,7 +528,8 @@ HBITMAP renderer::GetThumbnail(const bool clear, const bool skip_lock)
 								{
 									// Draw icon shadow
 									gfx.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
-									gfx.FillRectangle(&Gdiplus::SolidBrush(Gdiplus::Color::MakeARGB(110, 0, 0, 0)),
+									const Gdiplus::SolidBrush shadow_solid_brush(Gdiplus::Color::MakeARGB(110, 0, 0, 0));
+									gfx.FillRectangle(&shadow_solid_brush,
 													  static_cast<Gdiplus::REAL>(iconleft + 1),
 													  static_cast<Gdiplus::REAL>(icontop + 1), 
 													  static_cast<Gdiplus::REAL>(new_width + 1),
@@ -550,8 +550,9 @@ HBITMAP renderer::GetThumbnail(const bool clear, const bool skip_lock)
 
 									// Draw icon shadow
 									gfx.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
-									gfx.FillRectangle(&Gdiplus::SolidBrush(Gdiplus::Color::MakeARGB((BYTE)(110 -
-																		   m_settings.BG_Transparency), 0, 0, 0)),
+									const Gdiplus::SolidBrush icon_shadow_solid_brush(Gdiplus::Color::MakeARGB((BYTE)(110 -
+																					m_settings.BG_Transparency), 0, 0, 0));
+									gfx.FillRectangle(&icon_shadow_solid_brush,
 													  static_cast<Gdiplus::REAL>(iconleft + 1),
 													  static_cast<Gdiplus::REAL>(icontop + 1), 
 													  static_cast<Gdiplus::REAL>(new_width + 1),
@@ -970,8 +971,8 @@ HBITMAP renderer::GetThumbnail(const bool clear, const bool skip_lock)
 					// it's simpler to ensure that the background has been filled
 					// in with something that'll act like it's transparent to not
 					// have it showing as a black rectangle if something fails...
-					gfx.FillRectangle(&Gdiplus::SolidBrush(Gdiplus::Color::MakeARGB(2, 0, 0, 0)),
-									  static_cast<Gdiplus::REAL>(0), static_cast<Gdiplus::REAL>(0), 
+					const Gdiplus::SolidBrush solid_brush(Gdiplus::Color::MakeARGB(2, 0, 0, 0));
+					gfx.FillRectangle(&solid_brush, static_cast<Gdiplus::REAL>(0), static_cast<Gdiplus::REAL>(0), 
 									  static_cast<Gdiplus::REAL>(m_width), static_cast<Gdiplus::REAL>(m_height));
 				}
 
