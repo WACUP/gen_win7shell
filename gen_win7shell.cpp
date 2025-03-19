@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.7.13"
+#define PLUGIN_VERSION L"4.7.14"
 
 #define NR_BUTTONS 15
 
@@ -304,7 +304,7 @@ void quit(void)
 	KillTimer(plugin.hwndParent, 6672);
 	KillTimer(plugin.hwndParent, 6673);
 
-	if (updatethread != NULL)
+	if (CheckThreadHandleIsValid(&updatethread))
 	{
 		WaitForSingleObjectEx(updatethread, 10000, TRUE);
 
@@ -315,7 +315,7 @@ void quit(void)
 		}
 	}
 
-	if (setupthread != NULL)
+	if (CheckThreadHandleIsValid(&setupthread))
 	{
 		WaitForSingleObjectEx(setupthread, 10000, TRUE);
 
@@ -838,6 +838,13 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				{
 					SetTimer(plugin.hwndParent, 6673, 1000, TimerProc);
 				}
+				break;
+			}
+			case IPC_WACUP_IS_CLOSING:
+			{
+				// give things a nudge
+				closing = true;
+				running = false;
 				break;
 			}
 			case IPC_IS_MINIMISED_OR_RESTORED:
@@ -2078,14 +2085,8 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 				}
 				case IDC_BUTTON_HELP:
 				{
-					const unsigned char* output = DecompressResourceText(WASABI_API_LNG_HINST,
-													WASABI_API_ORIG_HINST, IDR_HELP_GZ, true);
-
-					MessageBox(GetPrefsHWND(), (LPCWSTR)output,
-							   WASABI_API_LNGSTRINGW(IDS_INFORMATION),
-												  MB_ICONINFORMATION);
-
-					DecompressResourceFree(output);
+					DecompressMessageBox(WASABI_API_LNG_HINST, WASABI_API_ORIG_HINST, IDR_HELP_GZ, GetPrefsHWND(),
+										 WASABI_API_LNGSTRINGW(IDS_INFORMATION), MB_ICONINFORMATION, true);
 					break;
 				}
 				case IDC_DEFAULT:
