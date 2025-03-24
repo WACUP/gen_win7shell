@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.7.14"
+#define PLUGIN_VERSION L"4.8"
 
 #define NR_BUTTONS 15
 
@@ -1361,11 +1361,9 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 				// this also forces these modes to work
 				// when using a classic skin & sa/vu is
 				// disabled like gen_ff has to work ok.
-				static int (__cdecl *export_vu_get)(int channel) =
-					   (int (__cdecl *)(int))GetVUDataFunc();
-				static char * (__cdecl *export_sa_get)(char data[75*2+8]) =
-					   (char * (__cdecl *)(char data[75*2+8]))GetSADataFunc(2);
-				int audiodata = (export_vu_get ? export_vu_get(0) : -1);
+				static int (__cdecl *export_vu_get)(const int channel) =
+					   (int (__cdecl *)(const int))GetVUDataFunc();
+				int audiodata = (export_vu_get ? export_vu_get(-1) : -1);
 
 				if (Settings.play_state != PLAYSTATE_PLAYING)
 				{
@@ -1375,6 +1373,8 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 				{
 					if (audiodata == -1)
 					{
+						static char * (__cdecl *export_sa_get)(char data[75*2+8]) =
+							   (char * (__cdecl *)(char data[75*2+8]))GetSADataFunc(2);
 						char data[75*2+8] = {0};
 						const char *p = (char *)(export_sa_get ? export_sa_get(data) : 0);
 						if (p)
@@ -1978,8 +1978,8 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 
 					const int data = (const int)SendMessage(list, LB_GETITEMDATA, index, NULL);
 					SendMessage(list, LB_DELETESTRING, index, NULL);
-					index = (int)SendMessage(list, LB_INSERTSTRING, index - 1,
-											 (LPARAM)tools::getToolTip(data));
+					index = (int)SendMessage(list, LB_INSERTSTRING, (WPARAM)index -
+											 1, (LPARAM)tools::getToolTip(data));
 					SendMessage(list, LB_SETITEMDATA, index, data);
 					SendMessage(list, LB_SETCURSEL, index, NULL);
 
@@ -2005,8 +2005,8 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 
 					const int data = (const int)SendMessage(list, LB_GETITEMDATA, index, NULL);
 					SendMessage(list, LB_DELETESTRING, index, NULL);
-					index = (int)SendMessage(list, LB_INSERTSTRING, index + 1,
-											 (LPARAM)tools::getToolTip(data));
+					index = (int)SendMessage(list, LB_INSERTSTRING, (WPARAM)index +
+											 1, (LPARAM)tools::getToolTip(data));
 					SendMessage(list, LB_SETITEMDATA, index, data);
 					SendMessage(list, LB_SETCURSEL, index, NULL);
 
