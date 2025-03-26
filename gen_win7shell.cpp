@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.8"
+#define PLUGIN_VERSION L"4.8.1"
 
 #define NR_BUTTONS 15
 
@@ -746,14 +746,14 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					// if there's an issue with the local library db handling
 					INT_PTR db_error = FALSE;
 					void *token = NULL;
-					bool reentrant = false;
+					bool reentrant = false, already_tried = false;
 
 					__try
 					{
-						const std::wstring title(meta_data->getMetadata(L"title", &token, &reentrant, &db_error) + L" - " +
-												 meta_data->getMetadata(L"artist", &token, &reentrant, &db_error) +
-												 ((Settings.play_total > 0) ? L"  (" +
-												 tools::SecToTime(Settings.play_total / 1000) + L")" : L""));
+						const std::wstring title(meta_data->getMetadata(L"title", &token, &reentrant, &already_tried,
+												 &db_error) + L" - " + meta_data->getMetadata(L"artist", &token,
+												 &reentrant, &already_tried, &db_error) + ((Settings.play_total > 0) ?
+												 L"  (" + tools::SecToTime(Settings.play_total / 1000) + L")" : L""));
 
 						IShellLink *psl = NULL;
 						if ((tools::CreateShellLink(filename.c_str(), title.c_str(), &psl) == S_OK) && psl)

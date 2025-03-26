@@ -19,7 +19,7 @@ public:
 
 private:
 	std::wstring MetaWord(const std::wstring &word, linesettings&current_line_settings,
-									 void **token, bool* reentrant, INT_PTR *db_error);
+						  void **token, bool* reentrant, bool* already_tried, INT_PTR *db_error);
 
 	std::vector<std::wstring> m_texts;
 	std::vector<linesettings> m_linesettings;
