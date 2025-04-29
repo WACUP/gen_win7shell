@@ -28,7 +28,7 @@ bool renderer::getAlbumArt(const std::wstring &fname, const bool skip_lock)
 		if (WASABI_API_ALBUMART->GetAlbumArtResize(fname.c_str(), L"cover", &cur_w, &cur_h,
 										&cur_image, 600, 600, 0, NULL) == ALBUMART_SUCCESS)
 		{
-			BITMAPINFO bmi = { 0 };
+			BITMAPINFO bmi/* = { 0 }*/;
 			InitBitmapForARGB32(&bmi, cur_w, cur_h);
 
 			Gdiplus::Bitmap tmpbmp(&bmi, cur_image);
@@ -105,7 +105,7 @@ bool renderer::getAlbumArt(const std::wstring &fname, const bool skip_lock)
 												static_cast<Gdiplus::REAL>(new_height));
 				}
 
-				plugin.memmgr->sysFree(cur_image);
+				SafeFree(cur_image);
 			}
 			else
 			{
@@ -692,12 +692,17 @@ HBITMAP renderer::GetThumbnail(const bool clear, const bool skip_lock)
 				if (m_settings.Text[0])
 				{
 					// Draw text
-					static lines text_parser(m_settings, m_metadata);
-					text_parser.Parse();
+					static lines* text_parser;
+					if (!text_parser)
+					{
+						text_parser = new lines(m_settings, m_metadata);
+					}
+
+					text_parser->Parse();
 
 					if (m_textpositions.empty())
 					{
-						m_textpositions.resize(text_parser.GetNumberOfLines(), 0);
+						m_textpositions.resize(text_parser->GetNumberOfLines(), 0);
 					}
 					else
 					{
@@ -775,11 +780,12 @@ HBITMAP renderer::GetThumbnail(const bool clear, const bool skip_lock)
 						Gdiplus::StringFormat sf(Gdiplus::StringFormatFlagsNoWrap);
 						const int text_space = 28;
 
-						for (std::size_t text_index = 0; text_index != text_parser.GetNumberOfLines(); ++text_index)
+						const size_t num_lines = text_parser->GetNumberOfLines();
+						for (std::size_t text_index = 0; text_index != num_lines; ++text_index)
 						{
 							Gdiplus::RectF ret_rect;
-							const std::wstring current_text = text_parser.GetLineText(text_index);
-							linesettings current_settings = text_parser.GetLineSettings(text_index);
+							const std::wstring current_text = text_parser->GetLineText(text_index);
+							linesettings current_settings = text_parser->GetLineSettings(text_index);
 
 							// Measure size
 							gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);

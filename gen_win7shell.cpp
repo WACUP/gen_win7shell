@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.8.1"
+#define PLUGIN_VERSION L"4.8.4"
 
 #define NR_BUTTONS 15
 
@@ -42,7 +42,7 @@ static const GUID GenWin7PlusShellLangGUID =
 SETUP_API_LNG_VARS;
 
 UINT WM_TASKBARBUTTONCREATED = (UINT)-1;
-std::wstring AppID;	// this is updated on loading to what the
+//std::wstring AppID;	// this is updated on loading to what the
 					// running WACUP install has generated as
 					// it otherwise makes multiple instances
 					// tricky to work with independently
@@ -87,8 +87,8 @@ extern "C" __declspec(dllexport) LRESULT CALLBACK TabHandler_Taskbar(HWND, UINT,
 extern "C" __declspec(dllexport) LRESULT CALLBACK TabHandler_Thumbnail(HWND, UINT, WPARAM, LPARAM);
 extern "C" __declspec(dllexport) LRESULT CALLBACK TabHandler_ThumbnailImage(HWND, UINT, WPARAM, LPARAM);
 
+HIMAGELIST GetThumbnailIcons(const bool force_refresh);
 void updateToolbar(HIMAGELIST ImageList = NULL);
-void SetupJumpList(void);
 void SetThumbnailTimer(void);
 void AddStringtoList(HWND window, const int control_ID);
 
@@ -107,6 +107,98 @@ winampGeneralPurposePlugin plugin =
 	init, config, quit,
 	GEN_INIT_WACUP_HAS_MESSAGES
 };
+
+DWORD WINAPI SetupJumpListThread(LPVOID lp)
+{
+	if (!closing && SUCCEEDED(CreateCOM()))
+	{
+		JumpList *jl = new JumpList(true);
+		if (jl != NULL)
+		{
+			if (Settings.JLbms || Settings.JLfrequent ||
+				Settings.JLpl || Settings.JLrecent || Settings.JLtasks)
+			{
+				static wchar_t *pluginPath, *tmp1, *tmp2, *tmp3, *tmp4;
+
+				// to ensure things work reliably we
+				// need an 8.3 style filepath for us
+				if (!pluginPath)
+				{
+					wchar_t path[MAX_PATH] = { 0 };
+					GetModuleFileName(plugin.hDllInstance, path, ARRAYSIZE(path));
+					const DWORD len = GetShortPathName(path, path, ARRAYSIZE(path));
+					pluginPath = SafeWideDupN(path, len);
+				}
+
+				if (!tmp1)
+				{
+					tmp1 = LngStringDup(IDS_WINAMP_PREFERENCES);
+				}
+
+				if (!tmp2)
+				{
+					tmp2 = LngStringDup(IDS_OPEN_FILE);
+				}
+
+				if (!tmp3)
+				{
+					tmp3 = LngStringDup(IDS_BOOKMARKS);
+				}
+
+				if (!tmp4)
+				{
+					tmp4 = LngStringDup(IDS_PLAYLISTS);
+				}
+
+				__try
+				{
+					// based on testing, this & things in the
+					// CreateShellLink() sometimes fails :'(
+					// I can't find any reason for it. due to
+					// that it is necessary to try & catch it
+					// so we don't take down the entire thing
+					jl->CreateJumpList(pluginPath, tmp1, tmp2, tmp3, tmp4,
+									   Settings.JLrecent, Settings.JLfrequent,
+									   Settings.JLtasks, Settings.JLbms,
+									   Settings.JLpl, closing);
+				}
+				__except (EXCEPTION_EXECUTE_HANDLER)
+				{
+				}
+			}
+			delete jl;
+		}
+
+		// Create the taskbar interface
+		itaskbar = new iTaskBar(Settings);
+		if ((itaskbar != NULL) && itaskbar->Reset())
+		{
+			updateToolbar(GetThumbnailIcons(false));
+		}
+
+		if (Settings.VuMeter)
+		{
+			SetTimer(plugin.hwndParent, 6668, 66, TimerProc);
+		}
+
+		CloseCOM();
+	}
+
+	if (setupthread != NULL)
+	{
+		CloseHandle(setupthread);
+		setupthread = NULL;
+	}
+	return 0;
+}
+
+void StartSetupJumpList(void)
+{
+	if (!closing && (!CheckThreadHandleIsValid(&setupthread)))
+	{
+		setupthread = StartThread(SetupJumpListThread, 0, THREAD_PRIORITY_NORMAL, 0, NULL);
+	}
+}
 
 MetaData* get_metadata(void)
 {
@@ -158,7 +250,7 @@ const bool GenerateAppIDFromFolder(const wchar_t *search_path, wchar_t *app_id)
 					{
 						wchar_t szGuid[40] = {0};
 						StringFromGUID2(pkfid, szGuid, 40);
-						StringCchPrintf(app_id, MAX_PATH, L"%s%s", szGuid, &search_path[len]);
+						PrintfCch(app_id, MAX_PATH, L"%s%s", szGuid, &search_path[len]);
 					}
 				}
 			}
@@ -191,7 +283,7 @@ LPCWSTR GetAppID(void)
 				wchar_t app_id[MAX_PATH] = { 0 };
 				if (!GenerateAppIDFromFolder(self_path, app_id))
 				{
-					(void)StringCchCopy(app_id, ARRAYSIZE(app_id), self_path);
+					CopyCchStr(app_id, ARRAYSIZE(app_id), self_path);
 				}
 
 				RenameExtension(app_id, L".exe");
@@ -199,9 +291,8 @@ LPCWSTR GetAppID(void)
 				// TODO: auto-pin icon (?)
 				if (SetCurrentProcessExplicitAppUserModelID(app_id) != S_OK)
 				{
-					MessageBox(plugin.hwndParent,
-							   WASABI_API_LNGSTRINGW(IDS_ERROR_SETTING_APPID),
-							   (LPWSTR)plugin.description, MB_ICONWARNING);
+					MessageBox(plugin.hwndParent, LangString(IDS_ERROR_SETTING_APPID),
+										  (LPWSTR)plugin.description, MB_ICONWARNING);
 				}
 				else
 				{
@@ -237,9 +328,8 @@ int init(void)
 	WASABI_API_PLAYLISTS = plugin.playlists;
 	//ServiceBuild(plugin.service, WASABI_API_LNG, languageApiGUID);
 
-	WASABI_API_START_LANG_DESC(plugin.language, plugin.hDllInstance,
-							   GenWin7PlusShellLangGUID, IDS_PLUGIN_NAME,
-							   PLUGIN_VERSION, &plugin.description);
+	StartPluginLangWithDesc(plugin.hDllInstance, GenWin7PlusShellLangGUID,
+					IDS_PLUGIN_NAME, PLUGIN_VERSION, &plugin.description);
 
 	for (int i = 0; i < ARRAYSIZE(g_cs); i++)
 	{
@@ -257,9 +347,9 @@ void config(void)
 	AddItemToMenu(popup, 128, (LPWSTR)plugin.description);
 	EnableMenuItem(popup, 128, MF_BYCOMMAND | MF_GRAYED | MF_DISABLED);
 	AddItemToMenu(popup, (UINT)-1, 0);
-	AddItemToMenu(popup, 2, WASABI_API_LNGSTRINGW(IDS_OPEN_TASKBAR_PREFS));
+	AddItemToMenu(popup, 2, LangString(IDS_OPEN_TASKBAR_PREFS));
 	AddItemToMenu(popup, (UINT)-1, 0);
-	AddItemToMenu(popup, 1, WASABI_API_LNGSTRINGW(IDS_ABOUT));
+	AddItemToMenu(popup, 1, LangString(IDS_ABOUT));
 
 	POINT pt = { 0 };
 	HWND list = GetPrefsListPos(&pt);
@@ -272,8 +362,8 @@ void config(void)
 			const unsigned char* output = DecompressResourceText(plugin.hDllInstance,
 												  plugin.hDllInstance, IDR_ABOUT_GZ);
 
-			StringCchPrintf(text, ARRAYSIZE(text), (LPCWSTR)output, WACUP_Author(),
-												WACUP_Copyright(), TEXT(__DATE__));
+			PrintfCch(text, ARRAYSIZE(text), (LPCWSTR)output, WACUP_Author(),
+										  WACUP_Copyright(), TEXT(__DATE__));
 
 			DecompressResourceFree(output);
 
@@ -306,7 +396,7 @@ void quit(void)
 
 	if (CheckThreadHandleIsValid(&updatethread))
 	{
-		WaitForSingleObjectEx(updatethread, 10000, TRUE);
+		WaitForSingleObjectEx(updatethread, INFINITE, TRUE);
 
 		if (updatethread != NULL)
 		{
@@ -317,7 +407,7 @@ void quit(void)
 
 	if (CheckThreadHandleIsValid(&setupthread))
 	{
-		WaitForSingleObjectEx(setupthread, 10000, TRUE);
+		WaitForSingleObjectEx(setupthread, INFINITE, TRUE);
 
 		if (setupthread != NULL)
 		{
@@ -384,17 +474,17 @@ void updateToolbar(HIMAGELIST ImageList)
 			else if (button.iId == TB_PLAYPAUSE)
 			{
 				button.iBitmap = tools::getBitmap(button.iId, !!(Settings.play_state == PLAYSTATE_PLAYING));
-				(void)StringCchCopy(button.szTip, ARRAYSIZE(button.szTip), tools::getToolTip(TB_PLAYPAUSE, Settings.play_state));
+				CopyCchStr(button.szTip, ARRAYSIZE(button.szTip), tools::getToolTip(TB_PLAYPAUSE, Settings.play_state));
 			}
 			else if (button.iId == TB_REPEAT)
 			{
 				button.iBitmap = tools::getBitmap(button.iId, Settings.state_repeat);
-				(void)StringCchCopy(button.szTip, ARRAYSIZE(button.szTip), tools::getToolTip(TB_REPEAT, Settings.state_repeat));
+				CopyCchStr(button.szTip, ARRAYSIZE(button.szTip), tools::getToolTip(TB_REPEAT, Settings.state_repeat));
 			}
 			else if (button.iId == TB_SHUFFLE)
 			{
 				button.iBitmap = tools::getBitmap(button.iId, Settings.play_state == Settings.state_shuffle);
-				(void)StringCchCopy(button.szTip, ARRAYSIZE(button.szTip), tools::getToolTip(TB_SHUFFLE, Settings.state_shuffle));
+				CopyCchStr(button.szTip, ARRAYSIZE(button.szTip), tools::getToolTip(TB_SHUFFLE, Settings.state_shuffle));
 			}
 
 			if (!button.iBitmap)
@@ -404,7 +494,7 @@ void updateToolbar(HIMAGELIST ImageList)
 
 			if (!button.szTip[0])
 			{
-				(void)StringCchCopy(button.szTip, ARRAYSIZE(button.szTip), tools::getToolTip(button.iId, 0));
+				CopyCchStr(button.szTip, ARRAYSIZE(button.szTip), tools::getToolTip(button.iId, 0));
 			}
 		}
 
@@ -623,8 +713,8 @@ void UpdateOverlyStatus(const bool force_refresh)
 
 	if (Settings.Overlay)
 	{
-		static wchar_t *playing_str = WASABI_API_LNGSTRINGW_DUP(IDS_PLAYING),
-					   *paused_str = WASABI_API_LNGSTRINGW_DUP(IDS_PAUSED);
+		static wchar_t *playing_str = LngStringDup(IDS_PLAYING),
+					   *paused_str = LngStringDup(IDS_PAUSED);
 		HICON icon = NULL;
 		switch (Settings.play_state)
 		{
@@ -1003,7 +1093,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				}
 				case TB_RATE:
 				{
-					ratewnd = WASABI_API_CREATEDIALOGW(IDD_RATEDLG, plugin.hwndParent, rateWndProc);
+					ratewnd = LangCreateDialog(IDD_RATEDLG, plugin.hwndParent, rateWndProc, 0);
 					if (IsWindow(ratewnd))
 					{
 						RECT rc = { 0 };
@@ -1119,7 +1209,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					if (meta_data != NULL)
 					{
 						wchar_t path[MAX_PATH] = { 0 };
-						(void)StringCchCopy(path, ARRAYSIZE(path), meta_data->getFileName());
+						CopyCchStr(path, ARRAYSIZE(path), meta_data->getFileName());
 
 						const int saved_play_state = Settings.play_state;
 						SendMessage(plugin.hwndParent, WM_COMMAND, MAKEWPARAM(40047, 0), 0);
@@ -1172,10 +1262,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 			updateToolbar(GetThumbnailIcons(true));
 		}
 
-		// TODO can this be done in a background
-		//		thread so it won't block as some
-		//		installs seem to be slow to run
-		SetupJumpList();
+		StartSetupJumpList();
 	}
 }
 
@@ -1193,35 +1280,6 @@ void setup_settings(void)
 	}
 }
 
-DWORD WINAPI SetupJumpListThread(LPVOID lp)
-{
-	if (!closing && SUCCEEDED(CreateCOM()))
-	{
-		SetupJumpList();
-
-		// Create the taskbar interface
-		itaskbar = new iTaskBar(Settings);
-		if ((itaskbar != NULL) && itaskbar->Reset())
-		{
-			updateToolbar(GetThumbnailIcons(false));
-		}
-
-		if (Settings.VuMeter)
-		{
-			SetTimer(plugin.hwndParent, 6668, 66, TimerProc);
-		}
-
-		CloseCOM();
-	}
-
-	if (setupthread != NULL)
-	{
-		CloseHandle(setupthread);
-		setupthread = NULL;
-	}
-	return 0;
-}
-
 VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 {
 	switch (idEvent)
@@ -1233,11 +1291,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 			if (!setup)
 			{
 				setup = true;
-
-				if (!closing && (setupthread == NULL))
-				{
-					setupthread = StartThread(SetupJumpListThread, 0, THREAD_PRIORITY_NORMAL, 0, NULL);
-				}
+				StartSetupJumpList();
 			}
 
 			if (setupthread != NULL)
@@ -1548,9 +1602,8 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 				hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, (HOOKPROC)KeyboardEvent, plugin.hDllInstance, NULL);
 				if (hMouseHook == NULL)
 				{
-					MessageBox(plugin.hwndParent,
-							   WASABI_API_LNGSTRINGW(IDS_ERROR_REGISTERING_MOUSE_HOOK),
-							   (LPWSTR)plugin.description, MB_ICONWARNING);
+					MessageBox(plugin.hwndParent, LangString(IDS_ERROR_REGISTERING_MOUSE_HOOK),
+												   (LPWSTR)plugin.description, MB_ICONWARNING);
 				}
 			}
 #endif
@@ -1559,7 +1612,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 		}
 		case 6673:
 		{
-			SetupJumpList();
+			StartSetupJumpList();
 			break;
 		}
 	}
@@ -1576,7 +1629,7 @@ LRESULT CALLBACK rateWndProc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lPara
 			// give an indication of the current rating for the item
 			const int rating = (const int)GetSetMainRating(0, IPC_GETRATING);
 			wchar_t rating_text[8] = { 0 };
-			StringCchPrintf(rating_text, ARRAYSIZE(rating_text), L"[%d]", rating);
+			PrintfCch(rating_text, ARRAYSIZE(rating_text), L"[%d]", rating);
 			SetDlgItemText(hwndDlg, IDC_RATE1 + rating, rating_text);
 			break;
 		}
@@ -1663,7 +1716,7 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 						Settings.JLrecent = true;
 						Button_SetCheck(GetDlgItem(hwnd, IDC_CHECK30), BST_CHECKED);
 					}
-					SetupJumpList();
+					StartSetupJumpList();
 					break;
 				}
 				case IDC_CHECK3:
@@ -1745,9 +1798,8 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 							hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, (HOOKPROC) KeyboardEvent, plugin.hDllInstance, NULL);
 							if (hMouseHook == NULL)
 							{
-								MessageBox(plugin.hwndParent,
-										   WASABI_API_LNGSTRINGW(IDS_ERROR_REGISTERING_MOUSE_HOOK),
-										   (LPWSTR)plugin.description, MB_ICONWARNING);
+								MessageBox(plugin.hwndParent, LangString(IDS_ERROR_REGISTERING_MOUSE_HOOK),
+															   (LPWSTR)plugin.description, MB_ICONWARNING);
 							}
 						}
 					}
@@ -1832,7 +1884,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 				}
 
 				DestroyControl(hwnd, IDC_BUTTON_HELP);
-				SetDlgItemText(hwnd, IDC_TEXT_GROUP, WASABI_API_LNGSTRINGW(IDS_TEXT_DISABLED));
+				SetDlgItemText(hwnd, IDC_TEXT_GROUP, LangString(IDS_TEXT_DISABLED));
 			}
 
 			const HWND list = GetDlgItem(hwnd, IDC_LIST1);
@@ -1920,7 +1972,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 		{
 			if (Settings.Thumbnailbuttons)
 			{
-				SetDlgItemText(hwnd, IDC_STATIC29, WASABI_API_LNGSTRINGW(IDS_MAX_BUTTONS));
+				SetDlgItemText(hwnd, IDC_STATIC29, LangString(IDS_MAX_BUTTONS));
 			}
 			break;
 		}
@@ -2077,7 +2129,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 							}
 						}
 						while (pos != std::wstring::npos);
-						(void)StringCchCopy(Settings.Text, ARRAYSIZE(Settings.Text), text.c_str());
+						CopyCchStr(Settings.Text, ARRAYSIZE(Settings.Text), text.c_str());
 
 						ResetThumbnail();
 					}
@@ -2086,12 +2138,12 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 				case IDC_BUTTON_HELP:
 				{
 					DecompressMessageBox(WASABI_API_LNG_HINST, WASABI_API_ORIG_HINST, IDR_HELP_GZ, GetPrefsHWND(),
-										 WASABI_API_LNGSTRINGW(IDS_INFORMATION), MB_ICONINFORMATION, true);
+														   LangString(IDS_INFORMATION), MB_ICONINFORMATION, true);
 					break;
 				}
 				case IDC_DEFAULT:
 				{
-					if (MessageBox(hwnd, WASABI_API_LNGSTRINGW(IDS_DEFAULT_TEXT),
+					if (MessageBox(hwnd, LangString(IDS_DEFAULT_TEXT),
 								   (LPWSTR)plugin.description, MB_YESNO |
 								   MB_ICONQUESTION | MB_DEFBUTTON2) == IDYES)
 					{
@@ -2238,22 +2290,22 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 			{
 				case IP_UPPERLEFT:
 				{
-					SetDlgItemText(hwnd, IDC_ICONPOS, WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_TL));
+					SetDlgItemText(hwnd, IDC_ICONPOS, LangString(IDS_ICON_POSITION_TL));
 					break;
 				}
 				case IP_UPPERRIGHT:
 				{
-					SetDlgItemText(hwnd, IDC_ICONPOS, WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_TR));
+					SetDlgItemText(hwnd, IDC_ICONPOS, LangString(IDS_ICON_POSITION_TR));
 					break;
 				}
 				case IP_LOWERLEFT:
 				{
-					SetDlgItemText(hwnd, IDC_ICONPOS, WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_BL));
+					SetDlgItemText(hwnd, IDC_ICONPOS, LangString(IDS_ICON_POSITION_BL));
 					break;
 				}
 				case IP_LOWERRIGHT:
 				{
-					SetDlgItemText(hwnd, IDC_ICONPOS, WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_BR));
+					SetDlgItemText(hwnd, IDC_ICONPOS, LangString(IDS_ICON_POSITION_BR));
 					break;
 				}
 			}
@@ -2269,13 +2321,13 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 			if (HWNDIsCtrl(lParam, hwnd, IDC_SLIDER1))
 			{
 				Settings.IconSize = (int)SendMessage((HWND)lParam, TBM_GETPOS, NULL, NULL);
-				StringCchPrintf(text, ARRAYSIZE(text), WASABI_API_LNGSTRINGW(IDS_ICON_SIZE), Settings.IconSize);
+				PrintfCch(text, ARRAYSIZE(text), LangString(IDS_ICON_SIZE), Settings.IconSize);
 				SetDlgItemText(hwnd, IDC_ICONSIZE, text);
 			}
 			else if (HWNDIsCtrl(lParam, hwnd, IDC_SLIDER_TRANSPARENCY))
 			{
 				Settings.BG_Transparency = (int)SendMessage((HWND)lParam, TBM_GETPOS, NULL, NULL);
-				StringCchPrintf(text, ARRAYSIZE(text), L"%d%%", Settings.BG_Transparency);
+				PrintfCch(text, ARRAYSIZE(text), L"%d%%", Settings.BG_Transparency);
 				SetDlgItemText(hwnd, IDC_TRANSPARENCY_PERCENT, text);
 			}
 			UpdateThumbnail();
@@ -2331,36 +2383,32 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 					IFileDialog *pfd = NULL;
 
 					// CoCreate the dialog object.
-					HRESULT hr = CreateCOMInProc(CLSID_FileOpenDialog,
-								 __uuidof(IFileDialog), (LPVOID*)&pfd);
-					if (SUCCEEDED(hr) && pfd)
+					if (SUCCEEDED(CreateCOMInProc(CLSID_FileOpenDialog,
+						__uuidof(IFileDialog), (LPVOID*)&pfd)) && pfd)
 					{
 						// Show the dialog
-						wchar_t tmp[128] = {0}, tmp2[128] = {0}, tmp3[128] = {0};
-						COMDLG_FILTERSPEC rgSpec[] =
-						{ 
-							{ WASABI_API_LNGSTRINGW_BUF(IDS_ALL_IMAGE_FORMATS, tmp, 128),
-							L"*.bmp;*.gif;*.jpg;*.jpeg;*.png;*webp"
-							}
+						wchar_t tmp[128] = { 0 }, tmp2[128] = { 0 };
+						size_t filter_position = 0;
+						LPCWSTR filter_str = GetImageFilesFilter(&filter_position);
+						const COMDLG_FILTERSPEC rgSpec[] =
+						{
+							{ filter_str,  (filter_str + filter_position) }
 						};
 
 						pfd->SetFileTypes(1, rgSpec);
-						pfd->SetOkButtonLabel(WASABI_API_LNGSTRINGW_BUF(IDS_USE_AS_THUMB_BKGND, tmp2, 128));
-						pfd->SetTitle(WASABI_API_LNGSTRINGW_BUF(IDS_SELECT_IMAGE_FILE, tmp3, 128));
-						hr = pfd->Show(GetPrefsHWND());
+						pfd->SetOkButtonLabel(LngStringCopy(IDS_USE_AS_THUMB_BKGND, tmp, ARRAYSIZE(tmp)));
+						pfd->SetTitle(LngStringCopy(IDS_SELECT_IMAGE_FILE, tmp2, ARRAYSIZE(tmp2)));
 
-						if (SUCCEEDED(hr))
+						if (SUCCEEDED(pfd->Show(GetPrefsHWND())))
 						{
 							// Obtain the result of the user's interaction with the dialog.
 							IShellItem *psiResult = NULL;
-							hr = pfd->GetResult(&psiResult);
-
-							if (SUCCEEDED(hr))
+							if (SUCCEEDED(pfd->GetResult(&psiResult)))
 							{
 								wchar_t *w = NULL;
 								psiResult->GetDisplayName(SIGDN_FILESYSPATH, &w);
 								psiResult->Release();
-								(void)StringCchCopy(filename, ARRAYSIZE(filename), w);
+								CopyCchStr(filename, ARRAYSIZE(filename), w);
 								MemFreeCOM(w);
 							}
 						} 
@@ -2399,22 +2447,22 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 				{
 					if (SendDlgItemMessage(hwnd, IDC_RADIO4, (UINT)BM_GETCHECK, 0 , 0))
 					{
-						SetDlgItemText(hwnd, IDC_ICONPOS, WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_TL));
+						SetDlgItemText(hwnd, IDC_ICONPOS, LangString(IDS_ICON_POSITION_TL));
 						Settings.IconPosition = IP_UPPERLEFT;
 					}
 					else if (SendDlgItemMessage(hwnd, IDC_RADIO7, (UINT)BM_GETCHECK, 0 , 0))
 					{
-						SetDlgItemText(hwnd, IDC_ICONPOS, WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_BL));
+						SetDlgItemText(hwnd, IDC_ICONPOS, LangString(IDS_ICON_POSITION_BL));
 						Settings.IconPosition = IP_LOWERLEFT;
 					}
 					else if (SendDlgItemMessage(hwnd, IDC_RADIO6, (UINT)BM_GETCHECK, 0 , 0))
 					{
-						SetDlgItemText(hwnd, IDC_ICONPOS, WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_TR));
+						SetDlgItemText(hwnd, IDC_ICONPOS, LangString(IDS_ICON_POSITION_TR));
 						Settings.IconPosition = IP_UPPERRIGHT;
 					}
 					else if (SendDlgItemMessage(hwnd, IDC_RADIO8, (UINT)BM_GETCHECK, 0 , 0))
 					{
-						SetDlgItemText(hwnd, IDC_ICONPOS, WASABI_API_LNGSTRINGW(IDS_ICON_POSITION_BR));
+						SetDlgItemText(hwnd, IDC_ICONPOS, LangString(IDS_ICON_POSITION_BR));
 						Settings.IconPosition = IP_LOWERRIGHT;
 					}
 
@@ -2474,7 +2522,7 @@ void AddStringtoList(HWND window, const int control_ID)
 			if (ListBox_GetCount(list) >= 7)
 			{
 				Button_SetCheck(button, BST_UNCHECKED);
-				SetDlgItemText(window, IDC_STATIC29, WASABI_API_LNGSTRINGW(IDS_MAX_BUTTONS));
+				SetDlgItemText(window, IDC_STATIC29, LangString(IDS_MAX_BUTTONS));
 			}
 			else
 			{
@@ -2496,65 +2544,6 @@ void AddStringtoList(HWND window, const int control_ID)
 
 	// Show note
 	ShowControl(window, IDC_BUTTON_RESTART, SW_SHOWNA);
-}
-
-void SetupJumpList(void)
-{
-	JumpList *jl = new JumpList(true);
-	if (jl != NULL)
-	{
-		if (Settings.JLbms || Settings.JLfrequent ||
-			Settings.JLpl || Settings.JLrecent || Settings.JLtasks)
-		{
-			static wchar_t pluginPath[MAX_PATH], tmp1[128],
-						   tmp2[128], tmp3[128], tmp4[128];
-
-			// to ensure things work reliably we
-			// need an 8.3 style filepath for us
-			if (!pluginPath[0])
-			{
-				GetModuleFileName(plugin.hDllInstance, pluginPath, ARRAYSIZE(pluginPath));
-				GetShortPathName(pluginPath, pluginPath, ARRAYSIZE(pluginPath));
-			}
-
-			if (!tmp1[0])
-			{
-				WASABI_API_LNGSTRINGW_BUF(IDS_WINAMP_PREFERENCES, tmp1, ARRAYSIZE(tmp1));
-			}
-
-			if (!tmp2[0])
-			{
-				WASABI_API_LNGSTRINGW_BUF(IDS_OPEN_FILE, tmp2, ARRAYSIZE(tmp2));
-			}
-
-			if (!tmp3[0])
-			{
-				WASABI_API_LNGSTRINGW_BUF(IDS_BOOKMARKS, tmp3, ARRAYSIZE(tmp3));
-			}
-
-			if (!tmp4[0])
-			{
-				WASABI_API_LNGSTRINGW_BUF(IDS_PLAYLISTS, tmp4, ARRAYSIZE(tmp4));
-			}
-
-			__try
-			{
-				// based on testing, this & things in the
-				// CreateShellLink() sometimes fails :'(
-				// I can't find any reason for it. due to
-				// that it is necessary to try & catch it
-				// so we don't take down the entire thing
-				jl->CreateJumpList(pluginPath, tmp1, tmp2, tmp3, tmp4,
-								   Settings.JLrecent, Settings.JLfrequent,
-								   Settings.JLtasks, Settings.JLbms,
-								   Settings.JLpl, closing);
-			}
-			__except (EXCEPTION_EXECUTE_HANDLER)
-			{
-			}
-		}
-		delete jl;
-	}
 }
 
 #ifdef USE_MOUSE
@@ -2598,7 +2587,7 @@ extern "C" __declspec(dllexport) winampGeneralPurposePlugin * winampGetGeneralPu
 
 extern "C" __declspec(dllexport) int winampUninstallPlugin(HINSTANCE hDllInst, HWND hwndDlg, int param)
 {
-	if (plugin.language->UninstallSettingsPrompt(reinterpret_cast<const wchar_t *>(plugin.description)))
+	if (UninstallSettingsPrompt(reinterpret_cast<const wchar_t *>(plugin.description), 0, NULL))
 	{
 		no_uninstall = false;
 

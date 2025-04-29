@@ -130,9 +130,13 @@ namespace tools
 			}
 		}
 
-		static wchar_t menu_string[64] = { 0 };
-		return ((strID != -1) ? WASABI_API_LNGSTRINGW_BUF(strID,
-					menu_string, ARRAYSIZE(menu_string)) : L"");
+		static wchar_t *menu_string;
+		if (menu_string != NULL)
+		{
+			SafeFree(menu_string);
+			menu_string = NULL;
+		}
+		return ((strID != -1) ? (menu_string = LngStringDup(strID)) : L"");
 	}
 
 	HRESULT CreateShellLink(LPCWSTR filename, LPCWSTR pszTitle, IShellLink **ppsl)
@@ -209,7 +213,7 @@ namespace tools
 				fname[0] = 0;
 				if (GetShortPathName(filename, fname, ARRAYSIZE(fname)) == 0)
 				{
-					(void)StringCchCopy(fname, ARRAYSIZE(fname), filename);
+					CopyCchStr(fname, ARRAYSIZE(fname), filename);
 				}
 				psl->SetIconLocation(shortfname, 0);
 
@@ -271,8 +275,8 @@ namespace tools
 			// look in the current skin for per-skin customisation
 			if (skin_folder && *skin_folder)
 			{
-				StringCchPrintf(test_path, ARRAYSIZE(test_path),
-								L"%s\\Taskbar\\%s.ico", skin_folder, file);
+				PrintfCch(test_path, ARRAYSIZE(test_path),
+						  L"%s\\Taskbar\\%s.ico", skin_folder, file);
 
 				if (FileExists(test_path))
 				{
@@ -286,7 +290,7 @@ namespace tools
 			if (hicon == NULL)
 			{
 				wchar_t folder[MAX_PATH] = { 0 };
-				StringCchPrintf(test_path, ARRAYSIZE(test_path), L"%s\\%s.ico",
+				PrintfCch(test_path, ARRAYSIZE(test_path), L"%s\\%s.ico",
 				CombinePath(folder, GetPaths()->settings_dir, L"Taskbar"), file);
 
 				if (FileExists(test_path))

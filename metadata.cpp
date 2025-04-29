@@ -14,7 +14,7 @@ void MetaData::reset(LPCWSTR filename, const bool force)
 	if (force || (filename != mfilename))
 	{
 		cache.clear();
-		mfilename = plugin.memmgr->sysDupStr(filename, mfilename);
+		mfilename = SafeWideDupFreeOld(filename, mfilename);
 	}
 }
 
@@ -29,7 +29,9 @@ std::wstring MetaData::getMetadata(const std::wstring &tag, void **token,
 
 	if (mfilename && *mfilename)
 	{
-		wchar_t buffer[GETFILEINFO_TITLE_LENGTH] = { 0 };
+		wchar_t buffer[GETFILEINFO_TITLE_LENGTH]/* = { 0 }*/;
+		buffer[0] = 0;
+
 		// cache the response as long as we got a valid result
 		GetFileMetaData(mfilename, tag.c_str(), buffer, ARRAYSIZE(buffer),
 							   token, reentrant, already_tried, db_error);

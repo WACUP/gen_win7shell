@@ -29,9 +29,12 @@ bool SettingsManager::GetBool(const std::wstring &key, const bool default_value)
 std::wstring SettingsManager::GetString(wchar_t *output, const size_t output_len, const std::wstring &key,
 										const std::wstring &default_value, const size_t max_size) const
 {
-	LPCSTR _section = AutoCharDupN((LPWSTR)currentSection.c_str(), currentSection.size(), CP_UTF8),
-		   _key = AutoCharDupN((LPWSTR)key.c_str(), key.size(), CP_UTF8),
-		   _default = AutoCharDupN((LPWSTR)default_value.c_str(), default_value.size(), CP_UTF8),
+	LPCSTR _section = ConvertUnicode((LPWSTR)currentSection.c_str(), (const int)
+									 currentSection.size(), CP_UTF8, 0, NULL, 0),
+		   _key = ConvertUnicode((LPWSTR)key.c_str(), (const int)
+								 key.size(), CP_UTF8, 0, NULL, 0),
+		   _default = ConvertUnicode((LPWSTR)default_value.c_str(), (const int)
+									 default_value.size(), CP_UTF8, 0, NULL, 0),
 		   _file = ConvertPathToA((LPWSTR)settingsFile.c_str(), NULL, 0, CP_ACP);
 
 	std::string buffer;
@@ -40,15 +43,15 @@ std::wstring SettingsManager::GetString(wchar_t *output, const size_t output_len
 											   &buffer[0], (int)max_size, _file);
 	buffer.resize(len);
 
-	AutoCharDupFree((void *)_section);
-	AutoCharDupFree((void *)_key);
-	AutoCharDupFree((void *)_default);
-	AutoCharDupFree((void *)_file);
+	SafeFree((void *)_section);
+	SafeFree((void *)_key);
+	SafeFree((void *)_default);
+	SafeFree((void *)_file);
 
 	if (!buffer.empty())
 	{
-		AutoWide read8(buffer.c_str(), CP_UTF8);
-		(void)StringCchCopy(output, output_len, read8);
+		const AutoWide read8(buffer.c_str(), CP_UTF8);
+		CopyCchStr(output, output_len, read8);
 	}
 	return output;
 }
@@ -80,22 +83,25 @@ void SettingsManager::WriteBool(const std::wstring &key, const bool value,
 void SettingsManager::WriteString(const std::wstring &key, const std::wstring &value,
 								  const std::wstring &default_value) const
 {
-	LPCSTR _section = AutoCharDupN((LPWSTR)currentSection.c_str(), currentSection.size(), CP_UTF8),
-		   _key = AutoCharDupN((LPWSTR)key.c_str(), key.size(), CP_UTF8),
+	LPCSTR _section = ConvertUnicode((LPWSTR)currentSection.c_str(), (const int)
+									 currentSection.size(), CP_UTF8, 0, NULL, 0),
+		   _key = ConvertUnicode((LPWSTR)key.c_str(), (const int)
+								 key.size(), CP_UTF8, 0, NULL, 0),
 		   _file = ConvertPathToA((LPWSTR)settingsFile.c_str(), NULL, 0, CP_ACP);
 	if (value != default_value)
 	{
-		LPCSTR _value = AutoCharDupN((LPWSTR)value.c_str(), value.size(), CP_UTF8);
+		LPCSTR _value = ConvertUnicode((LPWSTR)value.c_str(), (const int)
+									   value.size(), CP_UTF8, 0, NULL, 0);
 		WritePrivateProfileStringA(_section, _key, _value, _file);
-		AutoCharDupFree((void *)_value);
+		SafeFree((void *)_value);
 	}
 	else
 	{
 		WritePrivateProfileStringA(_section, _key, NULL, _file);
 	}
-	AutoCharDupFree((void *)_section);
-	AutoCharDupFree((void *)_key);
-	AutoCharDupFree((void *)_file);
+	SafeFree((void *)_section);
+	SafeFree((void *)_key);
+	SafeFree((void *)_file);
 }
 
 void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<int> &tba)
@@ -123,10 +129,10 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 
 	if (SameStr(Destination_struct.Text, L"‡"))
 	{
-		(void)StringCchCopy(Destination_struct.Text, ARRAYSIZE(Destination_struct.Text),
-							L"%c%%s%%curpl% of %totalpl%.\\r%c%%s%%title%"
-							L"\\r%c%%s%%artist%\\r\\r%c%%s%%curtime%/%totaltime%"
-							L"\\r%c%%s%Track #: %track%        Volume: %volume%%");
+		CopyCchStr(Destination_struct.Text, ARRAYSIZE(Destination_struct.Text),
+				   L"%c%%s%%curpl% of %totalpl%.\\r%c%%s%%title%"
+				   L"\\r%c%%s%%artist%\\r\\r%c%%s%%curtime%/%totaltime%"
+				   L"\\r%c%%s%Track #: %track%        Volume: %volume%%");
 	}
 
 	Destination_struct.Thumbnailbackground = GetInt(L"ThumbnailBG", BG_WINAMP);
@@ -156,8 +162,8 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	if (!GetPrivateProfileStructW(SECTION_NAME_FONT, L"font", &Destination_struct.font,
 								  sizeof(Destination_struct.font), settingsFile.c_str()))
 	{
-		StringCchCopy(Destination_struct.font.lfFaceName,
-					  ARRAYSIZE(Destination_struct.font.lfFaceName), L"Segoe UI");
+		CopyCchStr(Destination_struct.font.lfFaceName,
+				   ARRAYSIZE(Destination_struct.font.lfFaceName), L"Segoe UI");
 		Destination_struct.font.lfHeight = -13;
 		Destination_struct.font.lfWeight = FW_NORMAL;
 	}
@@ -345,9 +351,9 @@ void SettingsManager::WriteSettings_ToForm(HWND hwnd, const sSettings &Settings)
 		}
 	}
 
-	SendDlgItemMessage(hwnd, IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)WASABI_API_LNGSTRINGW(IDS_TRANSPARENT));
-	SendDlgItemMessage(hwnd, IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)WASABI_API_LNGSTRINGW(IDS_ALBUM_ART));
-	SendDlgItemMessage(hwnd, IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)WASABI_API_LNGSTRINGW(IDS_CUSTOM_BACKGROUND));
+	SendDlgItemMessage(hwnd, IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)LangString(IDS_TRANSPARENT));
+	SendDlgItemMessage(hwnd, IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)LangString(IDS_ALBUM_ART));
+	SendDlgItemMessage(hwnd, IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)LangString(IDS_CUSTOM_BACKGROUND));
 
 	SendDlgItemMessage(hwnd, IDC_COMBO1, CB_SETCURSEL, Settings.Revertto, 0);
 

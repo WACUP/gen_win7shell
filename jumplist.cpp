@@ -79,16 +79,17 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 					// that this code was dealing with). this
 					// call will get the appropriate filepath
 					// for the instance of the loader in use!
-					static wchar_t fname[MAX_PATH] = { 0 };
-					if (!fname[0])
+					static wchar_t *fname;
+					if (!fname)
 					{
-						RealWACUPPath(fname, ARRAYSIZE(fname));
+						wchar_t temp[MAX_PATH] = { 0 };
+						fname = SafeWideDup(RealWACUPPath(temp, ARRAYSIZE(temp)));
 					}
 
 					if (mode == 1)
 					{
-						wchar_t shortfname[MAX_PATH] = {0};
-						GetShortPathName(fname, shortfname, MAX_PATH);
+						wchar_t shortfname[MAX_PATH] = { 0 };
+						GetShortPathName(fname, shortfname, ARRAYSIZE(shortfname));
 						hr = psl->SetPath(shortfname);
 					}
 					else
@@ -364,7 +365,7 @@ HRESULT JumpList::_AddCategoryToList2(const std::wstring &pluginpath, const std:
 				std::wstring title = WASABI_API_PLAYLISTS->GetName(i);
 
 				WASABI_API_PLAYLISTS->GetInfo(i, api_playlists_itemCount, &numItems, sizeof(numItems));
-				StringCchPrintf(tmp, MAX_PATH, L" [%d]", numItems);
+				PrintfCch(tmp, ARRAYSIZE(tmp), L" [%d]", numItems);
 				title += tmp;
 
 				hr = _CreateShellLink(pluginpath, WASABI_API_PLAYLISTS->GetFilename(i), title.c_str(), &psl, 3, 1);
