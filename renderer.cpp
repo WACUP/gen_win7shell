@@ -82,7 +82,7 @@ bool renderer::getAlbumArt(const std::wstring &fname, const bool skip_lock)
 			// so we cache a re-sized image and then draw that
 			if (cur_image != NULL)
 			{
-				const float ratio = (cur_h * 1.f) / (cur_h * 1.f);
+				const float ratio = (cur_h * 1.f) / (cur_w * 1.f);
 
 				if (cur_w > cur_h)
 				{
@@ -406,7 +406,7 @@ HBITMAP renderer::GetThumbnail(const bool clear, const bool skip_lock)
 						HICON win32_icon = NULL;
 						if (GetWinampIniInt(L"tb_icon", 1) == 2)
 						{
-							wchar_t taskbar_tmp[MAX_PATH] = { 0 };
+							wchar_t taskbar_tmp[MAX_PATH]/* = { 0 }*/;
 
 							win32_icon = (HICON)LoadImage(NULL, CombinePath(taskbar_tmp,
 										 GetPaths()->settings_dir, L"taskbar.ico"), IMAGE_ICON,

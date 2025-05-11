@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.8.4"
+#define PLUGIN_VERSION L"4.9"
 
 #define NR_BUTTONS 15
 
@@ -124,10 +124,12 @@ DWORD WINAPI SetupJumpListThread(LPVOID lp)
 				// need an 8.3 style filepath for us
 				if (!pluginPath)
 				{
-					wchar_t path[MAX_PATH] = { 0 };
-					GetModuleFileName(plugin.hDllInstance, path, ARRAYSIZE(path));
-					const DWORD len = GetShortPathName(path, path, ARRAYSIZE(path));
-					pluginPath = SafeWideDupN(path, len);
+					wchar_t path[MAX_PATH]/* = { 0 }*/;
+					if (GetModuleFileName(plugin.hDllInstance, path, ARRAYSIZE(path)))
+					{
+						const DWORD len = GetShortPathName(path, path, ARRAYSIZE(path));
+						pluginPath = SafeWideDupN(path, len);
+					}
 				}
 
 				if (!tmp1)
@@ -277,7 +279,7 @@ LPCWSTR GetAppID(void)
 		GetCurrentProcessExplicitAppUserModelID(&id);
 		if (!id)
 		{
-			wchar_t self_path[MAX_PATH] = { 0 };
+			wchar_t self_path[MAX_PATH]/* = { 0 }*/;
 			if (GetModuleFileName(NULL, self_path, ARRAYSIZE(self_path)))
 			{
 				wchar_t app_id[MAX_PATH] = { 0 };
@@ -357,7 +359,7 @@ void config(void)
 	{
 		case 1:
 		{
-			wchar_t text[1024] = { 0 };
+			wchar_t text[1024]/* = { 0 }*/;
 
 			const unsigned char* output = DecompressResourceText(plugin.hDllInstance,
 												  plugin.hDllInstance, IDR_ABOUT_GZ);
@@ -474,17 +476,17 @@ void updateToolbar(HIMAGELIST ImageList)
 			else if (button.iId == TB_PLAYPAUSE)
 			{
 				button.iBitmap = tools::getBitmap(button.iId, !!(Settings.play_state == PLAYSTATE_PLAYING));
-				CopyCchStr(button.szTip, ARRAYSIZE(button.szTip), tools::getToolTip(TB_PLAYPAUSE, Settings.play_state));
+				tools::getToolTip(TB_PLAYPAUSE, button.szTip, ARRAYSIZE(button.szTip), Settings.play_state);
 			}
 			else if (button.iId == TB_REPEAT)
 			{
 				button.iBitmap = tools::getBitmap(button.iId, Settings.state_repeat);
-				CopyCchStr(button.szTip, ARRAYSIZE(button.szTip), tools::getToolTip(TB_REPEAT, Settings.state_repeat));
+				tools::getToolTip(TB_REPEAT, button.szTip, ARRAYSIZE(button.szTip), Settings.state_repeat);
 			}
 			else if (button.iId == TB_SHUFFLE)
 			{
 				button.iBitmap = tools::getBitmap(button.iId, Settings.play_state == Settings.state_shuffle);
-				CopyCchStr(button.szTip, ARRAYSIZE(button.szTip), tools::getToolTip(TB_SHUFFLE, Settings.state_shuffle));
+				tools::getToolTip(TB_SHUFFLE, button.szTip, ARRAYSIZE(button.szTip), Settings.state_shuffle);
 			}
 
 			if (!button.iBitmap)
@@ -494,7 +496,7 @@ void updateToolbar(HIMAGELIST ImageList)
 
 			if (!button.szTip[0])
 			{
-				CopyCchStr(button.szTip, ARRAYSIZE(button.szTip), tools::getToolTip(button.iId, 0));
+				tools::getToolTip(button.iId, button.szTip, ARRAYSIZE(button.szTip), 0);
 			}
 		}
 
@@ -523,7 +525,7 @@ BOOL CALLBACK checkSkinProc(HWND hwnd, LPARAM lParam)
 		HWND child = GetWindow(hwnd, GW_CHILD);
 		if (IsWindow(child))
 		{
-			wchar_t cl[16] = { 0 };
+			wchar_t cl[16]/* = { 0 }*/;
 			if (GetClassName(child, cl, ARRAYSIZE(cl)) &&
 				(SameStrN(cl, L"Winamp EQ", 9) ||
 				 SameStrN(cl, L"Winamp PE", 9) ||
@@ -638,7 +640,6 @@ DWORD WINAPI UpdateThread(LPVOID lp)
 
 void SetThumbnailTimer(void)
 {
-	KillTimer(plugin.hwndParent, 6670);
 	SetTimer(plugin.hwndParent, 6670, (running ? (Settings.Thumbnailbackground == BG_WINAMP) ?
 			 (!Settings.LowFrameRate ? Settings.MFT : Settings.MST) :
 			 (!Settings.LowFrameRate ? Settings.TFT : Settings.TST) : 1000), TimerProc);
@@ -813,11 +814,8 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				std::wstring filename((wParam ? (wchar_t*)wParam : L""));
 				if (filename.empty())
 				{
-					LPCWSTR p = GetPlayingFilename(1, NULL);
-					if (p != NULL)
-					{
-						filename = p;
-					}
+					filename.resize(FILENAME_SIZE);
+					GetPlayingFilename(1, NULL, &filename[0], FILENAME_SIZE);
 				}
 
 				MetaData* meta_data = reset_metadata(filename.c_str());
@@ -849,7 +847,8 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 						if ((tools::CreateShellLink(filename.c_str(), title.c_str(), &psl) == S_OK) && psl)
 						{
 							const SHARDAPPIDINFOLINK applink = { psl, GetAppID() };
-							wchar_t temp[32] = { 0 };
+							wchar_t temp[32]/* = { 0 }*/;
+							temp[0] = 0;
 							psl->SetDescription(TimeNow2Str(temp, ARRAYSIZE(temp)));
 							// based on testing, this & things in the
 							// CreateShellLink() sometimes fails :'(
@@ -998,7 +997,8 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				{
 					EnterCriticalSection(&metadata_cs);
 
-					LPCWSTR p = GetPlayingFilename(0, NULL);
+					wchar_t buffer[FILENAME_SIZE]/* = { 0 }*/;
+					LPCWSTR p = GetPlayingFilename(0, NULL, buffer, ARRAYSIZE(buffer));
 					if (p != NULL)
 					{
 						reset_metadata(p);
@@ -1061,7 +1061,8 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 
 					EnterCriticalSection(&metadata_cs);
 
-					LPCWSTR p = GetPlayingFilename(0, NULL);
+					wchar_t buffer[FILENAME_SIZE]/* = { 0 }*/;
+					LPCWSTR p = GetPlayingFilename(0, NULL, buffer, ARRAYSIZE(buffer));
 					if (p != NULL)
 					{
 						reset_metadata(p);
@@ -1101,7 +1102,6 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 						GetCursorPos(&point);
 						GetWindowRect(ratewnd, &rc);
 						MoveWindow(ratewnd, (point.x - 245), (point.y - 15), (rc.right - rc.left), (rc.bottom - rc.top), false);
-						KillTimer(plugin.hwndParent, 6669);
 						SetTimer(plugin.hwndParent, 6669, 8000, TimerProc);
 						ShowWindow(ratewnd, SW_SHOWNA);
 					}
@@ -1185,7 +1185,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 						LPCWSTR filename = meta_data->getFileName();
 						if (filename && *filename)
 						{
-							wchar_t filepath[FILENAME_SIZE] = { 0 };
+							wchar_t filepath[FILENAME_SIZE]/* = { 0 }*/;
 							if (GetRealFilePath(filename, filepath, ARRAYSIZE(filepath), true))
 							{
 								/*if (WASABI_API_EXPLORERFINDFILE == NULL)
@@ -1208,7 +1208,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					const MetaData* meta_data = (GetPlaylistAllowHardDelete() ? get_metadata() : NULL);
 					if (meta_data != NULL)
 					{
-						wchar_t path[MAX_PATH] = { 0 };
+						wchar_t path[MAX_PATH]/* = { 0 }*/;
 						CopyCchStr(path, ARRAYSIZE(path), meta_data->getFileName());
 
 						const int saved_play_state = Settings.play_state;
@@ -1578,7 +1578,8 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 
 			EnterCriticalSection(&metadata_cs);
 
-			LPCWSTR p = GetPlayingFilename(1, NULL);
+			wchar_t buffer[FILENAME_SIZE]/* = { 0 }*/;
+			LPCWSTR p = GetPlayingFilename(1, NULL, buffer, ARRAYSIZE(buffer));
 			if (p != NULL)
 			{
 				reset_metadata(p);
@@ -1628,7 +1629,7 @@ LRESULT CALLBACK rateWndProc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lPara
 
 			// give an indication of the current rating for the item
 			const int rating = (const int)GetSetMainRating(0, IPC_GETRATING);
-			wchar_t rating_text[8] = { 0 };
+			wchar_t rating_text[8]/* = { 0 }*/;
 			PrintfCch(rating_text, ARRAYSIZE(rating_text), L"[%d]", rating);
 			SetDlgItemText(hwndDlg, IDC_RATE1 + rating, rating_text);
 			break;
@@ -1888,10 +1889,12 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 			}
 
 			const HWND list = GetDlgItem(hwnd, IDC_LIST1);
+			wchar_t tooltip_buf[64]/* = { 0 }*/;
 			for (size_t i = 0; i < TButtons.size(); ++i)
 			{
 				SendMessage(list, LB_SETITEMDATA, SendMessage(list, LB_ADDSTRING, NULL,
-							(LPARAM)tools::getToolTip(TButtons[i], -1)), TButtons[i]);
+							(LPARAM)tools::getToolTip(TButtons[i], tooltip_buf,
+									ARRAYSIZE(tooltip_buf), -1)), TButtons[i]);
 				SendDlgItemMessage(hwnd, TButtons[i], BM_SETCHECK, BST_CHECKED, NULL);
 			}
 			
@@ -2000,7 +2003,9 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 					{
 						if (Settings.Thumbnailbuttons)
 						{
-							SetDlgItemText(hwnd, IDC_STATIC29, tools::getToolTip(wParam));
+							wchar_t tooltip_buf[64]/* = { 0 }*/;
+							SetDlgItemText(hwnd, IDC_STATIC29, tools::getToolTip(wParam,
+											  tooltip_buf, ARRAYSIZE(tooltip_buf), -1));
 						}
 
 						UpdateContolButtons(hwnd);
@@ -2030,8 +2035,11 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 
 					const int data = (const int)SendMessage(list, LB_GETITEMDATA, index, NULL);
 					SendMessage(list, LB_DELETESTRING, index, NULL);
-					index = (int)SendMessage(list, LB_INSERTSTRING, (WPARAM)index -
-											 1, (LPARAM)tools::getToolTip(data));
+
+					wchar_t tooltip_buf[64]/* = { 0 }*/;
+					index = (int)SendMessage(list, LB_INSERTSTRING, (WPARAM)index - 1,
+											 (LPARAM)tools::getToolTip(data, tooltip_buf,
+															ARRAYSIZE(tooltip_buf), -1));
 					SendMessage(list, LB_SETITEMDATA, index, data);
 					SendMessage(list, LB_SETCURSEL, index, NULL);
 
@@ -2057,8 +2065,11 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 
 					const int data = (const int)SendMessage(list, LB_GETITEMDATA, index, NULL);
 					SendMessage(list, LB_DELETESTRING, index, NULL);
-					index = (int)SendMessage(list, LB_INSERTSTRING, (WPARAM)index +
-											 1, (LPARAM)tools::getToolTip(data));
+
+					wchar_t tooltip_buf[64]/* = { 0 }*/;
+					index = (int)SendMessage(list, LB_INSERTSTRING, (WPARAM)index + 1,
+										   (LPARAM)tools::getToolTip(data, tooltip_buf,
+														  ARRAYSIZE(tooltip_buf), -1));
 					SendMessage(list, LB_SETITEMDATA, index, data);
 					SendMessage(list, LB_SETCURSEL, index, NULL);
 
@@ -2317,7 +2328,7 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 		}
 		case WM_HSCROLL:
 		{
-			wchar_t text[64] = { 0 };
+			wchar_t text[64]/* = { 0 }*/;
 			if (HWNDIsCtrl(lParam, hwnd, IDC_SLIDER1))
 			{
 				Settings.IconSize = (int)SendMessage((HWND)lParam, TBM_GETPOS, NULL, NULL);
@@ -2387,7 +2398,7 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 						__uuidof(IFileDialog), (LPVOID*)&pfd)) && pfd)
 					{
 						// Show the dialog
-						wchar_t tmp[128] = { 0 }, tmp2[128] = { 0 };
+						wchar_t tmp[128]/* = { 0 }*/, tmp2[128]/* = { 0 }*/;
 						size_t filter_position = 0;
 						LPCWSTR filter_str = GetImageFilesFilter(&filter_position);
 						const COMDLG_FILTERSPEC rgSpec[] =
@@ -2501,8 +2512,10 @@ void AddStringtoList(HWND window, const int control_ID)
 	{
 		if (ListBox_GetCount(list) > 0)
 		{
+			wchar_t tooltip_buf[64]/* = { 0 }*/;
 			const int index = (const int)SendMessage(list, LB_FINDSTRINGEXACT, (WPARAM)-1,
-													 (LPARAM)tools::getToolTip(control_ID));
+													 (LPARAM)tools::getToolTip(control_ID,
+													 tooltip_buf, ARRAYSIZE(tooltip_buf), -1));
 			if (index != LB_ERR)
 			{
 				ListBox_DeleteString(list, index);
@@ -2513,8 +2526,10 @@ void AddStringtoList(HWND window, const int control_ID)
 	{
 		if (ListBox_GetCount(list) == 0)
 		{
+			wchar_t tooltip_buf[64]/* = { 0 }*/;
 			const int index = (const int)SendMessage(list, LB_ADDSTRING, NULL, (LPARAM)
-													 tools::getToolTip(control_ID));
+											 tools::getToolTip(control_ID, tooltip_buf,
+														  ARRAYSIZE(tooltip_buf), -1));
 			SendMessage(list, LB_SETITEMDATA, index, control_ID);
 		}
 		else
@@ -2526,7 +2541,9 @@ void AddStringtoList(HWND window, const int control_ID)
 			}
 			else
 			{
-				LPCWSTR tooltip = tools::getToolTip(control_ID);
+				wchar_t tooltip_buf[64]/* = { 0 }*/;
+				LPCWSTR tooltip = tools::getToolTip(control_ID, tooltip_buf,
+												ARRAYSIZE(tooltip_buf), -1);
 				if (SendMessage(list, LB_FINDSTRINGEXACT, (WPARAM)-1, (LPARAM)tooltip) == LB_ERR) //no duplicate
 				{
 					ListBox_SetItemData(list, SendMessage(list, LB_ADDSTRING, NULL, (LPARAM)tooltip), control_ID);
@@ -2591,7 +2608,7 @@ extern "C" __declspec(dllexport) int winampUninstallPlugin(HINSTANCE hDllInst, H
 	{
 		no_uninstall = false;
 
-		wchar_t ini_path[MAX_PATH] = { 0 };
+		wchar_t ini_path[MAX_PATH]/* = { 0 }*/;
 		if (CheckForPath(ini_path, GetPaths()->settings_sub_dir, L"win7shell.ini"))
 		{
 			DeleteFile(ini_path);

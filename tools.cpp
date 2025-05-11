@@ -8,7 +8,7 @@
 
 namespace tools
 {
-	LPCWSTR getToolTip(const WPARAM button, const int mode)
+	LPCWSTR getToolTip(const WPARAM button, LPWSTR buf, const size_t buf_len, const int mode)
 	{
 		int strID = -1;
 
@@ -130,13 +130,15 @@ namespace tools
 			}
 		}
 
-		static wchar_t *menu_string;
-		if (menu_string != NULL)
+		if (strID != -1)
 		{
-			SafeFree(menu_string);
-			menu_string = NULL;
+			LngStringCopy(strID, buf, buf_len);
 		}
-		return ((strID != -1) ? (menu_string = LngStringDup(strID)) : L"");
+		else
+		{
+			buf[0] = 0;
+		}
+		return buf;
 	}
 
 	HRESULT CreateShellLink(LPCWSTR filename, LPCWSTR pszTitle, IShellLink **ppsl)
@@ -148,7 +150,7 @@ namespace tools
 						 __uuidof(IShellLink), (LPVOID*)&psl);
 			if (SUCCEEDED(hr) && psl)
 			{
-				wchar_t fname[MAX_PATH] = { 0 };
+				wchar_t fname[MAX_PATH]/* = { 0 }*/;
 				// due to how WACUP works, a wacup.exe or
 				// a winamp.exe might be being used (this
 				// is ignoring the winamp.original aspect
@@ -207,7 +209,8 @@ namespace tools
 					}
 				}
 
-				wchar_t shortfname[MAX_PATH] = { 0 };
+				wchar_t shortfname[MAX_PATH]/* = { 0 }*/;
+				shortfname[0] = 0;
 				GetShortPathName(fname, shortfname, ARRAYSIZE(shortfname));
 
 				fname[0] = 0;
@@ -270,7 +273,7 @@ namespace tools
 		HICON hicon = NULL;
 		if (file)
 		{
-			wchar_t test_path[MAX_PATH] = { 0 };
+			wchar_t test_path[MAX_PATH]/* = { 0 }*/;
 
 			// look in the current skin for per-skin customisation
 			if (skin_folder && *skin_folder)
@@ -289,7 +292,7 @@ namespace tools
 			// which is stored in the user settings folder...
 			if (hicon == NULL)
 			{
-				wchar_t folder[MAX_PATH] = { 0 };
+				wchar_t folder[MAX_PATH]/* = { 0 }*/;
 				PrintfCch(test_path, ARRAYSIZE(test_path), L"%s\\%s.ico",
 				CombinePath(folder, GetPaths()->settings_dir, L"Taskbar"), file);
 
@@ -309,7 +312,7 @@ namespace tools
 											   GetSystemMetrics(SM_CYSMICON),
 											   ILC_COLOR32, NR_OVERLAY_ICONS, 0);
 
-		wchar_t skin_folder[MAX_PATH] = { 0 };
+		wchar_t skin_folder[MAX_PATH]/* = { 0 }*/;
 		GetCurrentSkin(skin_folder, ARRAYSIZE(skin_folder));
 
 		for (int i = 0; i < NR_OVERLAY_ICONS; ++i)
@@ -358,7 +361,7 @@ namespace tools
 											   GetSystemMetrics(SM_CYSMICON),
 											   ILC_COLOR32, NR_THUMB_BUTTONS, 0);
 
-		wchar_t skin_folder[MAX_PATH] = { 0 };
+		wchar_t skin_folder[MAX_PATH]/* = { 0 }*/;
 		GetCurrentSkin(skin_folder, ARRAYSIZE(skin_folder));
 
 		for (int i = 0; i < NR_THUMB_BUTTONS; ++i)

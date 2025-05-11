@@ -14,7 +14,7 @@ public:
 	~iTaskBar();
 
 	bool Reset();
-	void ThumbBarUpdateButtons(std::vector<THUMBBUTTON>& buttons, HIMAGELIST ImageList);
+	void ThumbBarUpdateButtons(const std::vector<THUMBBUTTON>& buttons, HIMAGELIST ImageList);
 	void SetProgressState(TBPFLAG newstate);
 	void SetIconOverlay(HICON icon, LPCWSTR text);
 	void SetProgressValue(ULONGLONG completed, ULONGLONG total);    

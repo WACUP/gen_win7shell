@@ -53,6 +53,10 @@ std::wstring SettingsManager::GetString(wchar_t *output, const size_t output_len
 		const AutoWide read8(buffer.c_str(), CP_UTF8);
 		CopyCchStr(output, output_len, read8);
 	}
+	else
+	{
+		*output = 0;
+	}
 	return output;
 }
 
@@ -61,7 +65,7 @@ void SettingsManager::WriteInt(const std::wstring &key, const int value,
 {
 	if (value != default_value)
 	{
-		wchar_t str[16] = { 0 };
+		wchar_t str[16]/* = { 0 }*/;
 		WritePrivateProfileString(currentSection.c_str(), key.c_str(),
 								  I2WStr(value, str, ARRAYSIZE(str)),
 												settingsFile.c_str());

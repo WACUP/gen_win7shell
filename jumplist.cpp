@@ -82,15 +82,21 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 					static wchar_t *fname;
 					if (!fname)
 					{
-						wchar_t temp[MAX_PATH] = { 0 };
+						wchar_t temp[MAX_PATH]/* = { 0 }*/;
 						fname = SafeWideDup(RealWACUPPath(temp, ARRAYSIZE(temp)));
 					}
 
 					if (mode == 1)
 					{
-						wchar_t shortfname[MAX_PATH] = { 0 };
-						GetShortPathName(fname, shortfname, ARRAYSIZE(shortfname));
-						hr = psl->SetPath(shortfname);
+						wchar_t shortfname[MAX_PATH]/* = { 0 }*/;
+						if (GetShortPathName(fname, shortfname, ARRAYSIZE(shortfname)))
+						{
+							hr = psl->SetPath(shortfname);
+						}
+						else
+						{
+							hr = S_FALSE;
+						}
 					}
 					else
 					{
@@ -312,7 +318,8 @@ bool JumpList::_IsItemInArray(const std::wstring &path, IObjectArray *poaRemoved
 			{
 				if (psiCompare)
 				{
-					wchar_t removedpath[MAX_PATH] = { 0 };
+					wchar_t removedpath[MAX_PATH]/* = { 0 }*/;
+					removedpath[0] = 0;
 					psiCompare->GetArguments(removedpath, ARRAYSIZE(removedpath));
 					fRet = !path.compare(removedpath);
 					psiCompare->Release();

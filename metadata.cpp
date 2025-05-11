@@ -30,12 +30,10 @@ std::wstring MetaData::getMetadata(const std::wstring &tag, void **token,
 	if (mfilename && *mfilename)
 	{
 		wchar_t buffer[GETFILEINFO_TITLE_LENGTH]/* = { 0 }*/;
-		buffer[0] = 0;
 
 		// cache the response as long as we got a valid result
-		GetFileMetaData(mfilename, tag.c_str(), buffer, ARRAYSIZE(buffer),
-							   token, reentrant, already_tried, db_error);
-		if (buffer[0])
+		if (*GetFileMetaData(mfilename, tag.c_str(), buffer, ARRAYSIZE(buffer),
+									token, reentrant, already_tried, db_error))
 		{
 			cache[tag] = buffer;
 			return buffer;
@@ -46,12 +44,13 @@ std::wstring MetaData::getMetadata(const std::wstring &tag, void **token,
 			const bool artist = (tag == L"artist"), title = (tag == L"title");
 			if (title || artist)
 			{
-				LPCWSTR playing_title = GetPlayingTitle(0);
+				ret.resize(FILETITLE_SIZE);
+
+				LPCWSTR playing_title = GetPlayingTitle(0, &ret[0], FILETITLE_SIZE);
 				if (!playing_title || !*playing_title)
 				{
 					return L"";
 				}
-				ret = playing_title;
 
 				size_t pos = ret.find_first_of('-');
 				if (pos != std::wstring::npos && pos != 0)

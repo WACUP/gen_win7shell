@@ -13,7 +13,7 @@ class SettingsManager
 public:
 	explicit SettingsManager() : currentSection(SECTION_NAME_GENERAL)
 	{
-		wchar_t ini_path[MAX_PATH] = { 0 };
+		wchar_t ini_path[MAX_PATH]/* = { 0 }*/;
 		settingsFile = CombinePath(ini_path, GetPaths()->settings_sub_dir, L"win7shell.ini");
 	}
 
