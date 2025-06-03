@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.9"
+#define PLUGIN_VERSION L"4.9.1"
 
 #define NR_BUTTONS 15
 
@@ -396,27 +396,8 @@ void quit(void)
 	KillTimer(plugin.hwndParent, 6672);
 	KillTimer(plugin.hwndParent, 6673);
 
-	if (CheckThreadHandleIsValid(&updatethread))
-	{
-		WaitForSingleObjectEx(updatethread, INFINITE, TRUE);
-
-		if (updatethread != NULL)
-		{
-			CloseHandle(updatethread);
-			updatethread = NULL;
-		}
-	}
-
-	if (CheckThreadHandleIsValid(&setupthread))
-	{
-		WaitForSingleObjectEx(setupthread, INFINITE, TRUE);
-
-		if (setupthread != NULL)
-		{
-			CloseHandle(setupthread);
-			setupthread = NULL;
-		}
-	}
+	WaitForThreadToClose(&updatethread, INFINITE);
+	WaitForThreadToClose(&setupthread, INFINITE);
 
 #ifdef USE_MOUSE
 	if (hMouseHook != NULL)

@@ -39,7 +39,7 @@ bool iTaskBar::Reset()
 	return ret;
 }
 
-void iTaskBar::ThumbBarUpdateButtons(std::vector<THUMBBUTTON>& buttons, HIMAGELIST ImageList)
+void iTaskBar::ThumbBarUpdateButtons(const std::vector<THUMBBUTTON>& buttons, HIMAGELIST ImageList)
 {
 	if (pTBL != NULL)
 	{
