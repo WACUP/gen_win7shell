@@ -468,7 +468,7 @@ bool JumpList::CleanJL(LPCWSTR AppID, IApplicationDocumentLists *padl, APPDOCLIS
 		SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, SHGFP_TYPE_CURRENT, path);
 		std::wstring filepath(path);
 		filepath += L"\\Microsoft\\Windows\\Recent\\AutomaticDestinations\\879d567ffa1f5b9f.automaticDestinations-ms";
-		if (DeleteFile(filepath.c_str()) == 0)
+		if (RemoveFile(filepath.c_str()) == 0)
 		{
 			return false;
 		}

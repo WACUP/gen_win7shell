@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.9.1"
+#define PLUGIN_VERSION L"4.9.2"
 
 #define NR_BUTTONS 15
 
@@ -1669,7 +1669,7 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 					AppendOnPath(filepath, L"\\Microsoft\\Windows\\Recent\\AutomaticDestinations"
 										   L"\\879d567ffa1f5b9f.automaticDestinations-ms");
 
-					if (DeleteFile(filepath) != 0)
+					if (RemoveFile(filepath) != 0)
 					{
 						EnableControl(hwnd, IDC_CLEARALL, false);
 					}
@@ -2592,7 +2592,7 @@ extern "C" __declspec(dllexport) int winampUninstallPlugin(HINSTANCE hDllInst, H
 		wchar_t ini_path[MAX_PATH]/* = { 0 }*/;
 		if (CheckForPath(ini_path, GetPaths()->settings_sub_dir, L"win7shell.ini"))
 		{
-			DeleteFile(ini_path);
+			RemoveFile(ini_path);
 		}
 
 		JumpList *jl = new JumpList(true);

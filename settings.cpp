@@ -293,7 +293,7 @@ void SettingsManager::WriteSettings(const sSettings &Source_struct)
 	LPCWSTR fn = settingsFile.c_str();
 	if (FileExists(fn) && !GetFileSizeByPath(fn))
 	{
-		DeleteFile(fn);
+		RemoveFile(fn);
 	}
 }
 
