@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.9.2"
+#define PLUGIN_VERSION L"4.9.4"
 
 #define NR_BUTTONS 15
 
@@ -251,7 +251,7 @@ const bool GenerateAppIDFromFolder(const wchar_t *search_path, wchar_t *app_id)
 					if (SUCCEEDED(pFolder->GetId(&pkfid)))
 					{
 						wchar_t szGuid[40] = {0};
-						StringFromGUID2(pkfid, szGuid, 40);
+						StringFromGUID2(pkfid, szGuid, ARRAYSIZE(szGuid));
 						PrintfCch(app_id, MAX_PATH, L"%s%s", szGuid, &search_path[len]);
 					}
 				}
@@ -1410,7 +1410,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 					{
 						static char * (__cdecl *export_sa_get)(char data[75*2+8]) =
 							   (char * (__cdecl *)(char data[75*2+8]))GetSADataFunc(2);
-						char data[75*2+8] = {0};
+						static char data[75*2+8]/* = {0}*/;
 						const char *p = (char *)(export_sa_get ? export_sa_get(data) : 0);
 						if (p)
 						{
@@ -1664,14 +1664,14 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 				}
 				case IDC_CLEARALL:
 				{
-					wchar_t filepath[MAX_PATH] = {0};
-					SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, SHGFP_TYPE_CURRENT, filepath);
-					AppendOnPath(filepath, L"\\Microsoft\\Windows\\Recent\\AutomaticDestinations"
-										   L"\\879d567ffa1f5b9f.automaticDestinations-ms");
-
-					if (RemoveFile(filepath) != 0)
+					wchar_t filepath[MAX_PATH]/* = {0}*/;
+					if (SUCCEEDED(SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, SHGFP_TYPE_CURRENT, filepath)))
 					{
-						EnableControl(hwnd, IDC_CLEARALL, false);
+						if (RemoveFile(AppendOnPath(filepath, L"\\Microsoft\\Windows\\Recent\\AutomaticDestinations"
+															  L"\\879d567ffa1f5b9f.automaticDestinations-ms")) != 0)
+						{
+							EnableControl(hwnd, IDC_CLEARALL, false);
+						}
 					}
 					break;
 				}
@@ -2371,8 +2371,9 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 				}
 				case IDC_BUTTON3:
 				{
-					wchar_t filename[MAX_PATH] = {0};
+					wchar_t filename[MAX_PATH]/* = {0}*/;
 					IFileDialog *pfd = NULL;
+					filename[0] = 0;
 
 					// CoCreate the dialog object.
 					if (SUCCEEDED(CreateCOMInProc(CLSID_FileOpenDialog,

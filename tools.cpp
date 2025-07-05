@@ -313,7 +313,7 @@ namespace tools
 											   ILC_COLOR32, NR_OVERLAY_ICONS, 0);
 
 		wchar_t skin_folder[MAX_PATH]/* = { 0 }*/;
-		GetCurrentSkin(skin_folder, ARRAYSIZE(skin_folder));
+		GetCurrentSkin(skin_folder, ARRAYSIZE(skin_folder), NULL);
 
 		for (int i = 0; i < NR_OVERLAY_ICONS; ++i)
 		{
@@ -362,7 +362,7 @@ namespace tools
 											   ILC_COLOR32, NR_THUMB_BUTTONS, 0);
 
 		wchar_t skin_folder[MAX_PATH]/* = { 0 }*/;
-		GetCurrentSkin(skin_folder, ARRAYSIZE(skin_folder));
+		GetCurrentSkin(skin_folder, ARRAYSIZE(skin_folder), NULL);
 
 		for (int i = 0; i < NR_THUMB_BUTTONS; ++i)
 		{

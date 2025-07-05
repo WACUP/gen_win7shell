@@ -368,7 +368,7 @@ HRESULT JumpList::_AddCategoryToList2(const std::wstring &pluginpath, const std:
 				size_t numItems = 0;
 				IShellLink *psl = NULL;
 
-				wchar_t tmp[MAX_PATH] = {0};
+				wchar_t tmp[MAX_PATH]/* = {0}*/;
 				std::wstring title = WASABI_API_PLAYLISTS->GetName(i);
 
 				WASABI_API_PLAYLISTS->GetInfo(i, api_playlists_itemCount, &numItems, sizeof(numItems));
@@ -464,13 +464,16 @@ bool JumpList::CleanJL(LPCWSTR AppID, IApplicationDocumentLists *padl, APPDOCLIS
 	}
 	else
 	{
-		wchar_t path[MAX_PATH] = {0};
-		SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, SHGFP_TYPE_CURRENT, path);
-		std::wstring filepath(path);
-		filepath += L"\\Microsoft\\Windows\\Recent\\AutomaticDestinations\\879d567ffa1f5b9f.automaticDestinations-ms";
-		if (RemoveFile(filepath.c_str()) == 0)
+		wchar_t path[MAX_PATH]/* = {0}*/;
+		if (SUCCEEDED(SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, SHGFP_TYPE_CURRENT, path)))
 		{
-			return false;
+			std::wstring filepath(path);
+			filepath += L"\\Microsoft\\Windows\\Recent\\AutomaticDestinations\\"
+						L"879d567ffa1f5b9f.automaticDestinations-ms";
+			if (RemoveFile(filepath.c_str()) == 0)
+			{
+				return false;
+			}
 		}
 	}
 
