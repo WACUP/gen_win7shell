@@ -10,8 +10,6 @@
 #include "api.h"
 #include "resource.h"
 #include <loader/loader/utils.h>
-#include <sdk/nu/autowide.h>
-#include <sdk/nu/autochar.h>
 
 int SettingsManager::GetInt(const std::wstring &key, const int default_value) const
 {
@@ -29,11 +27,11 @@ std::wstring SettingsManager::GetString(wchar_t *output, const size_t output_len
 										const std::wstring &default_value, const size_t max_size) const
 {
 	LPCSTR _section = ConvertUnicode((LPWSTR)currentSection.c_str(), (const int)
-									 currentSection.size(), CP_UTF8, 0, NULL, 0),
+									 currentSection.size(), CP_UTF8, 0, NULL, 0, NULL),
 		   _key = ConvertUnicode((LPWSTR)key.c_str(), (const int)
-								 key.size(), CP_UTF8, 0, NULL, 0),
+								 key.size(), CP_UTF8, 0, NULL, 0, NULL),
 		   _default = ConvertUnicode((LPWSTR)default_value.c_str(), (const int)
-									 default_value.size(), CP_UTF8, 0, NULL, 0),
+									 default_value.size(), CP_UTF8, 0, NULL, 0, NULL),
 		   _file = ConvertPathToA((LPWSTR)settingsFile.c_str(), NULL, 0, CP_ACP);
 
 	std::string buffer;
@@ -49,8 +47,8 @@ std::wstring SettingsManager::GetString(wchar_t *output, const size_t output_len
 
 	if (!buffer.empty())
 	{
-		const AutoWide read8(buffer.c_str(), CP_UTF8);
-		CopyCchStr(output, output_len, read8);
+		ConvertANSI(buffer.c_str(), (const int)buffer.size(),
+						  CP_UTF8, output, output_len, NULL);
 	}
 	else
 	{
@@ -87,14 +85,14 @@ void SettingsManager::WriteString(const std::wstring &key, const std::wstring &v
 								  const std::wstring &default_value) const
 {
 	LPCSTR _section = ConvertUnicode((LPWSTR)currentSection.c_str(), (const int)
-									 currentSection.size(), CP_UTF8, 0, NULL, 0),
+									 currentSection.size(), CP_UTF8, 0, NULL, 0, NULL),
 		   _key = ConvertUnicode((LPWSTR)key.c_str(), (const int)
-								 key.size(), CP_UTF8, 0, NULL, 0),
+								 key.size(), CP_UTF8, 0, NULL, 0, NULL),
 		   _file = ConvertPathToA((LPWSTR)settingsFile.c_str(), NULL, 0, CP_ACP);
 	if (value != default_value)
 	{
 		LPCSTR _value = ConvertUnicode((LPWSTR)value.c_str(), (const int)
-									   value.size(), CP_UTF8, 0, NULL, 0);
+									   value.size(), CP_UTF8, 0, NULL, 0, NULL);
 		WritePrivateProfileStringA(_section, _key, _value, _file);
 		SafeFree((void *)_value);
 	}
