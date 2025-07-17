@@ -1,6 +1,5 @@
 #include <Windows.h>
 #include <string>
-#include <strsafe.h>
 #include <vector>
 #include <gdiplus.h>
 #include "renderer.h"

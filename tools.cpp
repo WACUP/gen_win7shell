@@ -1,5 +1,4 @@
 #include "gen_win7shell.h"
-#include <strsafe.h>
 #include "resource.h"
 #include "tools.h"
 #include "api.h"

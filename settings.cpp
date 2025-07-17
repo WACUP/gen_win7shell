@@ -3,7 +3,6 @@
 #include <vector>
 #include <sstream>
 #include <windowsx.h>
-#include <strsafe.h>
 #include <shlwapi.h>
 #include <commctrl.h>
 #include "settings.h"

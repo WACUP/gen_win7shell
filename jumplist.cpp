@@ -7,7 +7,6 @@
 #include <string>
 #include <sstream>
 #include <map>
-#include <strsafe.h>
 #include "jumplist.h"
 #include "api.h"
 #include "tools.h"

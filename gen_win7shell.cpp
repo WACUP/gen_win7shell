@@ -9,7 +9,6 @@
 #include <dwmapi.h>
 #include <shlobj.h>
 #include <shellapi.h>
-#include <strsafe.h>
 #include <shobjidl.h>
 #include <gdiplus.h>
 #include <process.h>
