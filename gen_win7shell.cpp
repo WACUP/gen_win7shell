@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.9.6"
+#define PLUGIN_VERSION L"4.10"
 
 #define NR_BUTTONS 15
 
@@ -694,8 +694,7 @@ void UpdateOverlyStatus(const bool force_refresh)
 
 	if (Settings.Overlay)
 	{
-		static wchar_t *playing_str = LngStringDup(IDS_PLAYING),
-					   *paused_str = LngStringDup(IDS_PAUSED);
+		static wchar_t *playing_str, *paused_str = LngStringDup(IDS_PAUSED);
 		HICON icon = NULL;
 		switch (Settings.play_state)
 		{
@@ -716,7 +715,8 @@ void UpdateOverlyStatus(const bool force_refresh)
 
 						if (itaskbar != NULL)
 						{
-							itaskbar->SetIconOverlay(icon, (!paused ? playing_str : paused_str));
+							itaskbar->SetIconOverlay(icon, (!paused ? (playing_str ? playing_str :
+										(playing_str = LngStringDup(IDS_PLAYING))) : paused_str));
 						}
 					}
 				}
@@ -795,7 +795,9 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				if (filename.empty())
 				{
 					filename.resize(FILENAME_SIZE);
-					GetPlayingFilename(1, NULL, &filename[0], FILENAME_SIZE);
+					size_t filename_len = 0;
+					GetPlayingFilename(1, NULL, &filename[0], FILENAME_SIZE, &filename_len);
+					filename.resize(filename_len);
 				}
 
 				MetaData* meta_data = reset_metadata(filename.c_str());
@@ -978,7 +980,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					EnterCriticalSection(&metadata_cs);
 
 					wchar_t buffer[FILENAME_SIZE]/* = { 0 }*/;
-					LPCWSTR p = GetPlayingFilename(0, NULL, buffer, ARRAYSIZE(buffer));
+					LPCWSTR p = GetPlayingFilename(0, NULL, buffer, ARRAYSIZE(buffer), NULL);
 					if (p != NULL)
 					{
 						reset_metadata(p);
@@ -1042,7 +1044,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					EnterCriticalSection(&metadata_cs);
 
 					wchar_t buffer[FILENAME_SIZE]/* = { 0 }*/;
-					LPCWSTR p = GetPlayingFilename(0, NULL, buffer, ARRAYSIZE(buffer));
+					LPCWSTR p = GetPlayingFilename(0, NULL, buffer, ARRAYSIZE(buffer), NULL);
 					if (p != NULL)
 					{
 						reset_metadata(p);
@@ -1165,7 +1167,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 						LPCWSTR filename = meta_data->getFileName();
 						if (filename && *filename)
 						{
-							wchar_t filepath[FILENAME_SIZE]/* = { 0 }*/;
+							wchar_t filepath[MAX_PATH]/* = { 0 }*/;
 							if (GetRealFilePath(filename, filepath, ARRAYSIZE(filepath), true))
 							{
 								/*if (WASABI_API_EXPLORERFINDFILE == NULL)
@@ -1559,7 +1561,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 			EnterCriticalSection(&metadata_cs);
 
 			wchar_t buffer[FILENAME_SIZE]/* = { 0 }*/;
-			LPCWSTR p = GetPlayingFilename(1, NULL, buffer, ARRAYSIZE(buffer));
+			LPCWSTR p = GetPlayingFilename(1, NULL, buffer, ARRAYSIZE(buffer), NULL);
 			if (p != NULL)
 			{
 				reset_metadata(p);
@@ -2589,10 +2591,10 @@ extern "C" __declspec(dllexport) int winampUninstallPlugin(HINSTANCE hDllInst, H
 	{
 		no_uninstall = false;
 
-		wchar_t ini_path[MAX_PATH]/* = { 0 }*/;
-		if (CheckForPath(ini_path, GetPaths()->settings_sub_dir, L"win7shell.ini"))
+		const winamp_paths *paths = GetPaths();
+		if (FileExists(paths->win7shell_ini_file))
 		{
-			RemoveFile(ini_path);
+			RemoveFile(paths->win7shell_ini_file);
 		}
 
 		JumpList *jl = new JumpList(true);

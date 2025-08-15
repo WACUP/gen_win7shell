@@ -149,14 +149,13 @@ namespace tools
 						 __uuidof(IShellLink), (LPVOID*)&psl);
 			if (SUCCEEDED(hr) && psl)
 			{
-				wchar_t fname[MAX_PATH]/* = { 0 }*/;
 				// due to how WACUP works, a wacup.exe or
-				// a winamp.exe might be being used (this
-				// is ignoring the winamp.original aspect
-				// that this code was dealing with). this
-				// call will get the appropriate filepath
-				// for the instance of the loader in use!
-				RealWACUPPath(fname, ARRAYSIZE(fname));
+				// a winamp.exe might be being used under
+				// the x86 build so we need to obtain the
+				// correct filepath for the loader in use
+				wchar_t loader_path[MAX_PATH]/* = { 0 }*/;
+				CopyCchStr(loader_path, ARRAYSIZE(loader_path),
+								 GetPaths()->wacup_loader_exe);
 
 				LPSHELLFOLDER pDesktopFolder = 0;
 				if (SUCCEEDED(SHGetDesktopFolder(&pDesktopFolder)) && pDesktopFolder)
@@ -167,7 +166,7 @@ namespace tools
 					// so we will try & catch it & fail gracefully
 					__try
 					{
-						hr = pDesktopFolder->ParseDisplayName(NULL, 0, fname, 0, &filepidl, 0);
+						hr = pDesktopFolder->ParseDisplayName(NULL, 0, loader_path, 0, &filepidl, 0);
 					}
 					__except (EXCEPTION_EXECUTE_HANDLER)
 					{
@@ -210,12 +209,12 @@ namespace tools
 
 				wchar_t shortfname[MAX_PATH]/* = { 0 }*/;
 				shortfname[0] = 0;
-				GetShortPathName(fname, shortfname, ARRAYSIZE(shortfname));
+				GetShortPathName(loader_path, shortfname, ARRAYSIZE(shortfname));
 
-				fname[0] = 0;
-				if (GetShortPathName(filename, fname, ARRAYSIZE(fname)) == 0)
+				loader_path[0] = 0;
+				if (!GetShortPathName(filename, loader_path, ARRAYSIZE(loader_path)))
 				{
-					CopyCchStr(fname, ARRAYSIZE(fname), filename);
+					CopyCchStr(loader_path, ARRAYSIZE(loader_path), filename);
 				}
 				psl->SetIconLocation(shortfname, 0);
 
@@ -228,7 +227,7 @@ namespace tools
 
 				if (SUCCEEDED(hr))
 				{
-					hr = psl->SetArguments(fname);
+					hr = psl->SetArguments(loader_path);
 					if (SUCCEEDED(hr))
 					{
 						// The title property is required on Jump List items provided as an IShellLink

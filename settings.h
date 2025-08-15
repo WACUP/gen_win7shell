@@ -11,11 +11,7 @@
 class SettingsManager
 {
 public:
-	explicit SettingsManager() : currentSection(SECTION_NAME_GENERAL)
-	{
-		wchar_t ini_path[MAX_PATH]/* = { 0 }*/;
-		settingsFile = CombinePath(ini_path, GetPaths()->settings_sub_dir, L"win7shell.ini");
-	}
+	explicit SettingsManager() : currentSection(SECTION_NAME_GENERAL) {}
 
 	void ReadSettings(sSettings &Destination_struct, std::vector<int> &tba);
 	void WriteSettings(const sSettings &Source_struct);
@@ -25,8 +21,8 @@ public:
 
 	int GetInt(const std::wstring &key, const int default_value) const;
 	bool GetBool(const std::wstring &key, const bool default_value) const;
-	std::wstring GetString(wchar_t* output, const size_t output_len, const std::wstring &key,
-						   const std::wstring &default_value, const size_t max_size = 1024) const;
+	void GetString(wchar_t* output, const size_t output_len, const std::wstring &key,
+											const std::wstring &default_value) const;
 
 	// all of these compare against the default value to prevent
 	// saving the value to the settings file if there's no need.
@@ -35,7 +31,7 @@ public:
 	void WriteString(const std::wstring &key, const std::wstring &value, const std::wstring &default_value) const;
 
 private:
-	std::wstring settingsFile, currentSection;
+	std::wstring currentSection;
 };
 
 #endif // settings_h__

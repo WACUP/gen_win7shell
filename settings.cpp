@@ -10,67 +10,41 @@
 #include "api.h"
 #include "resource.h"
 #include <loader/loader/utils.h>
+#include <loader/loader/ini.h>
 
 int SettingsManager::GetInt(const std::wstring &key, const int default_value) const
 {
-	return GetPrivateProfileInt(currentSection.c_str(), key.c_str(),
-								default_value, settingsFile.c_str());
+	return !!GetNativeIniInt(WIN7SHELL_INI, currentSection.c_str(),
+									   key.c_str(), default_value);
 }
 
 bool SettingsManager::GetBool(const std::wstring &key, const bool default_value) const
 {
-	return !!GetPrivateProfileInt(currentSection.c_str(), key.c_str(),
-								  default_value, settingsFile.c_str());
+	return !!GetNativeIniInt(WIN7SHELL_INI, currentSection.c_str(),
+									   key.c_str(), default_value);
 }
 
-std::wstring SettingsManager::GetString(wchar_t *output, const size_t output_len, const std::wstring &key,
-										const std::wstring &default_value, const size_t max_size) const
+void SettingsManager::GetString(wchar_t *output, const size_t output_len, const
+					std::wstring &key, const std::wstring &default_value) const
 {
-	LPCSTR _section = ConvertUnicode((LPWSTR)currentSection.c_str(), (const int)
-									 currentSection.size(), CP_UTF8, 0, NULL, 0, NULL),
-		   _key = ConvertUnicode((LPWSTR)key.c_str(), (const int)
-								 key.size(), CP_UTF8, 0, NULL, 0, NULL),
-		   _default = ConvertUnicode((LPWSTR)default_value.c_str(), (const int)
-									 default_value.size(), CP_UTF8, 0, NULL, 0, NULL),
-		   _file = ConvertPathToA((LPWSTR)settingsFile.c_str(), NULL, 0, CP_ACP);
-
-	std::string buffer;
-	buffer.resize(max_size);
-	const DWORD len = GetPrivateProfileStringA(_section, _key, _default,
-											   &buffer[0], (int)max_size, _file);
-	buffer.resize(len);
-
-	SafeFree((void *)_section);
-	SafeFree((void *)_key);
-	SafeFree((void *)_default);
-	SafeFree((void *)_file);
-
-	if (!buffer.empty())
-	{
-		ConvertANSI(buffer.c_str(), (const int)buffer.size(),
-						  CP_UTF8, output, output_len, NULL);
-	}
-	else
-	{
-		*output = 0;
-	}
-	return output;
+	GetNativeIniString(WIN7SHELL_INI, currentSection.c_str(), key.c_str(),
+					    default_value.c_str(), output, (DWORD)output_len);
 }
 
 void SettingsManager::WriteInt(const std::wstring &key, const int value,
 							   const int default_value) const
 {
+	LPCWSTR settings_file = GetPaths()->win7shell_ini_file;
 	if (value != default_value)
 	{
 		wchar_t str[16]/* = { 0 }*/;
 		WritePrivateProfileString(currentSection.c_str(), key.c_str(),
-								  I2WStr(value, str, ARRAYSIZE(str)),
-												settingsFile.c_str());
+				   I2WStr(value, str, ARRAYSIZE(str)), settings_file);
 	}
 	else
 	{
-		WritePrivateProfileString(currentSection.c_str(), key.c_str(),
-								  NULL, settingsFile.c_str());
+		WritePrivateProfileString(currentSection.c_str(),
+					   key.c_str(), NULL, settings_file);
 	}
 }
 
@@ -78,7 +52,7 @@ void SettingsManager::WriteBool(const std::wstring &key, const bool value,
 								const bool default_value) const
 {
 	WritePrivateProfileString(currentSection.c_str(), key.c_str(), ((value != default_value) ?
-							  (value ? L"1" : L"0") : NULL), settingsFile.c_str());
+							   (value ? L"1" : L"0") : NULL), GetPaths()->win7shell_ini_file);
 }
 
 void SettingsManager::WriteString(const std::wstring &key, const std::wstring &value,
@@ -88,7 +62,7 @@ void SettingsManager::WriteString(const std::wstring &key, const std::wstring &v
 									 currentSection.size(), CP_UTF8, 0, NULL, 0, NULL),
 		   _key = ConvertUnicode((LPWSTR)key.c_str(), (const int)
 								 key.size(), CP_UTF8, 0, NULL, 0, NULL),
-		   _file = ConvertPathToA((LPWSTR)settingsFile.c_str(), NULL, 0, CP_ACP);
+		   _file = ConvertPathToA((LPWSTR)GetPaths()->win7shell_ini_file, NULL, 0, CP_ACP);
 	if (value != default_value)
 	{
 		LPCSTR _value = ConvertUnicode((LPWSTR)value.c_str(), (const int)
@@ -113,8 +87,7 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	Destination_struct.Add2RecentDocs = GetBool(L"Add2RecentDocs", true);
 	Destination_struct.Antialias = GetBool(L"AntiAlias", true);
 	Destination_struct.AsIcon = GetBool(L"AsIcon", true);
-	GetString(Destination_struct.BGPath, ARRAYSIZE(Destination_struct.BGPath),
-						L"BGPath", L"", ARRAYSIZE(Destination_struct.BGPath));
+	GetString(Destination_struct.BGPath, ARRAYSIZE(Destination_struct.BGPath), L"BGPath", L"");
 	Destination_struct.JLbms = GetBool(L"JLBookMarks", true);
 	Destination_struct.JLfrequent = GetBool(L"Frequent", false);
 	Destination_struct.JLpl = GetBool(L"JLPlayList", true);
@@ -160,11 +133,11 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	// Read font
 	currentSection = SECTION_NAME_FONT;
 
-	if (!GetPrivateProfileStructW(SECTION_NAME_FONT, L"font", &Destination_struct.font,
-								  sizeof(Destination_struct.font), settingsFile.c_str()))
+	if (!GetNativeIniStruct(WIN7SHELL_INI, SECTION_NAME_FONT, L"font",
+		   &Destination_struct.font, sizeof(Destination_struct.font)))
 	{
-		CopyCchStr(Destination_struct.font.lfFaceName,
-				   ARRAYSIZE(Destination_struct.font.lfFaceName), L"Segoe UI");
+		CopyCchStr(Destination_struct.font.lfFaceName, ARRAYSIZE(
+				   Destination_struct.font.lfFaceName), L"Segoe UI");
 		Destination_struct.font.lfHeight = -13;
 		Destination_struct.font.lfWeight = FW_NORMAL;
 	}
@@ -180,8 +153,8 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	// Read buttons
 	std::wstring text;
 	text.resize(100);
-	const DWORD len = GetPrivateProfileString(SECTION_NAME_GENERAL, L"ThumbButtons",
-											  L"~", &text[0], 99, settingsFile.c_str());
+	const DWORD len = GetNativeIniString(WIN7SHELL_INI, SECTION_NAME_GENERAL,
+										 L"ThumbButtons", L"~", &text[0], 99);
 	if (len > 0)
 	{
 		text.resize(len);
@@ -270,16 +243,16 @@ void SettingsManager::WriteSettings(const sSettings &Source_struct)
 	// Font
 	currentSection = SECTION_NAME_FONT;
 
+	LPCWSTR settings_file = GetPaths()->win7shell_ini_file;
 	const LOGFONT ft = { -13, 0, 0, FW_NORMAL, 0, 0, 0, 0, 0, 0, 0, 0, 0, L"Segoe UI" };
 	if (memcmp(&ft, &Source_struct.font, sizeof(LOGFONT)))
 	{
 		WritePrivateProfileStruct(currentSection.c_str(), L"font", (LPVOID)(&Source_struct.font),
-								  sizeof(Source_struct.font), settingsFile.c_str());
+													  sizeof(Source_struct.font), settings_file);
 	}
 	else
 	{
-		WritePrivateProfileStruct(currentSection.c_str(), L"font",
-								   NULL, 0, settingsFile.c_str());
+		WritePrivateProfileStruct(currentSection.c_str(), L"font", NULL, 0, settings_file);
 	}
 
 	WriteInt(L"color", Source_struct.text_color, RGB(255, 255, 255));
@@ -287,10 +260,9 @@ void SettingsManager::WriteSettings(const sSettings &Source_struct)
 
 	// now we see if the file remaining is empty as
 	// there's no point in keeping an empty file...
-	LPCWSTR fn = settingsFile.c_str();
-	if (FileExists(fn) && !GetFileSizeByPath(fn))
+	if (FileExists(settings_file) && !GetFileSizeByPath(settings_file))
 	{
-		RemoveFile(fn);
+		RemoveFile(settings_file);
 	}
 }
 
@@ -456,14 +428,15 @@ void SettingsManager::WriteButtons(std::vector<int> &tba)
 		button_Text.erase(button_Text.length() - 1, 1);
 	}
 
+	LPCWSTR settings_file = GetPaths()->win7shell_ini_file;
 	if (!SameStr(button_Text.c_str(), L"1300,1301,1302,1303,1308,1314"))
 	{
 		WritePrivateProfileString(SECTION_NAME_GENERAL, L"ThumbButtons",
-								  button_Text.c_str(), settingsFile.c_str());
+									button_Text.c_str(), settings_file);
 	}
 	else
 	{
-		WritePrivateProfileString(SECTION_NAME_GENERAL, L"ThumbButtons",
-								  NULL, settingsFile.c_str());
+		WritePrivateProfileString(SECTION_NAME_GENERAL,
+				 L"ThumbButtons", NULL, settings_file);
 	}
 }

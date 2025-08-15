@@ -10,9 +10,7 @@
 #include "jumplist.h"
 #include "api.h"
 #include "tools.h"
-#ifdef _WIN64
 #include <loader/loader/paths.h>
-#endif
 #include <loader/loader/utils.h>
 
 JumpList::JumpList(const bool delete_now) : pcdl(NULL)
@@ -73,22 +71,14 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 				__try
 				{
 					// due to how WACUP works, a wacup.exe or
-					// a winamp.exe might be being used (this
-					// is ignoring the winamp.original aspect
-					// that this code was dealing with). this
-					// call will get the appropriate filepath
-					// for the instance of the loader in use!
-					static wchar_t *fname;
-					if (!fname)
-					{
-						wchar_t temp[MAX_PATH]/* = { 0 }*/;
-						fname = SafeWideDup(RealWACUPPath(temp, ARRAYSIZE(temp)));
-					}
-
+					// a winamp.exe might be being used under
+					// the x86 build so we need to obtain the
+					// correct filepath for the loader in use
+					LPCWSTR loader_path = GetPaths()->wacup_loader_exe;
 					if (mode == 1)
 					{
 						wchar_t shortfname[MAX_PATH]/* = { 0 }*/;
-						if (GetShortPathName(fname, shortfname, ARRAYSIZE(shortfname)))
+						if (GetShortPathName(loader_path, shortfname, ARRAYSIZE(shortfname)))
 						{
 							hr = psl->SetPath(shortfname);
 						}
@@ -99,7 +89,7 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 					}
 					else
 					{
-						hr = psl->SetPath(fname);
+						hr = psl->SetPath(loader_path);
 					}
 				}
 				__except (EXCEPTION_EXECUTE_HANDLER)
@@ -467,8 +457,8 @@ bool JumpList::CleanJL(LPCWSTR AppID, IApplicationDocumentLists *padl, APPDOCLIS
 		if (SUCCEEDED(SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, SHGFP_TYPE_CURRENT, path)))
 		{
 			std::wstring filepath(path);
-			filepath += L"\\Microsoft\\Windows\\Recent\\AutomaticDestinations\\"
-						L"879d567ffa1f5b9f.automaticDestinations-ms";
+			filepath += std::wstring(L"\\Microsoft\\Windows\\Recent\\AutomaticDestinations"
+									 L"\\879d567ffa1f5b9f.automaticDestinations-ms", 89);
 			if (RemoveFile(filepath.c_str()) == 0)
 			{
 				return false;
