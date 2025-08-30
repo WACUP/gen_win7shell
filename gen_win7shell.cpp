@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.10"
+#define PLUGIN_VERSION L"4.10.1"
 
 #define NR_BUTTONS 15
 
@@ -694,7 +694,7 @@ void UpdateOverlyStatus(const bool force_refresh)
 
 	if (Settings.Overlay)
 	{
-		static wchar_t *playing_str, *paused_str = LngStringDup(IDS_PAUSED);
+		static wchar_t* paused_str = LngStringDup(IDS_PAUSED);
 		HICON icon = NULL;
 		switch (Settings.play_state)
 		{
@@ -715,6 +715,7 @@ void UpdateOverlyStatus(const bool force_refresh)
 
 						if (itaskbar != NULL)
 						{
+							static wchar_t* playing_str;
 							itaskbar->SetIconOverlay(icon, (!paused ? (playing_str ? playing_str :
 										(playing_str = LngStringDup(IDS_PLAYING))) : paused_str));
 						}

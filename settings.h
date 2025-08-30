@@ -17,7 +17,7 @@ public:
 	void WriteSettings(const sSettings &Source_struct);
 
 	static void WriteSettings_ToForm(HWND hwnd, const sSettings &Settings);
-	void WriteButtons(std::vector<int> &tba);
+	static void WriteButtons(std::vector<int> &tba);
 
 	int GetInt(const std::wstring &key, const int default_value) const;
 	bool GetBool(const std::wstring &key, const bool default_value) const;
