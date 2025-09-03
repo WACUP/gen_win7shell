@@ -14,8 +14,8 @@
 
 int SettingsManager::GetInt(const std::wstring &key, const int default_value) const
 {
-	return !!GetNativeIniInt(WIN7SHELL_INI, currentSection.c_str(),
-									   key.c_str(), default_value);
+	return GetNativeIniInt(WIN7SHELL_INI, currentSection.c_str(),
+									 key.c_str(), default_value);
 }
 
 bool SettingsManager::GetBool(const std::wstring &key, const bool default_value) const
@@ -109,7 +109,7 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 				   L"\\r%c%%s%Track #: %track%        Volume: %volume%%");
 	}
 
-	Destination_struct.Thumbnailbackground = GetInt(L"ThumbnailBG", BG_WINAMP);
+	Destination_struct.Thumbnailbackground = (GetInt(L"ThumbnailBG", BG_WINAMP) & 0xF);
 	Destination_struct.Thumbnailbuttons = GetBool(L"ThumbnailButtons", true);
 	Destination_struct.Thumbnailpb = GetBool(L"ThumbnailPB", false);
 #ifdef USE_MOUSE
@@ -138,12 +138,18 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	{
 		CopyCchStr(Destination_struct.font.lfFaceName, ARRAYSIZE(
 				   Destination_struct.font.lfFaceName), L"Segoe UI");
-		Destination_struct.font.lfHeight = -13;
+		Destination_struct.font.lfHeight = -23;
 		Destination_struct.font.lfWeight = FW_NORMAL;
 	}
 
 	Destination_struct.text_color = GetInt(L"color", RGB(255, 255, 255));
 	Destination_struct.bgcolor = GetInt(L"bgcolor", RGB(0, 0, 0));
+
+	// if something went wrong with the config then we can try to correct it
+	if ((Destination_struct.text_color == 1) && !Destination_struct.bgcolor)
+	{
+		Destination_struct.text_color = RGB(255, 255, 255);
+	}
 
 	Destination_struct.MFT = GetInt(L"MFT", 200);
 	Destination_struct.MST = GetInt(L"MST", 500);

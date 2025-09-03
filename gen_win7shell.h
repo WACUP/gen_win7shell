@@ -13,8 +13,8 @@ struct sSettings
 {
 	// thumbnail
 	bool Thumbnailenabled;
-	int Thumbnailbackground;
 	bool Thumbnailbuttons;
+	short Thumbnailbackground;
 	bool Progressbar;
 	bool Streamstatus;
 	bool Stoppedstatus;
@@ -28,10 +28,10 @@ struct sSettings
 	bool Shrinkframe;
 	bool VuMeter;
 	bool Buttons[16];
-	bool Thumbnailpb;
+	//bool Thumbnailpb;
 
 	// icon settings
-	bool AsIcon;
+	//bool AsIcon;
 	int IconSize;
 	int IconPosition;
 	int BG_Transparency;
@@ -48,6 +48,11 @@ struct sSettings
 	bool VolumeControl;
 #endif
 	bool LowFrameRate;
+
+	// moved to avoid a memory hole
+	bool Thumbnailpb;
+	bool AsIcon;
+
 	int LastTab;
 
 	// playback info
