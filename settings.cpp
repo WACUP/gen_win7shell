@@ -20,8 +20,8 @@ int SettingsManager::GetInt(const std::wstring &key, const int default_value) co
 
 bool SettingsManager::GetBool(const std::wstring &key, const bool default_value) const
 {
-	return !!GetNativeIniInt(WIN7SHELL_INI, currentSection.c_str(),
-									   key.c_str(), default_value);
+	return GetNativeIniBool(WIN7SHELL_INI, currentSection.c_str(),
+									  key.c_str(), default_value);
 }
 
 void SettingsManager::GetString(wchar_t *output, const size_t output_len, const

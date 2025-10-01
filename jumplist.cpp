@@ -349,9 +349,7 @@ HRESULT JumpList::_AddCategoryToList2(const std::wstring &pluginpath, const std:
 	if (SUCCEEDED(hr) && poc)
 	{
 		// enumerate through playlists (need to see if can use api_playlists.h via sdk)
-		if (WASABI_API_PLAYLISTS && WASABI_API_PLAYLISTS->GetCount())
-		{
-			const size_t count = WASABI_API_PLAYLISTS->GetCount();
+		const size_t count = (WASABI_API_PLAYLISTS ? WASABI_API_PLAYLISTS->GetCount() : 0);
 			for (size_t i = 0; i < count; i++)
 			{
 				size_t numItems = 0;
@@ -372,7 +370,6 @@ HRESULT JumpList::_AddCategoryToList2(const std::wstring &pluginpath, const std:
 						psl->SetDescription(WASABI_API_PLAYLISTS->GetFilename(i));
 						poc->AddObject(psl);
 						psl->Release();
-					}
 				}
 			}
 		}
