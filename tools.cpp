@@ -565,19 +565,6 @@ namespace tools
 		return ss.str();
 	}
 
-	std::wstring getBookmarks(void)
-	{
-		std::wifstream is(GetPaths()->winamp_bm8_path/*(wchar_t*)SendMessage(plugin.hwndParent, WM_WA_IPC, 0, IPC_ADDBOOKMARKW)/**/);
-		if (is.fail())
-		{
-			return L"";
-		}
-
-		std::wstring data;
-		std::getline(is, data, L'\0');
-		return data;
-	}
-
 	const int getBitmapCount(void)
 	{
 		return 19;

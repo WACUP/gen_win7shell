@@ -61,9 +61,7 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 	IShellLink *psl = NULL;
 	HRESULT hr = CreateCOMInProc(CLSID_ShellLink,
 				 __uuidof(IShellLink), (LPVOID*)&psl);
-	if (SUCCEEDED(hr))
-	{
-		if (psl)
+	if (SUCCEEDED(hr) && psl)
 		{
 			psl->SetIconLocation(path.c_str(), iconindex);
 			if (mode)
@@ -146,7 +144,6 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 			}
 			psl->Release();
 		}
-	}
 	return hr;
 }
 
@@ -167,40 +164,38 @@ void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring
 		bool has_bm = false;
 		if (addbm && (hr == S_OK))
 		{
-			const std::wstring& bms = tools::getBookmarks();
-			std::wstringstream ss(bms);
-			std::wstring line1, line2;
-			bool b = false;
-			has_bm = !bms.empty();
-			while (getline(ss, line1) && !closing)
+			std::map<size_t, std::wstring> bm_uri, bm_title;
+			if (ReadBookmarks(bm_uri, bm_title) && !bm_uri.empty())
 			{
-				if (b)
+				wchar_t path_83[MAX_PATH];
+				auto title_itr = bm_title.begin();
+				if (title_itr != bm_title.end())
 				{
-					IShellLink *psl = NULL;
-					hr = _CreateShellLink(pluginpath, line2.c_str(), line1.c_str(), &psl, 2, 1);
+					has_bm = true;
 
-					if (!_IsItemInArray(line2, poaRemoved))
+					for (auto const& itr : bm_uri)
 					{
-						psl->SetDescription(line2.c_str());
-						poc->AddObject(psl);
+						IShellLink* psl = NULL;
+						if (!GetShortPathName(itr.second.c_str(), path_83, ARRAYSIZE(path_83)))
+						{
+							path_83[0] = 0;
 					}
 
-					psl->Release();
-					b = false;
-				}
-				else
+						hr = _CreateShellLink(pluginpath, (path_83[0] ? path_83 : itr.second.c_str()),
+															 (*title_itr).second.c_str(), &psl, 2, 1);
+						if (psl)
 				{
-					line2.resize(MAX_PATH);
-					if (GetShortPathName(line1.c_str(), &line2[0], MAX_PATH) == 0)
+							if (!_IsItemInArray((*title_itr).second, poaRemoved))
 					{
-						line2 = line1;
-					}
-					else
-					{
-						line2.shrink_to_fit();
+								psl->SetDescription((*title_itr).second.c_str());
+								poc->AddObject(psl);
 					}
 
-					b = true;
+							psl->Release();
+					}
+
+						++title_itr;
+					}
 				}
 			}
 		}

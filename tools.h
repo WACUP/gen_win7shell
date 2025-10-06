@@ -20,7 +20,6 @@ namespace tools
 			  NR_OVERLAY_ICONS = 3;
 
 	// Functions declarations
-	std::wstring getBookmarks(void);
 	HRESULT CreateShellLink(LPCWSTR filename, LPCWSTR pszTitle, IShellLink **ppsl);
 	HIMAGELIST prepareOverlayIcons(void);
 	HIMAGELIST prepareIcons(void);
