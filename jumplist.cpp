@@ -54,8 +54,8 @@ JumpList::~JumpList()
 
 // Creates a CLSID_ShellLink to insert into the Tasks section of the Jump List. This type of
 // Jump List item allows the specification of an explicit command line to execute the task.
-HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments,
-								   PCWSTR pszTitle, IShellLink **ppsl,
+HRESULT JumpList::_CreateShellLink(const std::wstring &path, const std::wstring &loaderpath,
+								   LPCWSTR pszArguments, LPCWSTR pszTitle, IShellLink **ppsl,
 								   const int iconindex, const int mode)
 {
 	IShellLink *psl = NULL;
@@ -64,48 +64,15 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 	if (SUCCEEDED(hr) && psl)
 		{
 			psl->SetIconLocation(path.c_str(), iconindex);
-			if (mode)
-			{
+
 				__try
 				{
-					// due to how WACUP works, a wacup.exe or
-					// a winamp.exe might be being used under
-					// the x86 build so we need to obtain the
-					// correct filepath for the loader in use
-					LPCWSTR loader_path = GetPaths()->wacup_loader_exe;
-					if (mode == 1)
-					{
-						wchar_t shortfname[MAX_PATH]/* = { 0 }*/;
-						if (GetShortPathName(loader_path, shortfname, ARRAYSIZE(shortfname)))
-						{
-							hr = psl->SetPath(shortfname);
-						}
-						else
-						{
-							hr = S_FALSE;
-						}
-					}
-					else
-					{
-						hr = psl->SetPath(loader_path);
-					}
+			hr = psl->SetPath((mode ? loaderpath.c_str() : L"rundll32.exe"));
 				}
 				__except (EXCEPTION_EXECUTE_HANDLER)
 				{
 					hr = S_FALSE;
 				}
-			}
-			else
-			{
-				__try
-				{
-					hr = psl->SetPath(L"rundll32.exe");
-				}
-				__except (EXCEPTION_EXECUTE_HANDLER)
-				{
-					hr = S_FALSE;
-				}
-			}
 
 			if (SUCCEEDED(hr))
 			{
@@ -117,7 +84,7 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 					// instance.  This value is used as the display name in the Jump List.
 					IPropertyStore *pps = NULL;
 					hr = psl->QueryInterface(IID_PPV_ARGS(&pps));
-					if (SUCCEEDED(hr))
+				if (SUCCEEDED(hr) && pps)
 					{
 						PROPVARIANT propvar = { 0 };
 						hr = PropVarFromStr(pszTitle, &propvar);
@@ -147,11 +114,11 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, PCWSTR pszArguments
 	return hr;
 }
 
-void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring &pref,
-							  const std::wstring &openfile, const std::wstring &bookmarks,
-							  const std::wstring &pltext, const bool recent,
-							  const bool frequent, const bool tasks, const bool addbm,
-							  const bool playlist, const bool &closing)
+void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring &loaderpath,
+							  const std::wstring &pref, const std::wstring &openfile,
+							  const std::wstring &bookmarks, const std::wstring &pltext,
+							  const bool recent, const bool frequent, const bool tasks,
+							  const bool addbm, const bool playlist, const bool &closing)
 {
 	UINT cMinSlots = 0;
 	IObjectArray *poaRemoved = NULL;
@@ -165,9 +132,9 @@ void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring
 		if (addbm && (hr == S_OK))
 		{
 			std::map<size_t, std::wstring> bm_uri, bm_title;
-			if (ReadBookmarks(bm_uri, bm_title) && !bm_uri.empty())
+			if (ReadBookmarks(bm_uri, bm_title, false) && !bm_uri.empty())
 			{
-				wchar_t path_83[MAX_PATH];
+				wchar_t shortfname[MAX_PATH];
 				auto title_itr = bm_title.begin();
 				if (title_itr != bm_title.end())
 				{
@@ -176,13 +143,14 @@ void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring
 					for (auto const& itr : bm_uri)
 					{
 						IShellLink* psl = NULL;
-						if (!GetShortPathName(itr.second.c_str(), path_83, ARRAYSIZE(path_83)))
+						LPCWSTR fname = itr.second.c_str();
+						if (!IsPathURL(fname) && !GetShortPathName(fname, shortfname, ARRAYSIZE(shortfname)))
 						{
-							path_83[0] = 0;
+							shortfname[0] = 0;
 					}
 
-						hr = _CreateShellLink(pluginpath, (path_83[0] ? path_83 : itr.second.c_str()),
-															 (*title_itr).second.c_str(), &psl, 2, 1);
+						hr = _CreateShellLink(pluginpath, loaderpath, (shortfname[0] ? shortfname :
+												  fname), (*title_itr).second.c_str(), &psl, 2, 1);
 						if (psl)
 				{
 							if (!_IsItemInArray((*title_itr).second, poaRemoved))
@@ -219,12 +187,12 @@ void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring
 
 			if (playlist)
 			{
-				hr = _AddCategoryToList2(pluginpath, pltext);
+				hr = _AddCategoryToList2(pluginpath, loaderpath, pltext);
 			}
 
 			if (tasks)
 			{
-				_AddTasksToList(pluginpath, pref, openfile);
+				_AddTasksToList(pluginpath, loaderpath, pref, openfile);
 			}
 
 			if (SUCCEEDED(hr))
@@ -244,7 +212,8 @@ void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring
 	}
 }
 
-HRESULT JumpList::_AddTasksToList(const std::wstring &pluginpath, const std::wstring &pref, const std::wstring &openfile)
+HRESULT JumpList::_AddTasksToList(const std::wstring &pluginpath, const std::wstring &loaderpath,
+										  const std::wstring &pref, const std::wstring &openfile)
 {
 	IObjectCollection *poc = NULL;
 	HRESULT hr = CreateCOMInProc(CLSID_EnumerableObjectCollection,
@@ -254,14 +223,14 @@ HRESULT JumpList::_AddTasksToList(const std::wstring &pluginpath, const std::wst
 		if (poc)
 		{
 			IShellLink *psl = NULL;
-			hr = _CreateShellLink(pluginpath, L"/COMMAND=40012", pref.c_str(), &psl, 0, 2);
+			hr = _CreateShellLink(pluginpath, loaderpath, L"/COMMAND=40012", pref.c_str(), &psl, 0, 2);
 			if (SUCCEEDED(hr))
 			{
 				poc->AddObject(psl);
 				psl->Release();
 			}
 
-			hr = _CreateShellLink(pluginpath, L"/COMMAND=40029", openfile.c_str(), &psl, 1, 2);
+			hr = _CreateShellLink(pluginpath, loaderpath, L"/COMMAND=40029", openfile.c_str(), &psl, 1, 2);
 			if (SUCCEEDED(hr))
 			{
 				poc->AddObject(psl);
@@ -336,7 +305,7 @@ HRESULT JumpList::_AddCategoryToList(IObjectCollection *poc, const std::wstring 
 
 // Adds a custom category to the Jump List.  Each item that should be in the category is added to
 // an ordered collection, and then the category is appended to the Jump List as a whole.
-HRESULT JumpList::_AddCategoryToList2(const std::wstring &pluginpath, const std::wstring &pltext)
+HRESULT JumpList::_AddCategoryToList2(const std::wstring &pluginpath, const std::wstring &loaderpath, const std::wstring &pltext)
 {
 	IObjectCollection *poc = NULL;
 	HRESULT hr = CreateCOMInProc(CLSID_EnumerableObjectCollection,
@@ -357,7 +326,7 @@ HRESULT JumpList::_AddCategoryToList2(const std::wstring &pluginpath, const std:
 				PrintfCch(tmp, ARRAYSIZE(tmp), L" [%d]", numItems);
 				title += tmp;
 
-				hr = _CreateShellLink(pluginpath, WASABI_API_PLAYLISTS->GetFilename(i), title.c_str(), &psl, 3, 1);
+			hr = _CreateShellLink(pluginpath, loaderpath, WASABI_API_PLAYLISTS->GetFilename(i), title.c_str(), &psl, 3, 1);
 				if (SUCCEEDED(hr))
 				{
 					if (psl)

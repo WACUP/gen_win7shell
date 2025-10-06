@@ -16,21 +16,22 @@ public:
 	explicit JumpList(const bool delete_now = false);
 	~JumpList();
 
-	void CreateJumpList(const std::wstring &pluginpath, const std::wstring &pref,
-						const std::wstring &openfile, const std::wstring &bookmarks,
-						const std::wstring &pltext, const bool recent,
-						const bool frequent, const bool tasks, const bool addbm,
-						const bool playlist, const bool& closing);
+	void CreateJumpList(const std::wstring &pluginpath, const std::wstring &loaderpath,
+						const std::wstring &pref, const std::wstring &openfile,
+						const std::wstring &bookmarks, const std::wstring &pltext,
+						const bool recent, const bool frequent, const bool tasks,
+						const bool addbm, const bool playlist, const bool& closing);
 
 private:
-	HRESULT _CreateShellLink(const std::wstring &path, PCWSTR pszArguments,
-							 PCWSTR pszTitle, IShellLink **ppsl,
+	HRESULT _CreateShellLink(const std::wstring &path, const std::wstring &loaderpath,
+							 LPCWSTR pszArguments, LPCWSTR pszTitle, IShellLink **ppsl,
 							 const int iconindex, const int mode = 0);
 	static bool _IsItemInArray(const std::wstring &path, IObjectArray *poaRemoved);
-	HRESULT _AddTasksToList(const std::wstring &pluginpath, const std::wstring &pref,
-							const std::wstring &openfile);
+	HRESULT _AddTasksToList(const std::wstring &pluginpath, const std::wstring &loaderpath,
+							const std::wstring &pref, const std::wstring &openfile);
 	HRESULT _AddCategoryToList(IObjectCollection *poc, const std::wstring &bookmarks);
-	HRESULT _AddCategoryToList2(const std::wstring &pluginpath, const std::wstring &pltext);
+	HRESULT _AddCategoryToList2(const std::wstring &pluginpath, const std::wstring &loaderpath,
+																   const std::wstring &pltext);
 
 	static bool CleanJL(LPCWSTR AppID, IApplicationDocumentLists *padl, APPDOCLISTTYPE type);
 

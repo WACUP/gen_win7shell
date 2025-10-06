@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.11"
+#define PLUGIN_VERSION L"4.11.2"
 
 #define NR_BUTTONS 15
 
@@ -117,7 +117,7 @@ DWORD WINAPI SetupJumpListThread(LPVOID lp)
 			if (Settings.JLbms || Settings.JLfrequent ||
 				Settings.JLpl || Settings.JLrecent || Settings.JLtasks)
 			{
-				static wchar_t *pluginPath, *tmp1, *tmp2, *tmp3, *tmp4;
+				static wchar_t *pluginPath, *shortLoaderPath, *tmp1, *tmp2, *tmp3, *tmp4;
 
 				// to ensure things work reliably we
 				// need an 8.3 style filepath for us
@@ -129,6 +129,14 @@ DWORD WINAPI SetupJumpListThread(LPVOID lp)
 						const DWORD len = GetShortPathName(path, path, ARRAYSIZE(path));
 						pluginPath = SafeWideDupN(path, len);
 					}
+				}
+
+				if (!shortLoaderPath)
+				{
+					wchar_t path[MAX_PATH]/* = { 0 }*/;
+					const DWORD len = GetShortPathName(GetPaths()->wacup_loader_exe,
+															 path, ARRAYSIZE(path));
+					shortLoaderPath = SafeWideDupN(path, len);
 				}
 
 				if (!tmp1)
@@ -158,7 +166,7 @@ DWORD WINAPI SetupJumpListThread(LPVOID lp)
 					// I can't find any reason for it. due to
 					// that it is necessary to try & catch it
 					// so we don't take down the entire thing
-					jl->CreateJumpList(pluginPath, tmp1, tmp2, tmp3, tmp4,
+					jl->CreateJumpList(pluginPath, shortLoaderPath, tmp1, tmp2, tmp3, tmp4,
 									   Settings.JLrecent, Settings.JLfrequent,
 									   Settings.JLtasks, Settings.JLbms,
 									   Settings.JLpl, closing);
