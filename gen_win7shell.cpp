@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.11.2"
+#define PLUGIN_VERSION L"4.11.3"
 
 #define NR_BUTTONS 15
 
@@ -840,7 +840,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 							const SHARDAPPIDINFOLINK applink = { psl, GetAppID() };
 							wchar_t temp[32]/* = { 0 }*/;
 							temp[0] = 0;
-							psl->SetDescription(TimeNow2Str(temp, ARRAYSIZE(temp)));
+							psl->SetDescription(TimeNow2Str(temp, ARRAYSIZE(temp), TRUE));
 							// based on testing, this & things in the
 							// CreateShellLink() sometimes fails :'(
 							// I can't find any reason for it. due to

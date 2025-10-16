@@ -140,6 +140,7 @@ void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring
 				{
 					has_bm = true;
 
+					int count = 0;
 					for (auto const& itr : bm_uri)
 					{
 						IShellLink* psl = NULL;
@@ -163,6 +164,11 @@ void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring
 					}
 
 						++title_itr;
+
+						if ((++count) > 25)
+						{
+							break;
+						}
 					}
 				}
 			}
@@ -335,6 +341,11 @@ HRESULT JumpList::_AddCategoryToList2(const std::wstring &pluginpath, const std:
 						poc->AddObject(psl);
 						psl->Release();
 				}
+			}
+
+			if (count > 25)
+			{
+				break;
 			}
 		}
 
