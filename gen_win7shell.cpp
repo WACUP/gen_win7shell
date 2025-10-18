@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.11.3"
+#define PLUGIN_VERSION L"4.12"
 
 #define NR_BUTTONS 15
 
@@ -75,7 +75,7 @@ LRESULT CALLBACK rateWndProc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lPara
 LRESULT CALLBACK KeyboardEvent(int nCode, WPARAM wParam, LPARAM lParam);
 #endif
 
-WA_UTILS_API HBITMAP GetMainWindowBmp(void);
+WA_UTILS_API HBITMAP GetMainWindowBmp(const bool done);
 
 #ifndef _WIN64
 WA_UTILS_API const bool IsWasabiWindow(HWND hwnd);
@@ -559,7 +559,12 @@ void UpdateLivePreview(void)
 		if (running && classicSkin && (IsIconic(plugin.hwndParent) ||
 						(Settings.Thumbnailbackground != BG_WINAMP)))
 		{
-			const HBITMAP main_window_bmp = GetMainWindowBmp();
+			// the wacup core since 1.99.41 will cache
+			// this for us which reduces the impact of
+			// creating & updating it especially where
+			// the user is running with a high refresh
+			// rate screen to reduce the cpu involved.
+			const HBITMAP main_window_bmp = GetMainWindowBmp(false);
 			if (main_window_bmp != NULL)
 			{
 				// afaict this does not respect being
@@ -572,7 +577,7 @@ void UpdateLivePreview(void)
 				// appear as black when drawn here...
 				DwmSetIconicLivePreviewBitmap(plugin.hwndParent, main_window_bmp, NULL, 0);
 
-				DeleteObject(main_window_bmp);
+				//DeleteObject(main_window_bmp);
 			}
 		}
 
@@ -615,6 +620,10 @@ DWORD WINAPI UpdateThread(LPVOID lp)
 				(!Settings.LowFrameRate ? Settings.MFT : Settings.MST) :
 				(!Settings.LowFrameRate ? Settings.TFT : Settings.TST) : 1000), TRUE);
 	}
+
+	// we're done so give the core a hint that
+	// the cached preview image can be removed
+	GetMainWindowBmp(true);
 
 	CloseCOM();
 

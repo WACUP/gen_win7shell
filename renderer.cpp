@@ -11,7 +11,7 @@
 #include <loader/loader/ini.h>
 #include <loader/loader/utils.h>
 
-WA_UTILS_API HBITMAP GetMainWindowBmp(void);
+WA_UTILS_API HBITMAP GetMainWindowBmp(const bool done);
 
 bool renderer::getAlbumArt(const std::wstring &fname, const bool skip_lock)
 {
@@ -377,11 +377,16 @@ HBITMAP renderer::GetThumbnail(const bool clear, const bool skip_lock)
 					bool use_icon = true;
 					if (classicSkin)
 					{
-						const HBITMAP main_window_bmp = GetMainWindowBmp();
+						// the wacup core since 1.99.41 will cache
+						// this for us which reduces the impact of
+						// creating & updating it especially where
+						// the user is running with a high refresh
+						// rate screen to reduce the cpu involved.
+						const HBITMAP main_window_bmp = GetMainWindowBmp(false);
 						if (main_window_bmp != NULL)
 						{
 							Gdiplus::Bitmap image(main_window_bmp, NULL);
-							DeleteObject(main_window_bmp);
+							//DeleteObject(main_window_bmp);
 
 							const int image_width = image.GetWidth(), image_height = image.GetHeight();
 							RECT adjust = { 0 };
