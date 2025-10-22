@@ -364,7 +364,7 @@ HBITMAP renderer::GetThumbnail(const bool clear, const bool skip_lock)
 				// that for some modern skins the preview is better
 				// than it would otherwise be (due to gen_ff loosing
 				// that information when it's put into the hdc *ugg*)
-				if (!IsIconic(plugin.hwndParent))
+				if (!IsMainMinimised()/*/IsIconic(plugin.hwndParent)/**/)
 				{
 					RECT rt = { 0 };
 					ScaleArtworkToArea(&rt, m_width, m_height, width, height);

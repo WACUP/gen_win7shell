@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.12"
+#define PLUGIN_VERSION L"4.12.1"
 
 #define NR_BUTTONS 15
 
@@ -556,8 +556,9 @@ void UpdateLivePreview(void)
 		// incase this is updating then we'll try to
 		// ensure we're "live" updating to make this
 		// look more like the default OS handling...
-		if (running && classicSkin && (IsIconic(plugin.hwndParent) ||
-						(Settings.Thumbnailbackground != BG_WINAMP)))
+		if (running && classicSkin && (IsMainMinimised()/*/
+			IsIconic(plugin.hwndParent)/**/ || (Settings.
+					  Thumbnailbackground != BG_WINAMP)))
 		{
 			// the wacup core since 1.99.41 will cache
 			// this for us which reduces the impact of
