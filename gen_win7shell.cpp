@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.12.1"
+#define PLUGIN_VERSION L"4.12.2"
 
 #define NR_BUTTONS 15
 
@@ -415,6 +415,12 @@ void quit(void)
 
 	if (itaskbar != NULL)
 	{
+		// make sure this is done otherwise it is
+		// possible especially if not set to show
+		// in the taskbar but has a pinned icon &
+		// it could end up stuck on the last mode
+		itaskbar->SetIconOverlay(NULL, L"");
+
 		delete itaskbar;
 		itaskbar = NULL;
 	}
