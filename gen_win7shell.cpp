@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.12.2"
+#define PLUGIN_VERSION L"4.12.3"
 
 #define NR_BUTTONS 15
 
@@ -1690,14 +1690,9 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 				}
 				case IDC_CLEARALL:
 				{
-					wchar_t filepath[MAX_PATH]/* = {0}*/;
-					if (SUCCEEDED(SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, SHGFP_TYPE_CURRENT, filepath)))
-					{
-						if (RemoveFile(AppendOnPath(filepath, L"\\Microsoft\\Windows\\Recent\\AutomaticDestinations"
-															  L"\\879d567ffa1f5b9f.automaticDestinations-ms")) != 0)
+					if (ClearRecentFrequentEntries())
 						{
 							EnableControl(hwnd, IDC_CLEARALL, false);
-						}
 					}
 					break;
 				}

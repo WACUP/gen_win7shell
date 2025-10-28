@@ -13,6 +13,18 @@
 #include <loader/loader/paths.h>
 #include <loader/loader/utils.h>
 
+const bool ClearRecentFrequentEntries(void)
+{
+	wchar_t path[MAX_PATH]/* = { 0 }*/;
+	if (*GetKnownFolder(FOLDERID_RoamingAppData, path, ARRAYSIZE(path), NULL))
+	{
+		return !!RemoveFile(AppendOnPath(path, L"\\Microsoft\\Windows"
+							L"\\Recent\\AutomaticDestinations\\879d56"
+							L"7ffa1f5b9f.automaticDestinations-ms"));
+	}
+	return false;
+}
+
 JumpList::JumpList(const bool delete_now) : pcdl(NULL)
 {
 	if (SUCCEEDED(CreateCOMInProc(CLSID_DestinationList,
@@ -422,21 +434,11 @@ bool JumpList::CleanJL(LPCWSTR AppID, IApplicationDocumentLists *padl, APPDOCLIS
 		}
 
 		poa->Release();
+
+		return true;
 	}
 	else
 	{
-		wchar_t path[MAX_PATH]/* = {0}*/;
-		if (SUCCEEDED(SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, SHGFP_TYPE_CURRENT, path)))
-		{
-			std::wstring filepath(path);
-			filepath += std::wstring(L"\\Microsoft\\Windows\\Recent\\AutomaticDestinations"
-									 L"\\879d567ffa1f5b9f.automaticDestinations-ms", 89);
-			if (RemoveFile(filepath.c_str()) == 0)
-			{
-				return false;
+		return ClearRecentFrequentEntries();
 			}
-		}
-	}
-
-	return true;
 }

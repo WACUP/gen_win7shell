@@ -38,4 +38,6 @@ private:
 	ICustomDestinationList *pcdl;
 };
 
+const bool ClearRecentFrequentEntries(void);
+
 #endif // jumplist_h__
