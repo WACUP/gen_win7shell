@@ -123,7 +123,7 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	Destination_struct.BG_Transparency = GetInt(L"BG_Transparency", 80);
 
 	// Decoding bool[16] Buttons
-	wchar_t Buttons[16] = { 0 };
+	wchar_t Buttons[16 + 1]/* = { 0 }*/;
 	GetString(Buttons, ARRAYSIZE(Buttons), L"Buttons", L"1111100000000000");
 	for (int i = 0; i != 16; ++i)
 	{
