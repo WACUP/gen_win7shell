@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.12.4"
+#define PLUGIN_VERSION L"4.13"
 
 #define NR_BUTTONS 15
 
@@ -650,7 +650,7 @@ void SetThumbnailTimer(void)
 		updatethread = StartThread(UpdateThread, 0, THREAD_PRIORITY_NORMAL, 0, NULL);
 	}
 
-	SetTimer(plugin.hwndParent, 6671, 30000, TimerProc);
+	SetTimer(plugin.hwndParent, 6671, 60000, TimerProc);
 }
 
 void ResetThumbnail(void)
@@ -1292,6 +1292,67 @@ void setup_settings(void)
 	}
 }
 
+const bool checkIfStillNeeded(void)
+{
+	bool still_needed = false;
+	// this is far from ideal as there's nothing obvious that windows
+	// provides to determine once we have done showing the preview so
+	// we'll try & see if the preview taskbar window is visible & the
+	// win+tab task view & the alt+tab overlay to avoid drawing mode.
+	static const HWND previewlist = FindWindowEx(NULL, NULL, L"TaskListThumbnailWnd", L"");
+	if (IsWindow(previewlist))
+	{
+		still_needed = (GetWindowLongPtr(previewlist, GWL_STYLE) & WS_VISIBLE);
+	}
+
+	if (!still_needed)
+	{
+		static const HWND win11taskview = FindWindowEx(NULL, NULL, L"XamlExplorerHostIslandWindow", L"");
+		if (IsWindow(win11taskview))
+		{
+			still_needed = (GetWindowLongPtr(win11taskview, GWL_STYLE) & WS_VISIBLE);
+		}
+	}
+
+	if (!still_needed)
+	{
+		const HWND taskview = FindWindowEx(NULL, NULL, L"Windows.UI.Core.CoreWindow", L"Task View");
+		if (IsWindow(taskview) && (GetForegroundWindow() == taskview))
+		{
+			still_needed = true;
+		}
+	}
+
+	if (!still_needed)
+	{
+		// is the Win+Tab dialog on at least Win10
+		const HWND win7taskview = FindWindowEx(NULL, NULL, L"Flip3D", L"");
+		if (IsWindow(win7taskview) && (GetForegroundWindow() == win7taskview))
+		{
+			still_needed = true;
+		}
+	}
+
+	if (!still_needed)
+	{
+		// this is ok for Windows 10 afaict & then reverts to the older version
+		HWND alttab = FindWindowEx(NULL, NULL, L"MultitaskingViewFrame", L"Task Switching");
+		if (IsWindow(alttab) && (GetForegroundWindow() == alttab))
+		{
+			still_needed = true;
+		}
+		else
+		{
+			alttab = FindWindowEx(NULL, NULL, L"TaskSwitcherWnd", L"Task Switching");
+			if (IsWindow(alttab) && (GetForegroundWindow() == alttab))
+			{
+				still_needed = true;
+			}
+		}
+	}
+	return still_needed;
+}
+
 VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 {
 	switch (idEvent)
@@ -1491,57 +1552,11 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 		{
 			const bool old_running = running;
 
-			// this is far from ideal as there's nothing obvious that windows
-			// provides to determine once we have done showing the preview so
-			// we'll try & see if the preview taskbar window is visible & the
-			// win+tab task view & the alt+tab overlay to avoid drawing mode.
-			static HWND previewlist = FindWindowEx(NULL, NULL, L"TaskListThumbnailWnd", L"");
-			if (IsWindow(previewlist))
-			{
-				running = (GetWindowLongPtr(previewlist, GWL_STYLE) & WS_VISIBLE);
-			}
-
-			if (!running)
-			{
-				const HWND taskview = FindWindowEx(NULL, NULL, L"Windows.UI.Core.CoreWindow", L"Task View");
-				if (IsWindow(taskview) && (GetForegroundWindow() == taskview))
-				{
-					running = true;
-				}
-			}
-
-			if (!running)
-			{
-				// is the Win+Tab dialog on at least Win10
-				const HWND win7taskview = FindWindowEx(NULL, NULL, L"Flip3D", L"");
-				if (IsWindow(win7taskview) && (GetForegroundWindow() == win7taskview))
-				{
-					running = true;
-				}
-			}
-
-			if (!running)
-			{
-				// this is ok for Windows 10 afaict & then reverts to the older version
-				HWND alttab = FindWindowEx(NULL, NULL, L"MultitaskingViewFrame", L"Task Switching");
-				if (IsWindow(alttab) && (GetForegroundWindow() == alttab))
-				{
-					running = true;
-				}
-				else
-				{
-					alttab = FindWindowEx(NULL, NULL, L"TaskSwitcherWnd", L"Task Switching");
-					if (IsWindow(alttab) && (GetForegroundWindow() == alttab))
-					{
-						running = true;
-					}
-				}
-			}
-
 			// if we've found something then use the
 			// faster update timer as needed other &
 			// if not then we can drop it down so we
 			// minimise any re-checking that is done
+			running = checkIfStillNeeded();
 			if (running != old_running)
 			{
 				SetThumbnailTimer();
@@ -1553,7 +1568,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 			// it's necessary to see if there's still a long
 			// running instance running & manually kill it &
 			// hope that it's not going to clash with others
-			if (running)
+			if (running && !checkIfStillNeeded())
 			{
 				running = false;
 				SetThumbnailTimer();
