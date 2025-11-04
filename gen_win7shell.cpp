@@ -180,7 +180,7 @@ DWORD WINAPI SetupJumpListThread(LPVOID lp)
 
 		// Create the taskbar interface
 		itaskbar = new iTaskBar(Settings);
-		if ((itaskbar != reinterpret_cast<iTaskBar*>(USHRT_MAX)) && itaskbar->Reset())
+		if ((itaskbar > reinterpret_cast<iTaskBar*>(USHRT_MAX)) && itaskbar->Reset())
 		{
 			updateToolbar(GetThumbnailIcons(false));
 		}
@@ -413,7 +413,7 @@ void quit(void)
 	}
 #endif
 
-	if (itaskbar != reinterpret_cast<iTaskBar*>(USHRT_MAX))
+	if (itaskbar > reinterpret_cast<iTaskBar*>(USHRT_MAX))
 	{
 		delete itaskbar;
 		itaskbar = NULL;
@@ -439,7 +439,7 @@ void quit(void)
 
 void updateToolbar(HIMAGELIST ImageList)
 {
-	if ((itaskbar != reinterpret_cast<iTaskBar*>(USHRT_MAX)) &&
+	if ((itaskbar > reinterpret_cast<iTaskBar*>(USHRT_MAX)) &&
 				  Settings.Thumbnailbuttons && plugin.messages)
 	{
 		const size_t count = TButtons.size();
@@ -489,7 +489,7 @@ void updateToolbar(HIMAGELIST ImageList)
 			}
 		}
 
-		if (itaskbar != reinterpret_cast<iTaskBar*>(USHRT_MAX))
+		if (itaskbar > reinterpret_cast<iTaskBar*>(USHRT_MAX))
 		{
 			__try
 			{
@@ -720,7 +720,7 @@ void UpdateOverlyStatus(const bool force_refresh)
 			case PLAYSTATE_PLAYING:
 			case PLAYSTATE_PAUSED:
 			{
-				if (itaskbar != reinterpret_cast<iTaskBar*>(USHRT_MAX))
+				if (itaskbar > reinterpret_cast<iTaskBar*>(USHRT_MAX))
 				{
 					const bool paused = (Settings.play_state == PLAYSTATE_PAUSED);
 					const int index = tools::getBitmap(TB_PLAYPAUSE, paused);
@@ -732,7 +732,7 @@ void UpdateOverlyStatus(const bool force_refresh)
 							icon = ImageListGetIcon(GetThumbnailIcons(false), index, 0);
 						}
 
-						if (itaskbar != reinterpret_cast<iTaskBar*>(USHRT_MAX))
+						if (itaskbar > reinterpret_cast<iTaskBar*>(USHRT_MAX))
 						{
 							static wchar_t* playing_str;
 							itaskbar->SetIconOverlay(icon, (!paused ? (playing_str ? playing_str :
@@ -744,7 +744,7 @@ void UpdateOverlyStatus(const bool force_refresh)
 			}
 			default:
 			{
-				if (itaskbar != reinterpret_cast<iTaskBar*>(USHRT_MAX))
+				if (itaskbar > reinterpret_cast<iTaskBar*>(USHRT_MAX))
 				{
 					const int index = tools::getBitmap(TB_STOP, 1);
 					if ((index >= 0) && (index < tools::getBitmapCount()))
@@ -755,7 +755,7 @@ void UpdateOverlyStatus(const bool force_refresh)
 							icon = ImageListGetIcon(GetThumbnailIcons(false/*force_refresh*/), index, 0);
 						}
 
-						if (itaskbar != reinterpret_cast<iTaskBar*>(USHRT_MAX))
+						if (itaskbar > reinterpret_cast<iTaskBar*>(USHRT_MAX))
 						{
 							itaskbar->SetIconOverlay(icon, paused_str);
 						}
@@ -938,7 +938,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 				running = false;
 
 				if (GetTaskbarMode() && Settings.Overlay &&
-					(itaskbar != reinterpret_cast<iTaskBar*>(USHRT_MAX)))
+					(itaskbar > reinterpret_cast<iTaskBar*>(USHRT_MAX)))
 				{
 					// make sure this is done otherwise it is
 					// possible especially if not set to show
@@ -983,7 +983,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 #endif
 					}
 
-					if (itaskbar != reinterpret_cast<iTaskBar *>(USHRT_MAX))
+					if (itaskbar > reinterpret_cast<iTaskBar *>(USHRT_MAX))
 					{
 						itaskbar->SetWindowAttr();
 
@@ -1269,7 +1269,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 	}
 	else if (uMsg == WM_TASKBARBUTTONCREATED)
 	{
-		if ((itaskbar != reinterpret_cast<iTaskBar*>(USHRT_MAX)) && itaskbar->Reset())
+		if ((itaskbar > reinterpret_cast<iTaskBar*>(USHRT_MAX)) && itaskbar->Reset())
 		{
 			updateToolbar(GetThumbnailIcons(true));
 		}
@@ -1313,7 +1313,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 			}
 
 			if (!(Settings.Progressbar || Settings.VuMeter) &&
-				(itaskbar != reinterpret_cast<iTaskBar*>(USHRT_MAX)))
+				(itaskbar > reinterpret_cast<iTaskBar*>(USHRT_MAX)))
 			{
 				itaskbar->SetProgressState(TBPF_NOPROGRESS);
 			}
@@ -1371,7 +1371,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 							}
 						}
 
-						if (Settings.Progressbar && (itaskbar != reinterpret_cast<iTaskBar*>(USHRT_MAX)))
+						if (Settings.Progressbar && (itaskbar > reinterpret_cast<iTaskBar*>(USHRT_MAX)))
 						{
 							if (Settings.play_current == -1 || Settings.play_total <= 0)
 							{
@@ -1387,7 +1387,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 					}
 					case PLAYSTATE_PAUSED:
 					{
-						if (Settings.Progressbar && (itaskbar != reinterpret_cast<iTaskBar*>(USHRT_MAX)))
+						if (Settings.Progressbar && (itaskbar > reinterpret_cast<iTaskBar*>(USHRT_MAX)))
 						{
 							itaskbar->SetProgressState(TBPF_PAUSED);
 							itaskbar->SetProgressValue(Settings.play_current, Settings.play_total);
@@ -1401,7 +1401,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 					}
 					default:
 					{
-						if (Settings.Progressbar && (itaskbar != reinterpret_cast<iTaskBar*>(USHRT_MAX)))
+						if (Settings.Progressbar && (itaskbar > reinterpret_cast<iTaskBar*>(USHRT_MAX)))
 						{
 							if (Settings.Stoppedstatus)
 							{
@@ -1421,7 +1421,7 @@ VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 		}
 		case 6668:	//vumeter proc
 		{
-			if (Settings.VuMeter && (itaskbar != reinterpret_cast<iTaskBar*>(USHRT_MAX)))
+			if (Settings.VuMeter && (itaskbar > reinterpret_cast<iTaskBar*>(USHRT_MAX)))
 			{
 				// we try to use the vumeter but revert
 				// to the sa mode and convert as needed
@@ -1737,7 +1737,7 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 					}
 					else
 					{
-						if (itaskbar != reinterpret_cast<iTaskBar*>(USHRT_MAX))
+						if (itaskbar > reinterpret_cast<iTaskBar*>(USHRT_MAX))
 						{
 							itaskbar->SetIconOverlay(NULL, L"");
 						}
@@ -2100,7 +2100,7 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 
 					if (Settings.Thumbnailbuttons)
 					{
-						if ((itaskbar != reinterpret_cast<iTaskBar*>(USHRT_MAX)) && itaskbar->Reset())
+						if ((itaskbar > reinterpret_cast<iTaskBar*>(USHRT_MAX)) && itaskbar->Reset())
 						{
 							updateToolbar(GetThumbnailIcons(false));
 						}
@@ -2278,7 +2278,7 @@ void UpdateIconControls(HWND hwnd)
 
 void UpdateThumbnail(void)
 {
-	if (itaskbar != reinterpret_cast<iTaskBar*>(USHRT_MAX))
+	if (itaskbar > reinterpret_cast<iTaskBar*>(USHRT_MAX))
 	{
 		if (itaskbar->Reset())
 		{
