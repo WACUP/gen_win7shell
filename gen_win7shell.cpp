@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.13"
+#define PLUGIN_VERSION L"4.13.1"
 
 #define NR_BUTTONS 15
 

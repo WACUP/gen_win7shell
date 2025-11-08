@@ -167,6 +167,9 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 	}
 
 	tba.clear();
+
+	if (!text.empty() && !SameStr(text.c_str(), L"~"))
+	{
 	std::wstring::size_type pos = std::wstring::npos;
 	do
 	{
@@ -184,8 +187,8 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 
 		tba.push_back(code);
 		text.erase(0, pos+1);
+		} while (pos != std::wstring::npos);
 	} 
-	while (pos != std::wstring::npos);
 
 	// deal with no prior config so the default can
 	// be shown instead of it showing nothing as it
