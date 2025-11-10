@@ -268,40 +268,19 @@ namespace tools
 
 	HICON getCustomIcon(LPCWSTR file, LPCWSTR skin_folder)
 	{
-		HICON hicon = NULL;
-		if (file)
+		if (file && *file)
 		{
-			wchar_t test_path[MAX_PATH]/* = { 0 }*/;
+			wchar_t test_path[MAX_PATH]/* = { 0 }*/, folder[MAX_PATH]/* = { 0 }*/;
 
 			// look in the current skin for per-skin customisation
-			if (skin_folder && *skin_folder)
-			{
-				PrintfCch(test_path, ARRAYSIZE(test_path),
-						  L"%s\\Taskbar\\%s.ico", skin_folder, file);
-
-				if (FileExists(test_path))
-				{
-					hicon = (HICON)LoadImage(NULL, test_path, IMAGE_ICON,
-												0, 0, LR_LOADFROMFILE);
-				}
-			}
-
 			// before looking in a more generic taskbar folder
 			// which is stored in the user settings folder...
-			if (hicon == NULL)
-			{
-				wchar_t folder[MAX_PATH]/* = { 0 }*/;
-				PrintfCch(test_path, ARRAYSIZE(test_path), L"%s\\%s.ico",
-				CombinePath(folder, GetPaths()->settings_dir, L"Taskbar"), file);
+			PrintfCch(test_path, ARRAYSIZE(test_path), L"%s\\%s.ico", CombinePath(folder, ((skin_folder &&
+							   *skin_folder) ? skin_folder : GetPaths()->settings_dir), L"Taskbar"), file);
 
-				if (FileExists(test_path))
-				{
-					hicon = (HICON)LoadImage(NULL, test_path, IMAGE_ICON,
-												0, 0, LR_LOADFROMFILE);
+			return (HICON)LoadImage(NULL, test_path, IMAGE_ICON, 0, 0, LR_LOADFROMFILE);
 				}
-			}
-		}
-		return hicon;
+		return NULL;
 	}
 
 	HIMAGELIST prepareOverlayIcons(void)
@@ -313,10 +292,15 @@ namespace tools
 		wchar_t skin_folder[MAX_PATH]/* = { 0 }*/;
 		GetCurrentSkin(skin_folder, ARRAYSIZE(skin_folder), NULL);
 
+		LPCWSTR file[] = { L"overlay_stop", L"overlay_pause", L"overlay_play" };
 		for (int i = 0; i < NR_OVERLAY_ICONS; ++i)
 		{
-			LPCWSTR file[] = { L"overlay_stop", L"overlay_pause", L"overlay_play" };
-			HICON hicon = getCustomIcon(file[i], (skin_folder[0] ? skin_folder : NULL));
+			HICON hicon = (skin_folder[0] ? getCustomIcon(file[i], skin_folder) : NULL);
+			if (hicon == NULL)
+			{
+				hicon = getCustomIcon(file[i], NULL);
+			}
+
 			if (hicon == NULL)
 			{
 				const int icons[] = { 205/*stop*/, 208/*pause*/, 204/*play*/ };
@@ -474,7 +458,12 @@ namespace tools
 				}
 			}
 
-			HICON hicon = getCustomIcon(file, (skin_folder[0] ? skin_folder : NULL));
+			HICON hicon = (skin_folder[0] ? getCustomIcon(file, skin_folder) : NULL);
+			if (hicon == NULL)
+			{
+				hicon = getCustomIcon(file, NULL);
+			}
+
 			if (icon != -1)
 			{
 				if (hicon == NULL)
