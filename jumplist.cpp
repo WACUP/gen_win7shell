@@ -74,55 +74,55 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, const std::wstring 
 	HRESULT hr = CreateCOMInProc(CLSID_ShellLink,
 				 __uuidof(IShellLink), (LPVOID*)&psl);
 	if (SUCCEEDED(hr) && psl)
-		{
-			psl->SetIconLocation(path.c_str(), iconindex);
+	{
+		psl->SetIconLocation(path.c_str(), iconindex);
 
-				__try
-				{
+		__try
+		{
 			hr = psl->SetPath((mode ? loaderpath.c_str() : L"rundll32.exe"));
-				}
-				__except (EXCEPTION_EXECUTE_HANDLER)
-				{
-					hr = S_FALSE;
-				}
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			hr = S_FALSE;
+		}
+
+		if (SUCCEEDED(hr))
+		{
+			hr = psl->SetArguments(pszArguments);
 
 			if (SUCCEEDED(hr))
 			{
-				hr = psl->SetArguments(pszArguments);
-
-				if (SUCCEEDED(hr))
-				{
-					// The title property is required on Jump List items provided as an IShellLink
-					// instance.  This value is used as the display name in the Jump List.
-					IPropertyStore *pps = NULL;
-					hr = psl->QueryInterface(IID_PPV_ARGS(&pps));
+				// The title property is required on Jump List items provided as an IShellLink
+				// instance.  This value is used as the display name in the Jump List.
+				IPropertyStore *pps = NULL;
+				hr = psl->QueryInterface(IID_PPV_ARGS(&pps));
 				if (SUCCEEDED(hr) && pps)
+				{
+					PROPVARIANT propvar = { 0 };
+					hr = PropVarFromStr(pszTitle, &propvar);
+					if (SUCCEEDED(hr))
 					{
-						PROPVARIANT propvar = { 0 };
-						hr = PropVarFromStr(pszTitle, &propvar);
+						hr = pps->SetValue(PKEY_Title, propvar);
 						if (SUCCEEDED(hr))
 						{
-							hr = pps->SetValue(PKEY_Title, propvar);
+							hr = pps->Commit();
 							if (SUCCEEDED(hr))
 							{
-								hr = pps->Commit();
-								if (SUCCEEDED(hr))
-								{
-									hr = psl->QueryInterface(IID_PPV_ARGS(ppsl));
-								}
+								hr = psl->QueryInterface(IID_PPV_ARGS(ppsl));
 							}
-							ClearPropVariant(&propvar);
 						}
-						pps->Release();
+						ClearPropVariant(&propvar);
 					}
+					pps->Release();
 				}
 			}
-			else
-			{
-				hr = HRESULT_FROM_WIN32(GetLastError());
-			}
-			psl->Release();
 		}
+		else
+		{
+			hr = HRESULT_FROM_WIN32(GetLastError());
+		}
+		psl->Release();
+	}
 	return hr;
 }
 
@@ -160,20 +160,20 @@ void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring
 						if (!IsPathURL(fname) && !GetShortPathName(fname, shortfname, ARRAYSIZE(shortfname)))
 						{
 							shortfname[0] = 0;
-					}
+						}
 
 						hr = _CreateShellLink(pluginpath, loaderpath, (shortfname[0] ? shortfname :
 												  fname), (*title_itr).second.c_str(), &psl, 2, 1);
 						if (psl)
-				{
+						{
 							if (!_IsItemInArray((*title_itr).second, poaRemoved))
-					{
+							{
 								psl->SetDescription((*title_itr).second.c_str());
 								poc->AddObject(psl);
-					}
+							}
 
 							psl->Release();
-					}
+						}
 
 						++title_itr;
 
@@ -332,26 +332,26 @@ HRESULT JumpList::_AddCategoryToList2(const std::wstring &pluginpath, const std:
 	{
 		// enumerate through playlists (need to see if can use api_playlists.h via sdk)
 		const size_t count = (WASABI_API_PLAYLISTS ? WASABI_API_PLAYLISTS->GetCount() : 0);
-			for (size_t i = 0; i < count; i++)
-			{
-				size_t numItems = 0;
-				IShellLink *psl = NULL;
+		for (size_t i = 0; i < count; i++)
+		{
+			size_t numItems = 0;
+			IShellLink *psl = NULL;
 
-				wchar_t tmp[MAX_PATH]/* = {0}*/;
-				std::wstring title = WASABI_API_PLAYLISTS->GetName(i);
+			wchar_t tmp[MAX_PATH]/* = {0}*/;
+			std::wstring title = WASABI_API_PLAYLISTS->GetName(i);
 
-				WASABI_API_PLAYLISTS->GetInfo(i, api_playlists_itemCount, &numItems, sizeof(numItems));
-				PrintfCch(tmp, ARRAYSIZE(tmp), L" [%d]", numItems);
-				title += tmp;
+			WASABI_API_PLAYLISTS->GetInfo(i, api_playlists_itemCount, &numItems, sizeof(numItems));
+			PrintfCch(tmp, ARRAYSIZE(tmp), L" [%d]", numItems);
+			title += tmp;
 
 			hr = _CreateShellLink(pluginpath, loaderpath, WASABI_API_PLAYLISTS->GetFilename(i), title.c_str(), &psl, 3, 1);
-				if (SUCCEEDED(hr))
+			if (SUCCEEDED(hr))
+			{
+				if (psl)
 				{
-					if (psl)
-					{
-						psl->SetDescription(WASABI_API_PLAYLISTS->GetFilename(i));
-						poc->AddObject(psl);
-						psl->Release();
+					psl->SetDescription(WASABI_API_PLAYLISTS->GetFilename(i));
+					poc->AddObject(psl);
+					psl->Release();
 				}
 			}
 
@@ -440,5 +440,5 @@ bool JumpList::CleanJL(LPCWSTR AppID, IApplicationDocumentLists *padl, APPDOCLIS
 	else
 	{
 		return ClearRecentFrequentEntries();
-			}
+	}
 }

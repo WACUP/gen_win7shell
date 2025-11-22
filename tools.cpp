@@ -279,7 +279,7 @@ namespace tools
 							   *skin_folder) ? skin_folder : GetPaths()->settings_dir), L"Taskbar"), file);
 
 			return (HICON)LoadImage(NULL, test_path, IMAGE_ICON, 0, 0, LR_LOADFROMFILE);
-				}
+		}
 		return NULL;
 	}
 

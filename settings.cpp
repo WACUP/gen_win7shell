@@ -170,25 +170,25 @@ void SettingsManager::ReadSettings(sSettings &Destination_struct, std::vector<in
 
 	if (!text.empty() && !SameStr(text.c_str(), L"~"))
 	{
-	std::wstring::size_type pos = std::wstring::npos;
-	do
-	{
-		pos = text.find_first_of(L',');
-		std::wstringstream buffer;
-		buffer << text.substr(0, pos);
-
-		int code = 0;
-		buffer >> code;
-		if (code < 1300)
+		std::wstring::size_type pos = std::wstring::npos;
+		do
 		{
-			text.erase(0, pos + 1);
-			continue;
-		}
+			pos = text.find_first_of(L',');
+			std::wstringstream buffer;
+			buffer << text.substr(0, pos);
 
-		tba.push_back(code);
-		text.erase(0, pos+1);
+			int code = 0;
+			buffer >> code;
+			if (code < 1300)
+			{
+				text.erase(0, pos + 1);
+				continue;
+			}
+
+			tba.push_back(code);
+			text.erase(0, pos + 1);
 		} while (pos != std::wstring::npos);
-	} 
+	}
 
 	// deal with no prior config so the default can
 	// be shown instead of it showing nothing as it

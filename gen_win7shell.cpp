@@ -440,7 +440,7 @@ void quit(void)
 void updateToolbar(HIMAGELIST ImageList)
 {
 	if ((itaskbar > reinterpret_cast<iTaskBar*>(USHRT_MAX)) &&
-				  Settings.Thumbnailbuttons && plugin.messages)
+				 Settings.Thumbnailbuttons && plugin.messages)
 	{
 		const size_t count = TButtons.size();
 		std::vector<THUMBBUTTON> thbButtons(count);
@@ -1712,8 +1712,8 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 				case IDC_CLEARALL:
 				{
 					if (ClearRecentFrequentEntries())
-						{
-							EnableControl(hwnd, IDC_CLEARALL, false);
+					{
+						EnableControl(hwnd, IDC_CLEARALL, false);
 					}
 					break;
 				}
