@@ -1195,22 +1195,9 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 					if (meta_data != NULL)
 					{
 						LPCWSTR filename = meta_data->getFileName();
-						if (filename && *filename)
+						if (filename && *filename && !IsPathURL(filename))
 						{
-							wchar_t filepath[MAX_PATH]/* = { 0 }*/;
-							if (GetRealFilePath(filename, filepath, ARRAYSIZE(filepath), true))
-							{
-								/*if (WASABI_API_EXPLORERFINDFILE == NULL)
-								{
-									ServiceBuild(plugin.service, WASABI_API_EXPLORERFINDFILE, ExplorerFindFileApiGUID);
-								}
-								if (WASABI_API_EXPLORERFINDFILE != NULL)
-								{
-									WASABI_API_EXPLORERFINDFILE->AddFile(filename);
-									WASABI_API_EXPLORERFINDFILE->ShowFiles();
-								}/*/
-								plugin.explorerfindfile->AddAndShowFile(filename);
-							}
+							plugin.explorerfindfile->AddAndShowFile(filename);
 						}
 					}
 					break;
