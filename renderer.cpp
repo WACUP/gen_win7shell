@@ -23,7 +23,6 @@ bool renderer::getAlbumArt(const std::wstring &fname, const bool skip_lock)
 		// triggered which makes the preview seem to then flicker
 		ARGB32* cur_image = 0;
 		int cur_w = 0, cur_h = 0;
-
 		if (WASABI_API_ALBUMART->GetAlbumArtResize(fname.c_str(), L"cover", &cur_w, &cur_h,
 										&cur_image, 600, 600, 0, NULL) == ALBUMART_SUCCESS)
 		{

@@ -337,10 +337,13 @@ HRESULT JumpList::_AddCategoryToList2(const std::wstring &pluginpath, const std:
 			size_t numItems = 0;
 			IShellLink *psl = NULL;
 
-			wchar_t tmp[MAX_PATH]/* = {0}*/;
-			std::wstring title = WASABI_API_PLAYLISTS->GetName(i);
+			size_t name_len = 0;
+			LPCWSTR name = WASABI_API_PLAYLISTS->GetNameWithLen(i, &name_len);
+			std::wstring title(name, name_len);
 
 			WASABI_API_PLAYLISTS->GetInfo(i, api_playlists_itemCount, &numItems, sizeof(numItems));
+
+			wchar_t tmp[MAX_PATH]/* = {0}*/;
 			PrintfCch(tmp, ARRAYSIZE(tmp), L" [%d]", numItems);
 			title += tmp;
 

@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.13.2"
+#define PLUGIN_VERSION L"4.14"
 
 #define NR_BUTTONS 15
 
@@ -1668,7 +1668,15 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 		{
 			setup_settings();
 
-			SettingsManager::WriteSettings_ToForm(hwnd, Settings);
+			SendDlgItemMessage(hwnd, IDC_CHECK2, (UINT)BM_SETCHECK, Settings.Progressbar, 0);
+			SendDlgItemMessage(hwnd, IDC_CHECK3, (UINT)BM_SETCHECK, Settings.Overlay, 0);
+			SendDlgItemMessage(hwnd, IDC_CHECK4, (UINT)BM_SETCHECK, Settings.Streamstatus, 0);
+			SendDlgItemMessage(hwnd, IDC_CHECK5, (UINT)BM_SETCHECK, Settings.Stoppedstatus, 0);
+			SendDlgItemMessage(hwnd, IDC_CHECK26, (UINT)BM_SETCHECK, Settings.VuMeter, 0);
+			SendDlgItemMessage(hwnd, IDC_CHECK_A2R, (UINT)BM_SETCHECK, !Settings.Add2RecentDocs, 0);
+
+			EnableControl(hwnd, IDC_CHECK4, Settings.Progressbar);
+			EnableControl(hwnd, IDC_CHECK5, Settings.Progressbar);
 
 			const BOOL enabled = GetTaskbarMode();
 			CheckDlgButton(hwnd, IDC_SHOW_IN_TASKBAR, (enabled ? BST_CHECKED : BST_UNCHECKED));
@@ -1676,6 +1684,16 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 			EnableControl(hwnd, IDC_HIDE_ON_MINIMISE, enabled);
 
 			CheckDlgButton(hwnd, IDC_HIDE_ON_MINIMISE, (GetTaskbarOnMinimiseMode() ? BST_CHECKED : BST_UNCHECKED));
+
+			SendDlgItemMessage(hwnd, IDC_CHECK30, (UINT)BM_SETCHECK, Settings.JLrecent, 0);
+			SendDlgItemMessage(hwnd, IDC_CHECK31, (UINT)BM_SETCHECK, Settings.JLfrequent, 0);
+			SendDlgItemMessage(hwnd, IDC_CHECK32, (UINT)BM_SETCHECK, Settings.JLtasks, 0);
+			SendDlgItemMessage(hwnd, IDC_CHECK33, (UINT)BM_SETCHECK, Settings.JLbms, 0);
+			SendDlgItemMessage(hwnd, IDC_CHECK34, (UINT)BM_SETCHECK, Settings.JLpl, 0);
+
+#ifdef USE_MOUSE
+			SendDlgItemMessage(hwnd, IDC_CHECK35, (UINT)BM_SETCHECK, Settings.VolumeControl, 0);
+#endif
 
 			SetupTaskbarIcon(hwnd);
 			break;
@@ -1707,6 +1725,7 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 				case IDC_CHECK_A2R:
 				{
 					Settings.Add2RecentDocs = !(Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK_A2R)) == BST_CHECKED);
+					SManager->WriteBool(false, L"Add2RecentDocs", Settings.Add2RecentDocs, true);
 					break;
 				}
 				case IDC_CHECK30:
@@ -1727,12 +1746,20 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 						Settings.JLrecent = true;
 						Button_SetCheck(GetDlgItem(hwnd, IDC_CHECK30), BST_CHECKED);
 					}
+
+					SManager->WriteBool(false, L"JLPlayList", Settings.JLpl, true);
+					SManager->WriteBool(false, L"JLBookMarks", Settings.JLbms, true);
+					SManager->WriteBool(false, L"JLTasks", Settings.JLtasks, true);
+					SManager->WriteBool(false, L"Frequent", Settings.JLfrequent, true);
+					SManager->WriteBool(false, L"Recent", Settings.JLrecent, true);
+
 					StartSetupJumpList();
 					break;
 				}
 				case IDC_CHECK3:
 				{
 					Settings.Overlay = (Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK3)) == BST_CHECKED);
+					SManager->WriteBool(false, L"IconOverlay", Settings.Overlay, true);
 					if (Settings.Overlay)
 					{
 						UpdateOverlyStatus(false);
@@ -1749,6 +1776,7 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 				case IDC_CHECK2:
 				{
 					Settings.Progressbar = (Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK2)) == BST_CHECKED);
+					SManager->WriteBool(false, L"Progress", Settings.Progressbar, false);
 
 					EnableControl(hwnd, IDC_CHECK4, Settings.Progressbar);
 					EnableControl(hwnd, IDC_CHECK5, Settings.Progressbar);
@@ -1756,30 +1784,33 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 					if (Settings.Progressbar)
 					{
 						SendDlgItemMessage(hwnd, IDC_CHECK26, (UINT) BM_SETCHECK, 0, 0);
-						Settings.VuMeter = false;
+						SManager->WriteBool(false, L"VUMeter", (Settings.VuMeter = false), false);
 					}
 					break;
 				}
 				case IDC_CHECK4:
 				{
 					Settings.Streamstatus = (Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK4)) == BST_CHECKED);
+					SManager->WriteBool(false, L"StreamStatusOn", Settings.Streamstatus, true);
 					break;
 				}
 				case IDC_CHECK5:
 				{
 					Settings.Stoppedstatus = (Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK5)) == BST_CHECKED);
+					SManager->WriteBool(false, L"StoppedStatusOn", Settings.Stoppedstatus, true);
 					break;
 				}
 				case IDC_CHECK26:
 				{
 					Settings.VuMeter = (Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK26)) == BST_CHECKED);
+					SManager->WriteBool(false, L"VUMeter", Settings.VuMeter, false);
 
 					if (Settings.VuMeter)
 					{
 						SendDlgItemMessage(hwnd, IDC_CHECK2, (UINT) BM_SETCHECK, 0, 0);
 						EnableControl(hwnd, IDC_CHECK4, 0);
 						EnableControl(hwnd, IDC_CHECK5, 0);
-						Settings.Progressbar = false;
+						SManager->WriteBool(false, L"Progress", (Settings.Progressbar = false), false);
 					}
 
 					KillTimer(plugin.hwndParent, 6668);
@@ -1801,6 +1832,7 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 				case IDC_CHECK35:
 				{
 					Settings.VolumeControl = (Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK35)) == BST_CHECKED);
+					SManager->WriteBool(false, L"VolumeControl", Settings.VolumeControl, false);
 
 					if (Settings.VolumeControl)
 					{
@@ -1828,25 +1860,17 @@ LRESULT CALLBACK TabHandler_Taskbar(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 			}
 			break;
 		}
-		case WM_DESTROY:
-		{
-			// save the settings only when changed
-			// instead of always applying on close
-			SManager->WriteSettings(Settings);
-			break;
-		}
 	}
-
 	return 0;
 }
 
 static void UpdateContolButtons(HWND hwnd)
 {
-	const int ids[] = {IDC_STATIC29, IDC_PCB1, IDC_PCB2, IDC_PCB3,
-					   IDC_PCB4, IDC_PCB5, IDC_PCB6, IDC_PCB7,
-					   IDC_PCB8, IDC_PCB9, IDC_PCB10, IDC_PCB11,
-					   IDC_PCB12, IDC_PCB13, IDC_PCB14, IDC_PCB15,
-					   IDC_BUTTON_ORDER, IDC_LIST1, IDC_UPBUTT, IDC_DOWNBUTT};
+	const int ids[] = { IDC_STATIC29, IDC_PCB1, IDC_PCB2, IDC_PCB3,
+					    IDC_PCB4, IDC_PCB5, IDC_PCB6, IDC_PCB7,
+					    IDC_PCB8, IDC_PCB9, IDC_PCB10, IDC_PCB11,
+					    IDC_PCB12, IDC_PCB13, IDC_PCB14, IDC_PCB15,
+					    IDC_BUTTON_ORDER, IDC_LIST1, IDC_UPBUTT, IDC_DOWNBUTT };
 	const bool allow_delete = GetPlaylistAllowHardDelete();
 	for (int i = 0; i < ARRAYSIZE(ids); i++)
 	{
@@ -1875,7 +1899,14 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 		{
 			setup_settings();
 
-			SettingsManager::WriteSettings_ToForm(hwnd, Settings);
+			SendDlgItemMessage(hwnd, IDC_CHECK1, (UINT)BM_SETCHECK, Settings.Shrinkframe, 0);
+
+			SendDlgItemMessage(hwnd, IDC_CHECK6, (UINT)BM_SETCHECK, Settings.Thumbnailbuttons, 0);
+			EnableControl(hwnd, IDC_CHECK27, Settings.Thumbnailbuttons);
+
+			SendDlgItemMessage(hwnd, IDC_CHECK8, (UINT)BM_SETCHECK, Settings.Antialias, 0);
+
+			SendDlgItemMessage(hwnd, IDC_CHECK29, (UINT)BM_SETCHECK, Settings.Thumbnailpb, 0);
 
 			// Reset buttons
 			for (int i = IDC_PCB1; i <= IDC_PCB15; i++)
@@ -1920,6 +1951,19 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 
 			SetDlgItemText(hwnd, IDC_UPBUTT, L"\u25B2");
 			SetDlgItemText(hwnd, IDC_DOWNBUTT, L"\u25BC");
+
+			std::wstring tmpbuf = Settings.Text;
+			std::wstring::size_type pos = std::wstring::npos;
+			do
+			{
+				pos = tmpbuf.find(L"\\r");
+				if (pos != std::wstring::npos)
+				{
+					tmpbuf.replace(pos, 2, L"\r\n");
+				}
+			} while (pos != std::wstring::npos);
+
+			SetDlgItemText(hwnd, IDC_EDIT3, tmpbuf.c_str());
 
 			UpdateContolButtons(hwnd);
 			break;
@@ -2060,6 +2104,8 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 						TButtons.push_back((int)ListBox_GetItemData(list, i));
 					}
 
+					SManager->WriteButtons(TButtons);
+
 					// Show note
 					ShowControl(hwnd, IDC_BUTTON_RESTART, SW_SHOWNA);
 					break;
@@ -2078,8 +2124,8 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 
 					wchar_t tooltip_buf[64]/* = { 0 }*/;
 					index = (int)SendMessage(list, LB_INSERTSTRING, (WPARAM)index + 1,
-										   (LPARAM)tools::getToolTip(data, tooltip_buf,
-														  ARRAYSIZE(tooltip_buf), -1));
+											 (LPARAM)tools::getToolTip(data, tooltip_buf,
+															ARRAYSIZE(tooltip_buf), -1));
 					SendMessage(list, LB_SETITEMDATA, index, data);
 					SendMessage(list, LB_SETCURSEL, index, NULL);
 
@@ -2090,6 +2136,8 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 						TButtons.push_back((int)ListBox_GetItemData(list, i));
 					}
 
+					SManager->WriteButtons(TButtons);
+
 					// Show note
 					ShowControl(hwnd, IDC_BUTTON_RESTART, SW_SHOWNA);
 					break;
@@ -2097,7 +2145,9 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 				case IDC_CHECK6:
 				{
 					Settings.Thumbnailbuttons = (Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK6)) == BST_CHECKED);
-					EnableControl(hwnd, IDC_CHECK27, (UINT)SendDlgItemMessage(hwnd, IDC_CHECK6, BM_GETCHECK, 0, 0));
+					SManager->WriteBool(false, L"ThumbnailButtons", Settings.Thumbnailbuttons, true);
+
+					EnableControl(hwnd, IDC_CHECK27, Settings.Thumbnailbuttons);
 					UpdateContolButtons(hwnd);
 
 					if (Settings.Thumbnailbuttons)
@@ -2150,7 +2200,13 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 							}
 						}
 						while (pos != std::wstring::npos);
+
 						CopyCchStr(Settings.Text, ARRAYSIZE(Settings.Text), text.c_str());
+						
+						SManager->WriteString(false, L"Text", Settings.Text,
+											  L"%c%%s%%curpl% of %totalpl%.\\r%c%%s%%title%"
+											  L"\\r%c%%s%%artist%\\r\\r%c%%s%%curtime%/%totaltime%"
+											  L"\\r%c%%s%Track #: %track%        Volume: %volume%%");
 
 						ResetThumbnail();
 					}
@@ -2195,6 +2251,11 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 					{
 						Settings.font = *cf.lpLogFont;
 
+						const LOGFONT ft = { -13, 0, 0, FW_NORMAL, 0, 0, 0, 0, 0, 0, 0, 0, 0, L"Segoe UI" };
+						WritePrivateProfileStruct(SECTION_NAME_FONT, L"font", (memcmp(&ft, &Settings.font,
+												  sizeof(LOGFONT)) ? (LPVOID)(&Settings.font) : NULL),
+												  sizeof(Settings.font), GetPaths()->win7shell_ini_file);
+
 						if (thumbnaildrawer != NULL)
 						{
 							thumbnaildrawer->ClearFonts();
@@ -2217,6 +2278,10 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 					if (PickColour(&cc) == TRUE)
 					{
 						(!text ? Settings.bgcolor : Settings.text_color) = cc.rgbResult;
+
+						SManager->WriteInt(true, (!text ? L"bgcolor" : L"color"), cc.rgbResult,
+												  (!text ? RGB(0, 0, 0) : RGB(255, 255, 255)));
+
 						InvalidateRect(hwnd, NULL, false);
 					}
 					break;
@@ -2224,31 +2289,25 @@ LRESULT CALLBACK TabHandler_ThumbnailImage(HWND hwnd, UINT Message, WPARAM wPara
 				case IDC_CHECK8:
 				{
 					Settings.Antialias = (Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK8)) == BST_CHECKED);
+					SManager->WriteBool(false, L"AntiAlias", Settings.Antialias, true);
 					break;
 				}
 				case IDC_CHECK1:
 				{
 					Settings.Shrinkframe = (Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK1)) == BST_CHECKED);
+					SManager->WriteBool(false, L"ShrinkFrame", Settings.Shrinkframe, false);
 					break;
 				}
 				case IDC_CHECK29:
 				{
 					Settings.Thumbnailpb = (Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK29)) == BST_CHECKED);
+					SManager->WriteBool(false, L"ThumbnailPB", Settings.Thumbnailpb, false);
 					break;
 				}
 			}
 			break;
 		}
-		case WM_DESTROY:
-		{
-			// save the settings only when changed
-			// instead of always applying on close
-			SManager->WriteButtons(TButtons);
-			SManager->WriteSettings(Settings);
-			break;
-		}
 	}
-
 	return 0;
 }
 
@@ -2301,7 +2360,36 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 		{
 			setup_settings();
 
-			SettingsManager::WriteSettings_ToForm(hwnd, Settings);
+			switch (Settings.Thumbnailbackground)
+			{
+				case BG_TRANSPARENT:
+				{
+					SendDlgItemMessage(hwnd, IDC_RADIO1, (UINT)BM_SETCHECK, BST_CHECKED, 0);
+					break;
+				}
+				case BG_ALBUMART:
+				{
+					SendDlgItemMessage(hwnd, IDC_RADIO2, (UINT)BM_SETCHECK, BST_CHECKED, 0);
+					break;
+				}
+				case BG_CUSTOM:
+				{
+					SendDlgItemMessage(hwnd, IDC_RADIO3, (UINT)BM_SETCHECK, BST_CHECKED, 0);
+					break;
+				}
+				case BG_WINAMP:
+				{
+					SendDlgItemMessage(hwnd, IDC_RADIO9, (UINT)BM_SETCHECK, BST_CHECKED, 0);
+					// this is so when the main mode is toggled that the image has something valid
+					SendDlgItemMessage(hwnd, IDC_RADIO2, (UINT)BM_SETCHECK, BST_CHECKED, 0);
+					break;
+				}
+			}
+
+			if (Settings.Thumbnailbackground != BG_WINAMP)
+			{
+				SendDlgItemMessage(hwnd, IDC_RADIO10, (UINT)BM_SETCHECK, BST_CHECKED, 0);
+			}
 
 			SendDlgItemMessage(hwnd, IDC_EDIT2, EM_SETREADONLY, TRUE, NULL);
 			SendDlgItemMessage(hwnd, IDC_SLIDER1, TBM_SETRANGE, FALSE, MAKELPARAM(30, 100));
@@ -2312,26 +2400,52 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 				case IP_UPPERLEFT:
 				{
 					SetDlgItemText(hwnd, IDC_ICONPOS, LangString(IDS_ICON_POSITION_TL));
+					SendDlgItemMessage(hwnd, IDC_RADIO4, (UINT)BM_SETCHECK, BST_CHECKED, 0);
 					break;
 				}
 				case IP_UPPERRIGHT:
 				{
 					SetDlgItemText(hwnd, IDC_ICONPOS, LangString(IDS_ICON_POSITION_TR));
+					SendDlgItemMessage(hwnd, IDC_RADIO6, (UINT)BM_SETCHECK, BST_CHECKED, 0);
 					break;
 				}
 				case IP_LOWERLEFT:
 				{
 					SetDlgItemText(hwnd, IDC_ICONPOS, LangString(IDS_ICON_POSITION_BL));
+					SendDlgItemMessage(hwnd, IDC_RADIO7, (UINT)BM_SETCHECK, BST_CHECKED, 0);
 					break;
 				}
 				case IP_LOWERRIGHT:
 				{
 					SetDlgItemText(hwnd, IDC_ICONPOS, LangString(IDS_ICON_POSITION_BR));
+					SendDlgItemMessage(hwnd, IDC_RADIO8, (UINT)BM_SETCHECK, BST_CHECKED, 0);
 					break;
 				}
 			}
 
+			SendDlgItemMessage(hwnd, IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)LangString(IDS_TRANSPARENT));
+			SendDlgItemMessage(hwnd, IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)LangString(IDS_ALBUM_ART));
+			SendDlgItemMessage(hwnd, IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)LangString(IDS_CUSTOM_BACKGROUND));
+			SendDlgItemMessage(hwnd, IDC_COMBO1, CB_SETCURSEL, Settings.Revertto, 0);
+
+			SendDlgItemMessage(hwnd, IDC_CHECK25, (UINT)BM_SETCHECK, Settings.AsIcon, 0);
+
+			SendDlgItemMessage(hwnd, IDC_CHECK36, (UINT)BM_SETCHECK, static_cast<WPARAM>(Settings.LowFrameRate), 0);
+
+			SendDlgItemMessage(hwnd, IDC_SLIDER1, TBM_SETPOS, TRUE, Settings.IconSize);
+			SendDlgItemMessage(hwnd, IDC_SLIDER_TRANSPARENCY, TBM_SETPOS, TRUE, Settings.BG_Transparency);
+
+			std::wstringstream size;
+			size << "Icon size (" << SendDlgItemMessage(hwnd, IDC_SLIDER1, TBM_GETPOS, NULL, NULL) << "%)";
+			SetDlgItemText(hwnd, IDC_ICONSIZE, size.str().c_str());
+
+			size.str(L"");
+			size << SendDlgItemMessage(hwnd, IDC_SLIDER_TRANSPARENCY, TBM_GETPOS, NULL, NULL) << "%";
+			SetDlgItemText(hwnd, IDC_TRANSPARENCY_PERCENT, size.str().c_str());
+
 			EnumChildWindows(hwnd, EnumDialogControls, (Settings.Thumbnailbackground != BG_WINAMP));
+
+			SetDlgItemText(hwnd, IDC_EDIT2, Settings.BGPath);
 
 			UpdateIconControls(hwnd);
 			break;
@@ -2342,12 +2456,14 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 			if (HWNDIsCtrl(lParam, hwnd, IDC_SLIDER1))
 			{
 				Settings.IconSize = (int)SendMessage((HWND)lParam, TBM_GETPOS, NULL, NULL);
+				SManager->WriteInt(false, L"IconSize", Settings.IconSize, 50);
 				PrintfCch(text, ARRAYSIZE(text), LangString(IDS_ICON_SIZE), Settings.IconSize);
 				SetDlgItemText(hwnd, IDC_ICONSIZE, text);
 			}
 			else if (HWNDIsCtrl(lParam, hwnd, IDC_SLIDER_TRANSPARENCY))
 			{
 				Settings.BG_Transparency = (int)SendMessage((HWND)lParam, TBM_GETPOS, NULL, NULL);
+				SManager->WriteInt(false, L"BG_Transparency", Settings.BG_Transparency, 80);
 				PrintfCch(text, ARRAYSIZE(text), L"%d%%", Settings.BG_Transparency);
 				SetDlgItemText(hwnd, IDC_TRANSPARENCY_PERCENT, text);
 			}
@@ -2385,6 +2501,8 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 						}
 					}
 
+					SManager->WriteInt(false, L"ThumbnailBG", Settings.Thumbnailbackground, BG_WINAMP);
+
 					EnumChildWindows(hwnd, EnumDialogControls, (Settings.Thumbnailbackground != BG_WINAMP));
 
 					UpdateThumbnail();
@@ -2396,6 +2514,7 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 				case IDC_EDIT2:
 				{
 					GetWindowText(GetDlgItem(hwnd, IDC_EDIT2), Settings.BGPath, MAX_PATH);
+					SManager->WriteString(false, L"BGPath", Settings.BGPath, L"");
 					break;
 				}
 				case IDC_BUTTON3:
@@ -2452,12 +2571,14 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 				case IDC_COMBO1:
 				{
 					Settings.Revertto = (int)SendDlgItemMessage(hwnd, IDC_COMBO1, CB_GETCURSEL, 0, 0);
+					SManager->WriteInt(false, L"Revert", Settings.Revertto, BG_TRANSPARENT);
 					ResetThumbnail();
 					break;
 				}
 				case IDC_CHECK25:
 				{
 					Settings.AsIcon = (Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK25)) == BST_CHECKED);
+					SManager->WriteBool(false, L"AsIcon", Settings.AsIcon, true);
 					UpdateIconControls(hwnd);
 					UpdateThumbnail();
 					break;
@@ -2488,27 +2609,22 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 						Settings.IconPosition = IP_LOWERRIGHT;
 					}
 
+					SManager->WriteInt(false, L"IconPosition", Settings.IconPosition, IP_UPPERLEFT);
+
 					UpdateThumbnail();
 					break;
 				}
 				case IDC_CHECK36:
 				{
 					Settings.LowFrameRate = (Button_GetCheck(GetDlgItem(hwnd, IDC_CHECK36)) == BST_CHECKED);
+					SManager->WriteBool(false, L"LowFrameRate", Settings.LowFrameRate, false);
 					SetThumbnailTimer();
 					break;
 				}
 			} // switch
 			break;
 		}
-		case WM_DESTROY:
-		{
-			// save the settings only when changed
-			// instead of always applying on close
-			SManager->WriteSettings(Settings);
-			break;
-		}
 	}
-
 	return 0;
 }
 
@@ -2569,6 +2685,8 @@ void AddStringtoList(HWND window, const int control_ID)
 	{
 		TButtons.push_back((int)ListBox_GetItemData(list, i));
 	}
+
+	SManager->WriteButtons(TButtons);
 
 	// Show note
 	ShowControl(window, IDC_BUTTON_RESTART, SW_SHOWNA);

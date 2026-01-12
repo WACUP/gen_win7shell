@@ -9,6 +9,12 @@
 
 #include <sdk/winamp/gen.h>
 
+extern CRITICAL_SECTION g_cs[4];
+#define background_cs g_cs[0]
+#define metadata_cs g_cs[1]
+#define overlay_icons_cs g_cs[2]
+#define thumbnai_icons_cs g_cs[3]
+
 struct sSettings
 {
 	// thumbnail
@@ -27,11 +33,8 @@ struct sSettings
 	bool Antialias;
 	bool Shrinkframe;
 	bool VuMeter;
-	bool Buttons[16];
-	//bool Thumbnailpb;
 
 	// icon settings
-	//bool AsIcon;
 	int IconSize;
 	int IconPosition;
 	int BG_Transparency;
@@ -49,11 +52,8 @@ struct sSettings
 #endif
 	bool LowFrameRate;
 
-	// moved to avoid a memory hole
 	bool Thumbnailpb;
 	bool AsIcon;
-
-	int LastTab;
 
 	// playback info
 	int play_current;

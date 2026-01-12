@@ -9,12 +9,6 @@
 #include "metadata.h"
 #include "lines.h"
 
-extern CRITICAL_SECTION g_cs[4];
-#define background_cs g_cs[0]
-#define metadata_cs g_cs[1]
-#define overlay_icons_cs g_cs[2]
-#define thumbnai_icons_cs g_cs[3]
-
 class renderer
 {
 public:

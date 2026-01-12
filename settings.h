@@ -11,27 +11,22 @@
 class SettingsManager
 {
 public:
-	explicit SettingsManager() : currentSection(SECTION_NAME_GENERAL) {}
+	explicit SettingsManager();
 
 	void ReadSettings(sSettings &Destination_struct, std::vector<int> &tba);
-	void WriteSettings(const sSettings &Source_struct);
 
-	static void WriteSettings_ToForm(HWND hwnd, const sSettings &Settings);
 	static void WriteButtons(std::vector<int> &tba);
 
-	int GetInt(const std::wstring &key, const int default_value) const;
-	bool GetBool(const std::wstring &key, const bool default_value) const;
-	void GetString(wchar_t* output, const size_t output_len, const std::wstring &key,
-											const std::wstring &default_value) const;
+	int GetInt(const bool section, const std::wstring &key, const int default_value) const;
+	bool GetBool(const bool section, const std::wstring &key, const bool default_value) const;
+	void GetString(const bool section, wchar_t* output, const size_t output_len,
+				   const std::wstring &key, const std::wstring &default_value) const;
 
 	// all of these compare against the default value to prevent
 	// saving the value to the settings file if there's no need.
-	void WriteInt(const std::wstring &key, const int value, const int default_value) const;
-	void WriteBool(const std::wstring &key, const bool value, const bool default_value) const;
-	void WriteString(const std::wstring &key, const std::wstring &value, const std::wstring &default_value) const;
-
-private:
-	std::wstring currentSection;
+	void WriteInt(const bool section, const std::wstring &key, const int value, const int default_value) const;
+	void WriteBool(const bool section, const std::wstring &key, const bool value, const bool default_value) const;
+	void WriteString(const bool section, const std::wstring &key, const std::wstring &value, const std::wstring &default_value) const;
 };
 
 #endif // settings_h__
