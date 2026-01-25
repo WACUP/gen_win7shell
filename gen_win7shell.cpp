@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.14"
+#define PLUGIN_VERSION L"4.14.1"
 
 #define NR_BUTTONS 15
 
@@ -1000,7 +1000,7 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 #ifndef _WIN64
 					(lParam == IPC_FILE_TAG_MAY_HAVE_UPDATED) ||
 #endif
-					(lParam == IPC_CB_MISC) &&
+					(lParam == IPC_CB_MISC) && !closing &&
 					((wParam == IPC_CB_MISC_TITLE) ||
 					(wParam == IPC_CB_MISC_AA_OPT_CHANGED) ||
 					(wParam == IPC_CB_MISC_TITLE_RATING) ||
