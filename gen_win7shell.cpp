@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.14.1"
+#define PLUGIN_VERSION L"4.14.2"
 
 #define NR_BUTTONS 15
 
@@ -205,7 +205,7 @@ void StartSetupJumpList(void)
 {
 	if (!closing && (!CheckThreadHandleIsValid(&setupthread)))
 	{
-		setupthread = StartThread(SetupJumpListThread, 0, THREAD_PRIORITY_NORMAL, 0, NULL);
+		setupthread = StartThread(SetupJumpListThread, 0, THREAD_PRIORITY_HIGHEST, 0, NULL);
 	}
 }
 
@@ -647,7 +647,7 @@ void SetThumbnailTimer(void)
 
 	if (!CheckThreadHandleIsValid(&updatethread))
 	{
-		updatethread = StartThread(UpdateThread, 0, THREAD_PRIORITY_NORMAL, 0, NULL);
+		updatethread = StartThread(UpdateThread, 0, THREAD_PRIORITY_HIGHEST, 0, NULL);
 	}
 
 	SetTimer(plugin.hwndParent, 6671, 60000, TimerProc);

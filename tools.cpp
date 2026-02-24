@@ -293,6 +293,7 @@ namespace tools
 		GetCurrentSkin(skin_folder, ARRAYSIZE(skin_folder), NULL);
 
 		LPCWSTR file[] = { L"overlay_stop", L"overlay_pause", L"overlay_play" };
+		HINSTANCE core_hinst = GetModuleHandle(GetPaths()->wacup_core_dll);
 		for (int i = 0; i < NR_OVERLAY_ICONS; ++i)
 		{
 			HICON hicon = (skin_folder[0] ? getCustomIcon(file[i], skin_folder) : NULL);
@@ -304,8 +305,8 @@ namespace tools
 			if (hicon == NULL)
 			{
 				const int icons[] = { 205/*stop*/, 208/*pause*/, 204/*play*/ };
-				hicon = (HICON)LoadImage(GetModuleHandle(GetPaths()->wacup_core_dll),
-									 MAKEINTRESOURCE(icons[i]), IMAGE_ICON, 0, 0, 0);
+				/*hicon = (HICON)LoadImage(core_hinst, MAKEINTRESOURCE(icons[i]), IMAGE_ICON, 0, 0, 0);/*/
+				GetIcon(core_hinst, MAKEINTRESOURCE(icons[i]), &hicon);/**/
 			}
 
 			if (hicon == NULL)
@@ -317,7 +318,7 @@ namespace tools
 			{
 				__try
 				{
-					if (ImageListAddIcon(himlIcons, hicon) == -1)
+					if (ImageListReplaceIcon(himlIcons, i, hicon) == -1)
 					{
 						DestroyIcon(hicon);
 						ImageListDestroy(himlIcons);
@@ -346,6 +347,7 @@ namespace tools
 		wchar_t skin_folder[MAX_PATH]/* = { 0 }*/;
 		GetCurrentSkin(skin_folder, ARRAYSIZE(skin_folder), NULL);
 
+		HINSTANCE core_hinst = GetModuleHandle(GetPaths()->wacup_core_dll);
 		for (int i = 0; i < NR_THUMB_BUTTONS; ++i)
 		{
 			int icon = -1;
@@ -471,17 +473,18 @@ namespace tools
 					const int icons[] = { 203/*prev*/, 204/*play*/, 208/*pause*/,
 										  205/*stop*/, 206/*next*/, 207/*open*/,
 										  209/*voldown*/, 210/*volup*/, 211/*delete*/ };
-					hicon = (HICON)LoadImage(GetModuleHandle(GetPaths()->wacup_core_dll),
-									   MAKEINTRESOURCE(icons[icon]), IMAGE_ICON, 0, 0, 0);
+					GetIcon(core_hinst, MAKEINTRESOURCE(icons[icon]), &hicon);/*/
+					hicon = (HICON)LoadImage(core_hinst, MAKEINTRESOURCE(icons[icon]), IMAGE_ICON, 0, 0, 0);/**/
 				}
 			}
 			else
 			{
 				if (hicon == NULL)
 				{
-					hicon = (HICON)LoadImage(plugin.hDllInstance,
-								   MAKEINTRESOURCE(IDI_TBICON0 + i),
-												   IMAGE_ICON, 0, 0, 0);
+					GetIcon(plugin.hDllInstance, MAKEINTRESOURCE(
+									   IDI_TBICON0 + i), &hicon);/*/
+					hicon = (HICON)LoadImage(plugin.hDllInstance, MAKEINTRESOURCE(
+											IDI_TBICON0 + i), IMAGE_ICON, 0, 0, 0);/**/
 				}
 			}
 
@@ -494,7 +497,7 @@ namespace tools
 			{
 				__try
 				{
-					if (ImageListAddIcon(himlIcons, hicon) == -1)
+					if (ImageListReplaceIcon(himlIcons, i, hicon) == -1)
 					{
 						DestroyIcon(hicon);
 						ImageListDestroy(himlIcons);
