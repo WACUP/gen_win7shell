@@ -96,21 +96,23 @@ HRESULT JumpList::_CreateShellLink(LPCWSTR path, LPCWSTR loaderpath, LPCWSTR psz
 				hr = psl->QueryInterface(IID_PPV_ARGS(&pps));
 				if (SUCCEEDED(hr) && pps)
 				{
-					PROPVARIANT propvar = { 0 };
-					hr = PropVarFromStr(pszTitle, &propvar);
+					PROPVARIANT propvar/* = { 0 }*/;
+					propvar.vt = VT_LPWSTR;
+					propvar.pwszVal = (LPWSTR)pszTitle;
+					/*hr = PropVarFromStr(pszTitle, &propvar);
 					if (SUCCEEDED(hr))
-					{
+					{*/
 						hr = pps->SetValue(PKEY_Title, propvar);
 						if (SUCCEEDED(hr))
 						{
-							hr = pps->Commit();
-							if (SUCCEEDED(hr))
+							/*hr = pps->Commit();
+							if (SUCCEEDED(hr))*/
 							{
 								hr = psl->QueryInterface(IID_PPV_ARGS(ppsl));
 							}
 						}
-						ClearPropVariant(&propvar);
-					}
+						/*ClearPropVariant(&propvar);
+					}*/
 					pps->Release();
 				}
 			}

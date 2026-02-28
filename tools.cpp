@@ -236,10 +236,12 @@ namespace tools
 						hr = psl->QueryInterface(IID_PPV_ARGS(&pps));
 						if (SUCCEEDED(hr))
 						{
-							PROPVARIANT propvar = { 0 };
+							PROPVARIANT propvar/* = { 0 }*/;
+							propvar.vt = VT_LPWSTR;
+							propvar.pwszVal = (LPWSTR)pszTitle;/*/
 							hr = PropVarFromStr(pszTitle, &propvar);
 							if (SUCCEEDED(hr))
-							{
+							{/**/
 								hr = pps->SetValue(PKEY_Title, propvar);
 								if (SUCCEEDED(hr))
 								{
@@ -249,8 +251,8 @@ namespace tools
 										hr = psl->QueryInterface(IID_PPV_ARGS(ppsl));
 									}
 								}
-								ClearPropVariant(&propvar);
-							}
+								/*ClearPropVariant(&propvar);
+							}*/
 							pps->Release();
 						}
 					}
