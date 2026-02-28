@@ -66,20 +66,18 @@ JumpList::~JumpList()
 
 // Creates a CLSID_ShellLink to insert into the Tasks section of the Jump List. This type of
 // Jump List item allows the specification of an explicit command line to execute the task.
-HRESULT JumpList::_CreateShellLink(const std::wstring &path, const std::wstring &loaderpath,
-								   LPCWSTR pszArguments, LPCWSTR pszTitle, IShellLink **ppsl,
-								   const int iconindex, const int mode)
+HRESULT JumpList::_CreateShellLink(LPCWSTR path, LPCWSTR loaderpath, LPCWSTR pszArguments,
+								   LPCWSTR pszTitle, IShellLink **ppsl, const int iconindex, const int mode)
 {
 	IShellLink *psl = NULL;
-	HRESULT hr = CreateCOMInProc(CLSID_ShellLink,
-				 __uuidof(IShellLink), (LPVOID*)&psl);
+	HRESULT hr = CreateCOMInProc(CLSID_ShellLink, __uuidof(IShellLink), (LPVOID*)&psl);
 	if (SUCCEEDED(hr) && psl)
 	{
-		psl->SetIconLocation(path.c_str(), iconindex);
+		psl->SetIconLocation(path, iconindex);
 
 		__try
 		{
-			hr = psl->SetPath((mode ? loaderpath.c_str() : L"rundll32.exe"));
+			hr = psl->SetPath((mode ? loaderpath : L"rundll32.exe"));
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER)
 		{
@@ -126,9 +124,8 @@ HRESULT JumpList::_CreateShellLink(const std::wstring &path, const std::wstring 
 	return hr;
 }
 
-void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring &loaderpath,
-							  const std::wstring &pref, const std::wstring &openfile,
-							  const std::wstring &bookmarks, const std::wstring &pltext,
+void JumpList::CreateJumpList(LPCWSTR pluginpath, LPCWSTR loaderpath, LPCWSTR preferences,
+							  LPCWSTR openfile, LPCWSTR bookmarks, LPCWSTR playlisttext,
 							  const bool recent, const bool frequent, const bool tasks,
 							  const bool addbm, const bool playlist, const bool &closing)
 {
@@ -163,7 +160,7 @@ void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring
 						}
 
 						hr = _CreateShellLink(pluginpath, loaderpath, (shortfname[0] ? shortfname :
-												  fname), (*title_itr).second.c_str(), &psl, 2, 1);
+													fname), (*title_itr).second.c_str(), &psl, 2, 1);
 						if (psl)
 						{
 							if (!_IsItemInArray((*title_itr).second, poaRemoved))
@@ -197,7 +194,7 @@ void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring
 			{
 				pcdl->AppendKnownCategory(KDC_FREQUENT);
 			}
-		
+
 			if (addbm && has_bm)
 			{
 				_AddCategoryToList(poc, bookmarks);
@@ -205,12 +202,12 @@ void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring
 
 			if (playlist)
 			{
-				hr = _AddCategoryToList2(pluginpath, loaderpath, pltext);
+				hr = _AddCategoryToList2(poc, pluginpath, loaderpath, playlisttext);
 			}
 
 			if (tasks)
 			{
-				_AddTasksToList(pluginpath, loaderpath, pref, openfile);
+				hr = _AddTasksToList(poc, pluginpath, loaderpath, preferences, openfile);
 			}
 
 			if (SUCCEEDED(hr))
@@ -225,58 +222,50 @@ void JumpList::CreateJumpList(const std::wstring &pluginpath, const std::wstring
 				}
 			}
 		}
-		poaRemoved->Release();
+
 		poc->Release();
+	}
+
+	if (poaRemoved != NULL)
+	{
+		poaRemoved->Release();
 	}
 }
 
-HRESULT JumpList::_AddTasksToList(const std::wstring &pluginpath, const std::wstring &loaderpath,
-										  const std::wstring &pref, const std::wstring &openfile)
+HRESULT JumpList::_AddTasksToList(IObjectCollection* poc, LPCWSTR pluginpath, LPCWSTR loaderpath,
+														   LPCWSTR preferences, LPCWSTR openfile)
 {
-	IObjectCollection *poc = NULL;
-	HRESULT hr = CreateCOMInProc(CLSID_EnumerableObjectCollection,
-					  __uuidof(IObjectCollection), (LPVOID*)&poc);
+	IShellLink *psl = NULL;
+	HRESULT hr = _CreateShellLink(pluginpath, loaderpath, L"/COMMAND=40012", preferences, &psl, 0, 2);
 	if (SUCCEEDED(hr))
 	{
-		if (poc)
-		{
-			IShellLink *psl = NULL;
-			hr = _CreateShellLink(pluginpath, loaderpath, L"/COMMAND=40012", pref.c_str(), &psl, 0, 2);
-			if (SUCCEEDED(hr))
-			{
-				poc->AddObject(psl);
-				psl->Release();
-			}
+		poc->AddObject(psl);
+		psl->Release();
+	}
 
-			hr = _CreateShellLink(pluginpath, loaderpath, L"/COMMAND=40029", openfile.c_str(), &psl, 1, 2);
-			if (SUCCEEDED(hr))
-			{
-				poc->AddObject(psl);
-				psl->Release();
-			}
+	hr = _CreateShellLink(pluginpath, loaderpath, L"/COMMAND=40029", openfile, &psl, 1, 2);
+	if (SUCCEEDED(hr))
+	{
+		poc->AddObject(psl);
+		psl->Release();
+	}
 
-			IObjectArray *poa = NULL;
-			hr = poc->QueryInterface(IID_PPV_ARGS(&poa));
-			if (SUCCEEDED(hr))
-			{
-				if (poa)
-				{
-					// Add the tasks to the Jump List. Tasks
-					// always appear in the canonical "Tasks"
-					// category that is displayed at the bottom
-					// of the Jump List, after other categories
-					hr = pcdl->AddUserTasks(poa);
-					poa->Release();
-				}
-			}
-			poc->Release();
-		}
+	IObjectArray *poa = NULL;
+	hr = poc->QueryInterface(IID_PPV_ARGS(&poa));
+	if (SUCCEEDED(hr) && poa)
+	{
+		// Add the tasks to the Jump List. Tasks
+		// always appear in the canonical "Tasks"
+		// category that is displayed at the bottom
+		// of the Jump List, after other categories
+		hr = pcdl->AddUserTasks(poa);
+		poa->Release();
 	}
 	return hr;
 }
 
 // Determines if the provided IShellItem is listed in the array of items that the user has removed
-bool JumpList::_IsItemInArray(const std::wstring &path, IObjectArray *poaRemoved)
+bool JumpList::_IsItemInArray(const std::wstring& path, IObjectArray *poaRemoved)
 {
 	bool fRet = false;
 	UINT cItems = 0;
@@ -303,7 +292,7 @@ bool JumpList::_IsItemInArray(const std::wstring &path, IObjectArray *poaRemoved
 
 // Adds a custom category to the Jump List.  Each item that should be in the category is added
 // to an ordered collection, and then the category is appended to the Jump List as a whole.
-HRESULT JumpList::_AddCategoryToList(IObjectCollection *poc, const std::wstring &bookmarks)
+HRESULT JumpList::_AddCategoryToList(IObjectCollection *poc, LPCWSTR bookmarks)
 {
 	IObjectArray *poa = NULL;
 	HRESULT hr = poc->QueryInterface(IID_PPV_ARGS(&poa));
@@ -313,7 +302,7 @@ HRESULT JumpList::_AddCategoryToList(IObjectCollection *poc, const std::wstring 
 		{
 			// Add the category to the Jump List.  If there were more categories,
 			// they would appear from top to bottom in the order they were appended.
-			hr = pcdl->AppendCategory(bookmarks.c_str(), poa);
+			hr = pcdl->AppendCategory(bookmarks, poa);
 			poa->Release();
 		}
 	}
@@ -323,64 +312,52 @@ HRESULT JumpList::_AddCategoryToList(IObjectCollection *poc, const std::wstring 
 
 // Adds a custom category to the Jump List.  Each item that should be in the category is added to
 // an ordered collection, and then the category is appended to the Jump List as a whole.
-HRESULT JumpList::_AddCategoryToList2(const std::wstring &pluginpath, const std::wstring &loaderpath, const std::wstring &pltext)
+HRESULT JumpList::_AddCategoryToList2(IObjectCollection* poc, LPCWSTR pluginpath,
+									  LPCWSTR loaderpath, LPCWSTR playlisttext)
 {
-	IObjectCollection *poc = NULL;
-	HRESULT hr = CreateCOMInProc(CLSID_EnumerableObjectCollection,
-					  __uuidof(IObjectCollection), (LPVOID*)&poc);
-	if (SUCCEEDED(hr) && poc)
+	wchar_t tmp[MAX_PATH]/* = {0}*/;
+	HRESULT hr;
+	// enumerate through playlists (need to see if can use api_playlists.h via sdk)
+	const size_t count = (WASABI_API_PLAYLISTS ? WASABI_API_PLAYLISTS->GetCount() : 0);
+	for (size_t i = 0; i < count; i++)
 	{
-		// enumerate through playlists (need to see if can use api_playlists.h via sdk)
-		const size_t count = (WASABI_API_PLAYLISTS ? WASABI_API_PLAYLISTS->GetCount() : 0);
-		for (size_t i = 0; i < count; i++)
+		size_t numItems = 0;
+		IShellLink *psl = NULL;
+
+		size_t name_len = 0;
+		LPCWSTR name = WASABI_API_PLAYLISTS->GetNameWithLen(i, &name_len);
+		std::wstring title(name, name_len);
+
+		WASABI_API_PLAYLISTS->GetInfo(i, api_playlists_itemCount, &numItems, sizeof(numItems));
+
+		PrintfCch(tmp, ARRAYSIZE(tmp), L" [%d]", numItems);
+		title += tmp;
+
+		hr = _CreateShellLink(pluginpath, loaderpath, WASABI_API_PLAYLISTS->GetFilename(i), title.c_str(), &psl, 3, 1);
+		if (SUCCEEDED(hr) && psl)
 		{
-			size_t numItems = 0;
-			IShellLink *psl = NULL;
-
-			size_t name_len = 0;
-			LPCWSTR name = WASABI_API_PLAYLISTS->GetNameWithLen(i, &name_len);
-			std::wstring title(name, name_len);
-
-			WASABI_API_PLAYLISTS->GetInfo(i, api_playlists_itemCount, &numItems, sizeof(numItems));
-
-			wchar_t tmp[MAX_PATH]/* = {0}*/;
-			PrintfCch(tmp, ARRAYSIZE(tmp), L" [%d]", numItems);
-			title += tmp;
-
-			hr = _CreateShellLink(pluginpath, loaderpath, WASABI_API_PLAYLISTS->GetFilename(i), title.c_str(), &psl, 3, 1);
-			if (SUCCEEDED(hr))
-			{
-				if (psl)
-				{
-					psl->SetDescription(WASABI_API_PLAYLISTS->GetFilename(i));
-					poc->AddObject(psl);
-					psl->Release();
-				}
-			}
-
-			if (count > 25)
-			{
-				break;
-			}
+			psl->SetDescription(WASABI_API_PLAYLISTS->GetFilename(i));
+			poc->AddObject(psl);
+			psl->Release();
 		}
 
-		IObjectArray *poa = NULL;
-		hr = poc->QueryInterface(IID_PPV_ARGS(&poa));
-		if (SUCCEEDED(hr))
+		if (count > 25)
 		{
-			if (poa)
-			{
-				// Add the category to the Jump List.  If there were more categories,
-				// they would appear from top to bottom in the order they were appended.
-				/*hr = */pcdl->AppendCategory(pltext.c_str(), poa);
-				poa->Release();
-			}
+			break;
 		}
-
-		return S_OK;
 	}
 
-	return S_FALSE;
+	IObjectArray *poa = NULL;
+	hr = poc->QueryInterface(IID_PPV_ARGS(&poa));
+	if (SUCCEEDED(hr) && poa)
+	{
+		// Add the category to the Jump List.  If there were more categories,
+		// they would appear from top to bottom in the order they were appended.
+		/*hr = */pcdl->AppendCategory(playlisttext, poa);
+		poa->Release();
+	}
+
+	return S_OK;
 }
 
 bool JumpList::CleanJL(LPCWSTR AppID, IApplicationDocumentLists *padl, APPDOCLISTTYPE type)
