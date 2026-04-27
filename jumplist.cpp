@@ -28,7 +28,7 @@ const bool ClearRecentFrequentEntries(void)
 JumpList::JumpList(const bool delete_now) : pcdl(NULL)
 {
 	if (SUCCEEDED(CreateCOMInProc(CLSID_DestinationList,
-		__uuidof(ICustomDestinationList), (LPVOID*)&pcdl)) && pcdl)
+		__uuidof(ICustomDestinationList), (LPVOID*)&pcdl, FALSE)) && pcdl)
 	{
 		LPCWSTR AppID = GetAppID();
 
@@ -36,7 +36,7 @@ JumpList::JumpList(const bool delete_now) : pcdl(NULL)
 
 		IApplicationDocumentLists *padl = NULL;
 		if (SUCCEEDED(CreateCOMInProc(CLSID_ApplicationDocumentLists,
-			__uuidof(IApplicationDocumentLists), (LPVOID*)&padl)) && padl)
+			__uuidof(IApplicationDocumentLists), (LPVOID*)&padl, FALSE)) && padl)
 		{
 			CleanJL(AppID, padl, ADLT_RECENT);
 			CleanJL(AppID, padl, ADLT_FREQUENT);
@@ -70,7 +70,7 @@ HRESULT JumpList::_CreateShellLink(LPCWSTR path, LPCWSTR loaderpath, LPCWSTR psz
 								   LPCWSTR pszTitle, IShellLink **ppsl, const int iconindex, const int mode)
 {
 	IShellLink *psl = NULL;
-	HRESULT hr = CreateCOMInProc(CLSID_ShellLink, __uuidof(IShellLink), (LPVOID*)&psl);
+	HRESULT hr = CreateCOMInProc(CLSID_ShellLink, __uuidof(IShellLink), (LPVOID*)&psl, FALSE);
 	if (SUCCEEDED(hr) && psl)
 	{
 		psl->SetIconLocation(path, iconindex);
@@ -137,7 +137,7 @@ void JumpList::CreateJumpList(LPCWSTR pluginpath, LPCWSTR loaderpath, LPCWSTR pr
 	HRESULT hr = pcdl->BeginList(&cMinSlots, IID_PPV_ARGS(&poaRemoved));
 
 	if (SUCCEEDED(CreateCOMInProc(CLSID_EnumerableObjectCollection,
-				  __uuidof(IObjectCollection), (LPVOID*)&poc)) && poc)
+		__uuidof(IObjectCollection), (LPVOID*)&poc, FALSE)) && poc)
 	{
 		bool has_bm = false;
 		if (addbm && (hr == S_OK))
@@ -384,8 +384,7 @@ bool JumpList::CleanJL(LPCWSTR AppID, IApplicationDocumentLists *padl, APPDOCLIS
 		if (SUCCEEDED(hr) && (count > 100))
 		{
 			IApplicationDestinations *pad = NULL;
-			hr = CreateCOMInProc(CLSID_ApplicationDestinations,
-								 __uuidof(IApplicationDestinations), (LPVOID*)&pad);
+			hr = CreateCOMInProc(CLSID_ApplicationDestinations, __uuidof(IApplicationDestinations), (LPVOID*)&pad, FALSE);
 			if (SUCCEEDED(hr) && pad)
 			{
 				pad->SetAppID(AppID);

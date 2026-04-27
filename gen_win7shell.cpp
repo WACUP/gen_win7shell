@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION L"4.14.4"
+#define PLUGIN_VERSION L"4.14.5"
 
 #define NR_BUTTONS 15
 
@@ -236,7 +236,7 @@ const bool GenerateAppIDFromFolder(const wchar_t *search_path, wchar_t *app_id)
 
 	IKnownFolderManager* pkfm = NULL;
 	HRESULT hr = CreateCOMInProc(CLSID_KnownFolderManager,
-				 __uuidof(IKnownFolderManager), (LPVOID*)&pkfm);
+				 __uuidof(IKnownFolderManager), (LPVOID*)&pkfm, FALSE);
 	if (SUCCEEDED(hr))
 	{
 		IKnownFolder* pFolder = NULL;
@@ -807,6 +807,11 @@ void __cdecl MessageProc(HWND hWnd, const UINT uMsg, const WPARAM wParam, const 
 		{
 			case IPC_PLAYING_FILEW:
 			{
+				if (closing)
+				{
+					break;
+				}
+
 				Settings.play_playlistpos = GetPlaylistPosition();
 
 				EnterCriticalSection(&metadata_cs);
@@ -2525,7 +2530,7 @@ LRESULT CALLBACK TabHandler_Thumbnail(HWND hwnd, UINT Message, WPARAM wParam, LP
 
 					// CoCreate the dialog object.
 					if (SUCCEEDED(CreateCOMInProc(CLSID_FileOpenDialog,
-						__uuidof(IFileDialog), (LPVOID*)&pfd)) && pfd)
+						__uuidof(IFileDialog), (LPVOID*)&pfd, FALSE)) && pfd)
 					{
 						// Show the dialog
 						wchar_t tmp[128]/* = { 0 }*/, tmp2[128]/* = { 0 }*/;

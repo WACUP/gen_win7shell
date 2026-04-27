@@ -28,7 +28,7 @@ bool iTaskBar::Reset()
 	}
 
 	HRESULT hr = CreateCOMInProc(CLSID_TaskbarList, IID_ITaskbarList,
-									reinterpret_cast<void**>(&pTBL));
+							 reinterpret_cast<void**>(&pTBL), FALSE);
 	if (!SUCCEEDED(hr) || !pTBL)
 	{
 		return false;

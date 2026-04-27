@@ -145,8 +145,7 @@ namespace tools
 		if (ppsl && filename && *filename)
 		{
 			IShellLink *psl = NULL;
-			HRESULT hr = CreateCOMInProc(CLSID_ShellLink,
-						 __uuidof(IShellLink), (LPVOID*)&psl);
+			HRESULT hr = CreateCOMInProc(CLSID_ShellLink, __uuidof(IShellLink), (LPVOID*)&psl, FALSE);
 			if (SUCCEEDED(hr) && psl)
 			{
 				// due to how WACUP works, a wacup.exe or
